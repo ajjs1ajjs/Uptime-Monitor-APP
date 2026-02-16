@@ -23,6 +23,7 @@ Project.code-workspace
 *.db
 *.zip
 *.rar
+port.txt
 
 # Бінарні файли
 UptimeMonitor.exe
