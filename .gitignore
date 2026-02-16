@@ -3,6 +3,7 @@
 Lib/
 Scripts/
 pyvenv.cfg
+.env
 
 # Тимчасові файли Python
 __pycache__/
