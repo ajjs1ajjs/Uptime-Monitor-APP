@@ -1,0 +1,28 @@
+# Віртуальне середовище
+.venv/
+Lib/
+Scripts/
+pyvenv.cfg
+
+# Тимчасові файли Python
+__pycache__/
+*.py[cod]
+
+# Складання та дистрибутиви
+build/
+dist/
+*.spec
+
+# Налаштування IDE
+.vscode/
+.opencode/
+Project.code-workspace
+
+# Бази даних та архіви
+*.db
+*.zip
+*.rar
+
+# Бінарні файли
+UptimeMonitor.exe
+get-pip.py
