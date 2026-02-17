@@ -1,6 +1,68 @@
 # Uptime Monitor
 
-Веб-додаток для моніторингу доступності сайтів з підтримкою 6 каналів сповіщень (Telegram, Teams, Discord, Slack, Email, SMS).
+[![GitHub release](https://img.shields.io/github/release/ajjs1ajjs/Uptime-Monitor-APP.svg)](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
+[![Codecov](https://codecov.io/gh/ajjs1ajjs/Uptime-Monitor-APP/branch/main/graph/badge.svg)](https://codecov.io/gh/ajjs1ajjs/Uptime-Monitor-APP)
+[![Docker](https://img.shields.io/badge/ghcr.io-ajjs1ajjs%2Fuptime--monitor-blue)](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/pkgs/container/uptime-monitor-app)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Website uptime monitoring service with multi-channel notifications and SSL certificate tracking.
+
+**Features:**
+- Monitor multiple websites and endpoints
+- SSL certificate expiration tracking
+- Multi-channel notifications (Telegram, Email, Slack, Discord, Teams, SMS)
+- Web-based dashboard
+- REST API
+- Cross-platform (Linux, Windows, Docker)
+
+## Quick Start
+
+### Linux (CURL) - Recommended
+
+```bash
+# Install latest version
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
+
+# Install with custom port
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash -s -- --port 9090
+
+# Install specific version
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash -s -- --version v1.0.0
+```
+
+### Linux (APT)
+
+```bash
+# Add repository
+curl -fsSL https://ajjs1ajjs.github.io/Uptime-Monitor-APP/KEY.gpg | sudo gpg --dearmor -o /usr/share/keyrings/uptime-monitor.gpg
+echo "deb [signed-by=/usr/share/keyrings/uptime-monitor.gpg] https://ajjs1ajjs.github.io/Uptime-Monitor-APP stable main" | sudo tee /etc/apt/sources.list.d/uptime-monitor.list
+
+# Install
+sudo apt update && sudo apt install uptime-monitor
+
+# Start
+sudo systemctl start uptime-monitor
+```
+
+### Docker
+
+```bash
+# Pull and run
+docker run -d -p 8080:8080 -v uptime-data:/var/lib/uptime-monitor ghcr.io/ajjs1ajjs/uptime-monitor:latest
+```
+
+### Windows
+
+1. Download `uptime-monitor-vX.X.X-windows.zip` from [Releases](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
+2. Extract to desired location
+3. Run `install.bat` as Administrator
+
+## Default Credentials
+
+- **Username:** `admin`
+- **Password:** `admin`
+
+**Change password after first login!**
 
 ## Структура проекту
 
