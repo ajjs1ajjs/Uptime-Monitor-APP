@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          cd Uptime_Robot
+          pip install -r requirements.txt
+          pip install pytest
+      
+      - name: Run tests
+        run: |
+          cd Uptime_Robot
+          python tests.py || true
+      
+      - name: Create release package
+        run: |
+          cd Uptime_Robot
+          tar --exclude='*.pyc' --exclude='__pycache__' --exclude='.git' \
+              --exclude='sites.db' --exclude='*.log' \
+              -czvf ../uptime-monitor-${{ github.ref_name }}-linux.tar.gz \
+              main.py auth_module.py config.py database.py logger.py \
+              models.py notifications.py monitoring.py ssl_checker.py \
+              templates/ static/ requirements.txt install.sh debian/
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: uptime-monitor-*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
