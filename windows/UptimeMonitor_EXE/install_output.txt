@@ -1,0 +1,29 @@
+=========================================
+   Install Uptime Monitor (Task Scheduler)
+=========================================
+
+Stopping any existing services...
+
+Creating scheduled task with proper working directory...
+SUCCESS: The scheduled task "UptimeMonitor" has successfully been created.
+
+Creating sites.db if not exists...
+
+Creating port configuration...
+
+Starting service...
+SUCCESS: Attempted to run the scheduled task "UptimeMonitor".
+
+=========================================
+   Installation Complete!
+=========================================
+
+Access: http://localhost:8080
+Install Path: D:\Project\Uptime_Robot\UptimeMonitor_EXE
+
+To check status: schtasks /query /tn "UptimeMonitor"
+To stop: schtasks /end /tn "UptimeMonitor"
+To start: schtasks /run /tn "UptimeMonitor"
+To uninstall: schtasks /delete /tn "UptimeMonitor" /f
+
+Press any key to continue . . . 
