@@ -1321,33 +1321,34 @@ async def monitor_loop():
         
         await asyncio.sleep(CHECK_INTERVAL)
 
-class UptimeMonitorService(win32serviceutil.ServiceFramework):
-    _svc_name_ = "UptimeMonitor"
-    _svc_display_name_ = "Uptime Monitor Service"
-    
-    def __init__(self, args):
-        win32serviceutil.ServiceFramework.__init__(self, args)
-        self.stop_event = win32event.CreateEvent(None, 0, 0, None)
+if IS_WINDOWS:
+    class UptimeMonitorService(win32serviceutil.ServiceFramework):
+        _svc_name_ = "UptimeMonitor"
+        _svc_display_name_ = "Uptime Monitor Service"
         
-    def SvcStop(self):
-        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-        win32event.SetEvent(self.stop_event)
-        
-    def SvcDoRun(self):
-        servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE, servicemanager.PYS_SERVICE_STARTED, (self._svc_name_, ''))
-        
-        import uvicorn
-        import threading
-        
-        monitor_thread = threading.Thread(target=lambda: asyncio.run(monitor_loop()), daemon=True)
-        monitor_thread.start()
-        
-        uvicorn.run(app, host="0.0.0.0", port=port, log_level="error")
-        
-        win32event.WaitForSingleObject(self.stop_event, win32event.INFINITE)
+        def __init__(self, args):
+            win32serviceutil.ServiceFramework.__init__(self, args)
+            self.stop_event = win32event.CreateEvent(None, 0, 0, None)
+            
+        def SvcStop(self):
+            self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+            win32event.SetEvent(self.stop_event)
+            
+        def SvcDoRun(self):
+            servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE, servicemanager.PYS_SERVICE_STARTED, (self._svc_name_, ''))
+            
+            import uvicorn
+            import threading
+            
+            monitor_thread = threading.Thread(target=lambda: asyncio.run(monitor_loop()), daemon=True)
+            monitor_thread.start()
+            
+            uvicorn.run(app, host="0.0.0.0", port=port, log_level="error")
+            
+            win32event.WaitForSingleObject(self.stop_event, win32event.INFINITE)
 
-def run_service():
-    win32serviceutil.HandleCommandLine(UptimeMonitorService)
+    def run_service():
+        win32serviceutil.HandleCommandLine(UptimeMonitorService)
 
 # ============ AUTH ROUTES ============
 
