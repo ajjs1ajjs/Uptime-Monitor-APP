@@ -95,7 +95,7 @@ echo -e "${BLUE}Installing system dependencies...${NC}"
 case "$OS" in
     "Ubuntu"|"Debian GNU/Linux")
         apt-get update -qq
-        apt-get install -y -qq python3-pip python3-venv sqlite3 curl > /dev/null
+        apt-get update && apt-get install -y -qq python3-pip python3-venv sqlite3 curl
         ;;
     "CentOS Linux"|"Red Hat Enterprise Linux"|"Fedora")
         yum install -y -q python3-pip sqlite curl > /dev/null 2>&1 || \
