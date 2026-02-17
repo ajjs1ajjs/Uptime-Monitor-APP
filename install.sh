@@ -118,15 +118,14 @@ fi
 echo -e "${BLUE}Creating directories...${NC}"
 mkdir -p "$INSTALL_DIR" "$CONFIG_DIR" "$DATA_DIR" "$LOG_DIR"
 
-# Download from source archive
-echo -e "${BLUE}Downloading version $APP_VERSION...${NC}"
+# Download from source archive (always use main branch for latest fixes)
+echo -e "${BLUE}Downloading from GitHub main branch...${NC}"
 cd /tmp
-DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/tags/$APP_VERSION.tar.gz"
+DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/heads/main.tar.gz"
 
 if ! curl -fsSL "$DOWNLOAD_URL" -o uptime-monitor.tar.gz 2>/dev/null; then
-    echo -e "${YELLOW}Tag not found, using main branch...${NC}"
-    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/heads/main.tar.gz"
-    curl -fsSL "$DOWNLOAD_URL" -o uptime-monitor.tar.gz
+    echo -e "${RED}Error: Failed to download from GitHub${NC}"
+    exit 1
 fi
 
 echo -e "${BLUE}Extracting...${NC}"
