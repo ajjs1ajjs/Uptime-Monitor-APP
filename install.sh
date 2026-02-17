@@ -166,8 +166,10 @@ if [ -d "$SRC_DIR/static" ]; then
     cp -r "$SRC_DIR/static" "$INSTALL_DIR/"
 fi
 
-# Copy requirements
-if [ -f "$SRC_DIR/requirements.txt" ]; then
+# Copy requirements (prefer Linux-specific file on Linux)
+if [ -f "$SRC_DIR/requirements-linux.txt" ]; then
+    cp "$SRC_DIR/requirements-linux.txt" "$INSTALL_DIR/requirements.txt"
+elif [ -f "$SRC_DIR/requirements.txt" ]; then
     cp "$SRC_DIR/requirements.txt" "$INSTALL_DIR/"
 fi
 
