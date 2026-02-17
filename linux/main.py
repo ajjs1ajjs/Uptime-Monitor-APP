@@ -2,8 +2,20 @@ import sys
 import os
 import json
 
+# Windows-specific imports (only on Windows)
+IS_WINDOWS = sys.platform == 'win32'
+if IS_WINDOWS:
+    import win32service
+    import win32serviceutil
+    import win32con
+    import win32event
+    import servicemanager
+
 # Get the application directory
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
+if getattr(sys, 'frozen', False):
+    APP_DIR = os.path.dirname(sys.executable)
+else:
+    APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Get port from file if exists, otherwise use default
 port = 8080
