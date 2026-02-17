@@ -1,11 +1,30 @@
-import hashlib
+import bcrypt
 import secrets
 import functools
+import os
+import sys
 from fastapi import Request, HTTPException, Form
 from fastapi.responses import RedirectResponse, HTMLResponse
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 import sqlite3
 import json
 from datetime import datetime, timedelta
+
+# Ініціалізація Jinja2
+if getattr(sys, 'frozen', False):
+    template_dir = os.path.join(os.path.dirname(sys.executable), 'templates')
+else:
+    template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
+
+env = Environment(
+    loader=FileSystemLoader(template_dir),
+    autoescape=select_autoescape(['html', 'xml'])
+)
+
+def render_template(template_name: str, **context) -> str:
+    """Рендерить Jinja2 шаблон"""
+    template = env.get_template(template_name)
+    return template.render(**context)
 
 # Ініціалізація таблиці користувачів
 def init_auth_tables(db_path):
@@ -35,8 +54,8 @@ def init_auth_tables(db_path):
     # Створюємо дефолтного адміна якщо немає
     c.execute("SELECT id FROM users WHERE username = 'admin'")
     if not c.fetchone():
-        # Пароль: admin
-        password_hash = hashlib.sha256('admin'.encode()).hexdigest()
+        # Пароль: admin (хешується через bcrypt)
+        password_hash = hash_password('admin')
         c.execute("INSERT INTO users (username, password_hash, is_admin, must_change_password, created_at) VALUES (?, ?, 1, 1, ?)",
                  ('admin', password_hash, datetime.now().isoformat()))
         print("Default user created: admin / admin")
@@ -45,8 +64,17 @@ def init_auth_tables(db_path):
     conn.close()
 
 def hash_password(password: str) -> str:
-    """Хешує пароль"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Хешує пароль використовуючи bcrypt"""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+def verify_password(password: str, password_hash: str) -> bool:
+    """Перевіряє пароль проти хешу"""
+    try:
+        return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
+    except (ValueError, TypeError):
+        # Невалідний хеш (наприклад, старий SHA256)
+        return False
 
 def create_session(user_id: int, db_path: str) -> str:
     """Створює сесію і повертає session_id"""

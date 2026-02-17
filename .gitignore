@@ -8,7 +8,7 @@ pyvenv.cfg
 # Тимчасові файли Python
 __pycache__/
 *.py[cod]
-
+null
 # Складання та дистрибутиви
 build/
 dist/

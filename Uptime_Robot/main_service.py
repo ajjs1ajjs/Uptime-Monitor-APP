@@ -238,7 +238,7 @@ async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
     
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers=headers, ssl=False, allow_redirects=True) as response:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers=headers, allow_redirects=True) as response:
                 status_code = response.status
                 response_time = (datetime.now() - start_time).total_seconds() * 1000
                 status = "up" if status_code < 500 else "down"
@@ -259,6 +259,10 @@ async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
     c.execute("""INSERT INTO status_history (site_id, status, status_code, response_time, error_message, checked_at)
                  VALUES (?, ?, ?, ?, ?, ?)""",
               (site_id, status, status_code, round(response_time, 2) if response_time else None, error_message, checked_at))
+    
+    # Очищення старих записів (старші за 30 днів)
+    c.execute("DELETE FROM status_history WHERE checked_at < datetime('now', '-30 days')")
+    
     conn.commit()
     
     if status == "down" and site and notify_methods:
@@ -890,6 +894,9 @@ async def update_site(site_id: int, site_update: SiteUpdate):
     conn = get_db_connection()
     c = conn.cursor()
     
+    # Список дозволених колонок для оновлення
+    allowed_columns = {'name', 'url', 'notify_methods', 'is_active'}
+    
     updates = []
     params = []
     if site_update.name is not None:
@@ -906,6 +913,13 @@ async def update_site(site_id: int, site_update: SiteUpdate):
         params.append(site_update.is_active)
     
     if updates:
+        # Перевіряємо що всі колонки дозволені (захист від SQL Injection)
+        for update in updates:
+            col_name = update.split('=')[0].strip()
+            if col_name not in allowed_columns:
+                conn.close()
+                raise HTTPException(status_code=400, detail=f"Invalid column: {col_name}")
+        
         params.append(site_id)
         c.execute(f"UPDATE sites SET {', '.join(updates)} WHERE id = ?", params)
         conn.commit()
