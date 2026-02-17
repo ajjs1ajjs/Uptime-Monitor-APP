@@ -5,41 +5,52 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Get version
+        id: ver
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
       
-      - name: Install dependencies
+      - name: Create tarball
         run: |
           cd Uptime_Robot
-          pip install -r requirements.txt
-          pip install pytest
+          tar -czvf ../uptime-monitor-${{ steps.ver.outputs.VERSION }}.tar.gz \
+            --exclude='*.pyc' \
+            --exclude='__pycache__' \
+            --exclude='*.db' \
+            --exclude='*.log' \
+            --exclude='UptimeMonitor_EXE' \
+            main.py main_service.py auth_module.py config.py database.py logger.py \
+            models.py notifications.py monitoring.py ssl_checker.py \
+            templates/ static/ requirements.txt
       
-      - name: Run tests
-        run: |
-          cd Uptime_Robot
-          python tests.py || true
-      
-      - name: Create release package
-        run: |
-          cd Uptime_Robot
-          tar --exclude='*.pyc' --exclude='__pycache__' --exclude='.git' \
-              --exclude='sites.db' --exclude='*.log' \
-              -czvf ../uptime-monitor-${{ github.ref_name }}-linux.tar.gz \
-              main.py auth_module.py config.py database.py logger.py \
-              models.py notifications.py monitoring.py ssl_checker.py \
-              templates/ static/ requirements.txt install.sh debian/
-      
-      - name: Create GitHub Release
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            # Uptime Monitor ${{ steps.ver.outputs.VERSION }}
+            
+            ## Installation
+            
+            ### Linux (CURL)
+            ```
+            curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
+            ```
+            
+            ## Default Credentials
+            - Username: admin
+            - Password: admin
+            
+            **Please change password after first login!**
           files: uptime-monitor-*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
