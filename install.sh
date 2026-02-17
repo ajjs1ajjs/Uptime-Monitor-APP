@@ -179,10 +179,19 @@ echo -e "${BLUE}Creating virtual environment...${NC}"
 cd "$INSTALL_DIR"
 $PYTHON_CMD -m venv venv
 
-# Install Python dependencies in venv
+ # Install Python dependencies in venv
 echo -e "${BLUE}Installing Python dependencies...${NC}"
+cd "$INSTALL_DIR"
+$PYTHON_CMD -m venv venv
+
+# Install Python dependencies in venv
+echo -e "${BLUE}Installing Python packages...${NC}"
 ./venv/bin/pip install --upgrade pip > /dev/null
-./venv/bin/pip install -r requirements.txt
+if [ -f "requirements-linux.txt" ]; then
+    ./venv/bin/pip install -r requirements-linux.txt
+elif [ -f "requirements.txt" ]; then
+    ./venv/bin/pip install -r requirements.txt
+fi
 
 # Create configuration
 echo -e "${BLUE}Creating configuration...${NC}"
