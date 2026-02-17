@@ -171,6 +171,8 @@ if [ -f "$SRC_DIR/requirements-linux.txt" ]; then
     cp "$SRC_DIR/requirements-linux.txt" "$INSTALL_DIR/requirements.txt"
 elif [ -f "$SRC_DIR/requirements.txt" ]; then
     cp "$SRC_DIR/requirements.txt" "$INSTALL_DIR/"
+    # Remove Windows-specific packages on Linux
+    sed -i '/pywin32/d' "$INSTALL_DIR/requirements.txt"
 fi
 
 # Create virtual environment
