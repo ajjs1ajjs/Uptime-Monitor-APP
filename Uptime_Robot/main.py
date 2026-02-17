@@ -1,11 +1,15 @@
 import sys
 import os
 import json
-import win32service
-import win32serviceutil
-import win32con
-import win32event
-import servicemanager
+
+# Windows-specific imports (only on Windows)
+IS_WINDOWS = sys.platform == 'win32'
+if IS_WINDOWS:
+    import win32service
+    import win32serviceutil
+    import win32con
+    import win32event
+    import servicemanager
 
 # Get the application directory (works for both script and compiled EXE)
 if getattr(sys, 'frozen', False):
