@@ -118,29 +118,21 @@ fi
 echo -e "${BLUE}Creating directories...${NC}"
 mkdir -p "$INSTALL_DIR" "$CONFIG_DIR" "$DATA_DIR" "$LOG_DIR"
 
-# Detect latest version
+# Set default version if not specified
 if [ -z "$VERSION" ]; then
-    echo -e "${BLUE}Detecting latest version...${NC}"
-    VERSION=$(curl -s "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | \
-              grep '"tag_name":' | \
-              sed -E 's/.*"([^"]+)".*/\1/')
-    
-    if [ -z "$VERSION" ]; then
-        VERSION="v1.0.0"
-        echo -e "${YELLOW}Could not detect version, using: $VERSION${NC}"
-    else
-        echo -e "${GREEN}Latest version: $VERSION${NC}"
-    fi
+    VERSION="v1.0.0"
 fi
 
-# Download and extract
-echo -e "${BLUE}Downloading $VERSION...${NC}"
+echo -e "${YELLOW}Installing version: $VERSION${NC}"
+
+# Download from source archive
+echo -e "${BLUE}Downloading from GitHub...${NC}"
 cd /tmp
-DOWNLOAD_URL="https://github.com/$GITHUB_REPO/releases/download/$VERSION/uptime-monitor-$VERSION-linux.tar.gz"
+DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/tags/$VERSION.tar.gz"
 
 if ! curl -fsSL "$DOWNLOAD_URL" -o uptime-monitor.tar.gz; then
-    echo -e "${YELLOW}Package not found, downloading from source...${NC}"
-    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/tags/$VERSION.tar.gz"
+    echo -e "${YELLOW}Tag not found, using main branch...${NC}"
+    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/heads/main.tar.gz"
     curl -fsSL "$DOWNLOAD_URL" -o uptime-monitor.tar.gz
 fi
 
@@ -148,31 +140,38 @@ echo -e "${BLUE}Extracting...${NC}"
 tar -xzf uptime-monitor.tar.gz
 
 # Find extracted directory
-EXTRACT_DIR=$(find . -maxdepth 1 -type d -name "uptime-monitor*" -o -name "Uptime-Monitor*" | head -1)
+EXTRACT_DIR=$(find . -maxdepth 1 -type d -name "Uptime-Monitor*" | head -1)
 
 if [ -z "$EXTRACT_DIR" ]; then
     echo -e "${RED}Error: Could not find extracted files${NC}"
     exit 1
 fi
 
-# Install files
+echo -e "${BLUE}Found: $EXTRACT_DIR${NC}"
+
+# Install files from Uptime_Robot subdirectory
 echo -e "${BLUE}Installing application...${NC}"
-if [ -d "$EXTRACT_DIR/src" ]; then
-    cp -r "$EXTRACT_DIR/src/"* "$INSTALL_DIR/"
+if [ -d "$EXTRACT_DIR/Uptime_Robot" ]; then
+    SRC_DIR="$EXTRACT_DIR/Uptime_Robot"
 else
-    cp -r "$EXTRACT_DIR/"* "$INSTALL_DIR/"
+    SRC_DIR="$EXTRACT_DIR"
 fi
 
-if [ -d "$EXTRACT_DIR/templates" ]; then
-    cp -r "$EXTRACT_DIR/templates" "$INSTALL_DIR/"
+# Copy Python files
+cp "$SRC_DIR"/*.py "$INSTALL_DIR/" 2>/dev/null || true
+
+# Copy templates and static
+if [ -d "$SRC_DIR/templates" ]; then
+    cp -r "$SRC_DIR/templates" "$INSTALL_DIR/"
 fi
 
-if [ -d "$EXTRACT_DIR/static" ]; then
-    cp -r "$EXTRACT_DIR/static" "$INSTALL_DIR/"
+if [ -d "$SRC_DIR/static" ]; then
+    cp -r "$SRC_DIR/static" "$INSTALL_DIR/"
 fi
 
-if [ -f "$EXTRACT_DIR/requirements.txt" ]; then
-    cp "$EXTRACT_DIR/requirements.txt" "$INSTALL_DIR/"
+# Copy requirements
+if [ -f "$SRC_DIR/requirements.txt" ]; then
+    cp "$SRC_DIR/requirements.txt" "$INSTALL_DIR/"
 fi
 
 # Install Python dependencies
