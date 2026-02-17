@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uptime Monitor - Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .header {
+            background: rgba(22, 33, 62, 0.95);
+            padding: 20px 40px;
+            border-bottom: 1px solid #2a2a4a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 28px;
+            color: #00d9ff;
+        }
+        .header .info {
+            color: #a0a0b0;
+            font-size: 14px;
+        }
+        .container {
+            padding: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .stat-card {
+            background: #16213e;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #2a2a4a;
+            text-align: center;
+        }
+        .stat-card h3 {
+            color: #a0a0b0;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .stat-card .value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .stat-card.up .value { color: #00ff88; }
+        .stat-card.down .value { color: #ff4757; }
+        .stat-card.total .value { color: #00d9ff; }
+        
+        .section {
+            background: #16213e;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #2a2a4a;
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            color: #00d9ff;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        .sites-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        .site-card {
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #2a2a4a;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .site-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+        .site-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .site-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .site-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .site-status.up {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+        .site-status.down {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+        }
+        .site-url {
+            color: #a0a0b0;
+            font-size: 13px;
+            margin-bottom: 15px;
+            word-break: break-all;
+        }
+        .site-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 12px;
+            color: #a0a0b0;
+        }
+        .site-details div {
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+        }
+        .site-details strong {
+            color: #00d9ff;
+        }
+        .site-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #00d9ff 0%, #00a8cc 100%);
+            color: #000;
+            font-weight: 600;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 10px rgba(0, 217, 255, 0.3);
+        }
+        .btn-danger {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+            border: 1px solid rgba(255, 71, 87, 0.3);
+        }
+        .btn-danger:hover {
+            background: rgba(255, 71, 87, 0.3);
+        }
+        
+        .certs-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .certs-table th {
+            text-align: left;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            color: #00d9ff;
+            font-weight: 600;
+        }
+        .certs-table td {
+            padding: 12px;
+            border-bottom: 1px solid #2a2a4a;
+            color: #a0a0b0;
+        }
+        .certs-table tr:hover {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        .cert-days {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .cert-days.warning {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+        .cert-days.danger {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+        }
+        .cert-days.safe {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+        
+        .notification-settings {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .notify-card {
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #2a2a4a;
+        }
+        .notify-card h3 {
+            color: #00d9ff;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        .notify-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #2a2a4a;
+        }
+        .notify-item:last-child {
+            border-bottom: none;
+        }
+        .notify-item label {
+            color: #a0a0b0;
+            font-size: 13px;
+        }
+        .notify-item input[type="text"],
+        .notify-item input[type="password"] {
+            width: 150px;
+            padding: 8px;
+            border: 1px solid #2a2a4a;
+            background: #0f0f23;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        
+        .add-site-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .form-group label {
+            color: #a0a0b0;
+            font-size: 13px;
+        }
+        .form-group input {
+            padding: 10px;
+            border: 1px solid #2a2a4a;
+            background: #0f0f23;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        
+        .message {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #a0a0b0;
+            font-size: 12px;
+            border-top: 1px solid #2a2a4a;
+            margin-top: 40px;
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                padding: 15px 20px;
+            }
+            .container {
+                padding: 20px;
+            }
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Uptime Monitor</h1>
+        <div class="info">
+            Access: {{ display_address }} | IP: {{ local_ip }}:{{ port }}
+        </div>
+    </div>
+    
+    <div class="container">
+        {% if message %}
+        <div class="message">{{ message }}</div>
+        {% endif %}
+        
+        <div class="stats">
+            <div class="stat-card total">
+                <h3>Total Sites</h3>
+                <div class="value">{{ total_sites }}</div>
+            </div>
+            <div class="stat-card up">
+                <h3>Up Sites</h3>
+                <div class="value">{{ up_sites }}</div>
+            </div>
+            <div class="stat-card down">
+                <h3>Down Sites</h3>
+                <div class="value">{{ down_sites }}</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Add New Site</h2>
+            <form action="/api/sites" method="POST" class="add-site-form">
+                <div class="form-group">
+                    <label for="name">Site Name</label>
+                    <input type="text" id="name" name="name" required placeholder="My Website">
+                </div>
+                <div class="form-group">
+                    <label for="url">URL</label>
+                    <input type="text" id="url" name="url" required placeholder="https://example.com">
+                </div>
+                <div class="form-group">
+                    <label for="notify_methods">Notification Methods</label>
+                    <input type="text" id="notify_methods" name="notify_methods" placeholder="telegram,email">
+                </div>
+                <button type="submit" class="btn btn-primary">Add Site</button>
+            </form>
+        </div>
+        
+        <div class="section">
+            <h2>Monitored Sites</h2>
+            <div class="sites-grid">
+                {% for site in sites %}
+                <div class="site-card">
+                    <div class="site-header">
+                        <div class="site-name">{{ site.name }}</div>
+                        <div class="site-status {{ site.status }}">
+                            {{ site.status.upper() }}
+                        </div>
+                    </div>
+                    <div class="site-url">{{ site.url }}</div>
+                    <div class="site-details">
+                        <div>
+                            <strong>Status Code:</strong> {{ site.status_code or 'N/A' }}
+                        </div>
+                        <div>
+                            <strong>Response Time:</strong> {{ site.response_time or 'N/A' }}ms
+                        </div>
+                        <div>
+                            <strong>Last Checked:</strong> {{ site.last_checked or 'N/A' }}
+                        </div>
+                        <div>
+                            <strong>Uptime:</strong> {{ site.uptime or '0' }}%
+                        </div>
+                    </div>
+                    <div class="site-actions">
+                        <button class="btn btn-primary" onclick="manualCheck({{ site.id }})">Check Now</button>
+                        <button class="btn btn-danger" onclick="deleteSite({{ site.id }})">Delete</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>SSL Certificates</h2>
+            <table class="certs-table">
+                <thead>
+                    <tr>
+                        <th>Site</th>
+                        <th>Issuer</th>
+                        <th>Expires</th>
+                        <th>Days Remaining</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cert in certs %}
+                    <tr>
+                        <td>{{ cert.site_name }}</td>
+                        <td>{{ cert.issuer }}</td>
+                        <td>{{ cert.expires_at }}</td>
+                        <td>
+                            <span class="cert-days {% if cert.days_remaining <= 30 %}danger{% elif cert.days_remaining <= 90 %}warning{% else %}safe{% endif %}">
+                                {{ cert.days_remaining }} days
+                            </span>
+                        </td>
+                        <td>
+                            {% if cert.valid %}
+                            <span style="color: #00ff88;">Valid</span>
+                            {% else %}
+                            <span style="color: #ff4757;">Invalid</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h2>Notification Settings</h2>
+            <div class="notification-settings">
+                {% for provider, settings in notify_config_json.items() %}
+                <div class="notify-card">
+                    <h3>{{ provider.capitalize() }}</h3>
+                    {% for key, value in settings.items() %}
+                    {% if key != 'enabled' %}
+                    <div class="notify-item">
+                        <label>{{ key.replace('_', ' ').capitalize() }}</label>
+                        <input type="text" name="{{ provider }}_{{ key }}" value="{{ value }}" placeholder="{{ key }}">
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            <form action="/api/notify-settings" method="POST" style="margin-top: 20px;">
+                <button type="submit" class="btn btn-primary">Save Settings</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="footer">
+        Uptime Monitor v1.0.0 | FastAPI-based monitoring service
+    </div>
+    
+    <script>
+        async function manualCheck(siteId) {
+            if (!confirm('Start manual check for this site?')) return;
+            
+            try {
+                const response = await fetch(`/api/sites/${siteId}/check`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.status === 'up') {
+                    alert(`Site is UP! Response time: ${data.time}ms`);
+                } else {
+                    alert(`Site is DOWN! Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert('Error checking site: ' + error.message);
+            }
+        }
+        
+        async function deleteSite(siteId) {
+            if (!confirm('Are you sure you want to delete this site?')) return;
+            
+            try {
+                const response = await fetch(`/api/sites/${siteId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    alert('Site deleted successfully');
+                    location.reload();
+                } else {
+                    alert('Error deleting site');
+                }
+            } catch (error) {
+                alert('Error deleting site: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

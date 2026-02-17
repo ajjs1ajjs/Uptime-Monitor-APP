@@ -654,6 +654,44 @@ async def change_password(request: Request, current_password: str = Form(...), n
     else:
         return RedirectResponse(url='/change-password?error=Помилка при зміні пароля', status_code=302)
 
+@app.get("/reset-password", response_class=HTMLResponse)
+async def reset_password_page(request: Request, error: str = None):
+    """Сторінка скидання пароля"""
+    session_id = request.cookies.get('session_id')
+    user = auth_module.validate_session(session_id, DB_PATH)
+    
+    if not user:
+        return RedirectResponse(url='/login', status_code=302)
+    
+    return auth_module.render_template('reset_password.html', error_message=error)
+
+@app.post("/reset-password")
+async def reset_password(request: Request, username: str = Form(...), new_password: str = Form(...), confirm_password: str = Form(...)):
+    """Обробка скидання пароля"""
+    session_id = request.cookies.get('session_id')
+    user = auth_module.validate_session(session_id, DB_PATH)
+    
+    if not user:
+        return RedirectResponse(url='/login', status_code=302)
+    
+    # Перевіряємо чи користувач є адміністратором
+    if not user.get('is_admin'):
+        return RedirectResponse(url='/reset-password?error=Доступ заборонено', status_code=302)
+    
+    # Перевіряємо чи паролі співпадають
+    if new_password != confirm_password:
+        return RedirectResponse(url='/reset-password?error=Паролі не співпадають', status_code=302)
+    
+    # Перевіряємо довжину пароля
+    if len(new_password) < 6:
+        return RedirectResponse(url='/reset-password?error=Пароль має бути не менше 6 символів', status_code=302)
+    
+    # Скидаємо пароль
+    if auth_module.reset_password(username, new_password, DB_PATH):
+        return RedirectResponse(url='/?message=Пароль скинуто успішно', status_code=302)
+    else:
+        return RedirectResponse(url='/reset-password?error=Помилка при скиданні пароля', status_code=302)
+
 @app.get("/api/user")
 async def get_user(request: Request):
     """Отримати поточного користувача"""

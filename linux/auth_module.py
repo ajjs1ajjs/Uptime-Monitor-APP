@@ -152,6 +152,35 @@ def change_password(user_id: int, new_password: str, db_path: str) -> bool:
         print(f"Error changing password: {e}")
         return False
 
+def reset_password(username: str, new_password: str, db_path: str) -> bool:
+    """Скидає пароль користувача (для адміністратора)"""
+    try:
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        password_hash = hash_password(new_password)
+        c.execute("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE username = ?",
+                 (password_hash, username))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error resetting password: {e}")
+        return False
+
+def get_user_by_username(username: str, db_path: str) -> dict:
+    """Отримує користувача за іменем"""
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM users WHERE username = ?", (username,))
+        user = c.fetchone()
+        conn.close()
+        return dict(user) if user else None
+    except Exception as e:
+        print(f"Error getting user: {e}")
+        return None
+
 # Login page HTML
 LOGIN_HTML = '''<!DOCTYPE html>
 <html lang="uk">
