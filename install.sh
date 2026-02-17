@@ -17,6 +17,7 @@ DATA_DIR="/var/lib/uptime-monitor"
 LOG_DIR="/var/log/uptime-monitor"
 SERVICE_NAME="uptime-monitor"
 USER="uptime-monitor"
+APP_VERSION="v1.0.0"
 
 echo -e "${GREEN}"
 echo "=========================================="
@@ -32,7 +33,6 @@ fi
 
 # Parse arguments
 PORT=8080
-VERSION=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -41,7 +41,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --version)
-            VERSION="$2"
+            APP_VERSION="$2"
             shift 2
             ;;
         --help)
@@ -63,14 +63,14 @@ done
 # Detect OS
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    OS=$NAME
-    VER=$VERSION_ID
+    OS_NAME=$NAME
+    OS_VERSION=$VERSION_ID
 else
     echo -e "${RED}Error: Cannot detect OS${NC}"
     exit 1
 fi
 
-echo -e "${YELLOW}Detected OS: $OS $VER${NC}"
+echo -e "${YELLOW}Detected OS: $OS_NAME $OS_VERSION${NC}"
 
 # Check Python version
 PYTHON_CMD=""
@@ -87,22 +87,22 @@ else
     exit 1
 fi
 
-PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
-echo -e "${YELLOW}Using Python: $PYTHON_VERSION${NC}"
+PYTHON_VER=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
+echo -e "${YELLOW}Using Python: $PYTHON_VER${NC}"
 
 # Install system dependencies
 echo -e "${BLUE}Installing system dependencies...${NC}"
-case "$OS" in
+case "$OS_NAME" in
     "Ubuntu"|"Debian GNU/Linux")
         apt-get update -qq
-        apt-get install -y -qq python3-pip python3-venv sqlite3 curl > /dev/null
+        apt-get install -y -qq python3-pip python3-venv python3-full sqlite3 curl > /dev/null
         ;;
     "CentOS Linux"|"Red Hat Enterprise Linux"|"Fedora")
         yum install -y -q python3-pip sqlite curl > /dev/null 2>&1 || \
         dnf install -y -q python3-pip sqlite curl > /dev/null 2>&1
         ;;
     *)
-        echo -e "${RED}Unsupported OS: $OS${NC}"
+        echo -e "${RED}Unsupported OS: $OS_NAME${NC}"
         echo "Supported: Ubuntu, Debian, CentOS, RHEL, Fedora"
         exit 1
         ;;
@@ -118,19 +118,12 @@ fi
 echo -e "${BLUE}Creating directories...${NC}"
 mkdir -p "$INSTALL_DIR" "$CONFIG_DIR" "$DATA_DIR" "$LOG_DIR"
 
-# Set default version if not specified
-if [ -z "$VERSION" ]; then
-    VERSION="v1.0.0"
-fi
-
-echo -e "${YELLOW}Installing version: $VERSION${NC}"
-
 # Download from source archive
-echo -e "${BLUE}Downloading from GitHub...${NC}"
+echo -e "${BLUE}Downloading version $APP_VERSION...${NC}"
 cd /tmp
-DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/tags/$VERSION.tar.gz"
+DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/tags/$APP_VERSION.tar.gz"
 
-if ! curl -fsSL "$DOWNLOAD_URL" -o uptime-monitor.tar.gz; then
+if ! curl -fsSL "$DOWNLOAD_URL" -o uptime-monitor.tar.gz 2>/dev/null; then
     echo -e "${YELLOW}Tag not found, using main branch...${NC}"
     DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/heads/main.tar.gz"
     curl -fsSL "$DOWNLOAD_URL" -o uptime-monitor.tar.gz
@@ -158,7 +151,11 @@ else
 fi
 
 # Copy Python files
-cp "$SRC_DIR"/*.py "$INSTALL_DIR/" 2>/dev/null || true
+for f in main.py main_service.py auth_module.py config.py database.py logger.py models.py notifications.py monitoring.py ssl_checker.py; do
+    if [ -f "$SRC_DIR/$f" ]; then
+        cp "$SRC_DIR/$f" "$INSTALL_DIR/"
+    fi
+done
 
 # Copy templates and static
 if [ -d "$SRC_DIR/templates" ]; then
@@ -174,11 +171,15 @@ if [ -f "$SRC_DIR/requirements.txt" ]; then
     cp "$SRC_DIR/requirements.txt" "$INSTALL_DIR/"
 fi
 
-# Install Python dependencies
-echo -e "${BLUE}Installing Python dependencies...${NC}"
+# Create virtual environment
+echo -e "${BLUE}Creating virtual environment...${NC}"
 cd "$INSTALL_DIR"
-$PYTHON_CMD -m pip install -r requirements.txt --break-system-packages 2>/dev/null || \
-$PYTHON_CMD -m pip install -r requirements.txt
+$PYTHON_CMD -m venv venv
+
+# Install Python dependencies in venv
+echo -e "${BLUE}Installing Python dependencies...${NC}"
+./venv/bin/pip install --upgrade pip > /dev/null
+./venv/bin/pip install -r requirements.txt
 
 # Create configuration
 echo -e "${BLUE}Creating configuration...${NC}"
@@ -214,9 +215,9 @@ Type=simple
 User=$USER
 Group=$USER
 WorkingDirectory=$INSTALL_DIR
-Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="PATH=$INSTALL_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="CONFIG_PATH=$CONFIG_DIR/config.json"
-ExecStart=/usr/bin/$PYTHON_CMD $INSTALL_DIR/main.py --port $PORT
+ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/main.py --port $PORT
 Restart=always
 RestartSec=10
 StandardOutput=append:$LOG_DIR/uptime-monitor.log
@@ -259,18 +260,14 @@ systemctl start $SERVICE_NAME
 sleep 3
 if systemctl is-active --quiet $SERVICE_NAME; then
     # Get IP
-    if command -v hostname &> /dev/null; then
-        IP=$(hostname -I | awk '{print $1}')
-    else
-        IP="localhost"
-    fi
+    IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
     
     echo ""
     echo -e "${GREEN}=========================================="
     echo "   Installation Successful!"
     echo "==========================================${NC}"
     echo ""
-    echo -e "  ${GREEN}Version:${NC}     $VERSION"
+    echo -e "  ${GREEN}Version:${NC}     $APP_VERSION"
     echo -e "  ${GREEN}Port:${NC}        $PORT"
     echo -e "  ${GREEN}URL:${NC}         http://$IP:$PORT"
     echo ""
