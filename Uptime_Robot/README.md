@@ -18,6 +18,15 @@ Website uptime monitoring service with multi-channel notifications and SSL certi
 - REST API
 - Cross-platform (Linux, Windows, Docker)
 
+## 📚 Documentation
+
+Quick links to detailed documentation:
+
+- **[Quick Start](../docs/QUICKSTART.md)** - Get running in 5 minutes
+- **[Commands Reference](../docs/COMMANDS.md)** - All commands in one place
+- **[Backup Guide](../docs/BACKUP.md)** - Complete backup instructions
+- **[Troubleshooting](../docs/TROUBLESHOOTING.md)** - Problem solving
+
 ## Quick Start
 
 ### Linux (CURL) - Recommended
