@@ -52,45 +52,95 @@ sudo journalctl -u uptime-monitor -f
 
 ## 🐧 LINUX (APT)
 
-### Крок 1: Додати GPG ключ
+### ⚠️ ВАЖЛИВО: Використовуйте curl-версію замість APT
+
+APT репозиторій зараз не працює через проблему з GPG ключем. Рекомендується використовувати curl-версію встановлення.
+
+### Як оновити версію при встановленні через curl:
+
+#### Оновити до останньої версії:
 
 ```bash
-curl -fsSL https://ajjs1ajjs.github.io/Uptime-Monitor-APP/KEY.gpg | sudo gpg --dearmor -o /usr/share/keyrings/uptime-monitor.gpg
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
 ```
 
-### Крок 2: Додати репозиторій
+#### Встановити конкретну версію:
 
 ```bash
-echo "deb [signed-by=/usr/share/keyrings/uptime-monitor.gpg] https://ajjs1ajjs.github.io/Uptime-Monitor-APP stable main" | sudo tee /etc/apt/sources.list.d/uptime-monitor.list
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash -s -- --version v1.0.0
 ```
 
-### Крок 3: Встановити
+#### Встановити з конкретним портом:
 
 ```bash
-sudo apt update
-sudo apt install uptime-monitor
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash -s -- --port 9090
 ```
 
-### Крок 4: Запустити
+#### Перевірити поточну версію:
 
 ```bash
+systemctl status uptime-monitor | grep "Version"
+```
+
+#### Оновити до останньої версії вручну:
+
+```bash
+# Зупинити сервіс
+sudo systemctl stop uptime-monitor
+
+# Оновити через curl
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
+
+# Запустити сервіс
 sudo systemctl start uptime-monitor
 sudo systemctl enable uptime-monitor
 ```
 
-### Оновлення:
+### Як оновити версію при встановленні через curl (підтримка версій):
+
+1. **Перевірте доступні версії:**
+   - GitHub Releases: https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases
+   - Main branch: завжди містить останні зміни
+
+2. **Встановлення конкретної версії:**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash -s -- --version v1.0.0
+   ```
+
+3. **Автоматичне оновлення:**
+   - Використовуйте скрипт оновлення (якщо буде створено)
+   - Перевіряйте GitHub Releases для нових версій
+
+### Керування сервісом:
 
 ```bash
-sudo apt update
-sudo apt upgrade uptime-monitor
+# Перевірити статус
+sudo systemctl status uptime-monitor
+
+# Запустити
+sudo systemctl start uptime-monitor
+
+# Зупинити
+sudo systemctl stop uptime-monitor
+
+# Перезапустити
+sudo systemctl restart uptime-monitor
+
+# Логи
+sudo journalctl -u uptime-monitor -f
 ```
 
 ### Видалення:
 
 ```bash
-sudo apt remove uptime-monitor
-# Повне видалення з налаштуваннями
-sudo apt purge uptime-monitor
+sudo systemctl stop uptime-monitor
+sudo systemctl disable uptime-monitor
+sudo rm -rf /opt/uptime-monitor
+sudo rm -rf /etc/uptime-monitor
+sudo rm -rf /var/lib/uptime-monitor
+sudo rm -rf /var/log/uptime-monitor
+sudo rm /etc/systemd/system/uptime-monitor.service
+sudo systemctl daemon-reload
 ```
 
 ---

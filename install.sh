@@ -33,6 +33,7 @@ fi
 
 # Parse arguments
 PORT=8080
+VERSION="main"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -41,7 +42,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --version)
-            APP_VERSION="$2"
+            VERSION="$2"
             shift 2
             ;;
         --help)
@@ -49,7 +50,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --port PORT       Set port (default: 8080)"
-            echo "  --version VERSION Install specific version (e.g., v1.0.0)"
+            echo "  --version VERSION Install specific version (e.g., v1.0.0 or main)"
             echo "  --help            Show this help message"
             exit 0
             ;;
@@ -59,6 +60,18 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Determine download URL based on version
+if [[ "$VERSION" == "main" ]]; then
+    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/heads/main.tar.gz"
+    APP_VERSION="latest (main branch)"
+elif [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/tags/$VERSION.tar.gz"
+    APP_VERSION="$VERSION"
+else
+    echo -e "${RED}Error: Invalid version format. Use 'main' or 'v1.0.0' format${NC}"
+    exit 1
+fi
 
 # Detect OS
 if [ -f /etc/os-release ]; then
@@ -118,10 +131,9 @@ fi
 echo -e "${BLUE}Creating directories...${NC}"
 mkdir -p "$INSTALL_DIR" "$CONFIG_DIR" "$DATA_DIR" "$LOG_DIR"
 
-# Download from source archive (always use main branch for latest fixes)
-echo -e "${BLUE}Downloading from GitHub main branch...${NC}"
+# Download from source archive
+echo -e "${BLUE}Downloading version $VERSION from GitHub...${NC}"
 cd /tmp
-DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/heads/main.tar.gz"
 
 if ! curl -fsSL "$DOWNLOAD_URL" -o uptime-monitor.tar.gz 2>/dev/null; then
     echo -e "${RED}Error: Failed to download from GitHub${NC}"
@@ -218,7 +230,7 @@ fi
 echo -e "${BLUE}Creating systemd service...${NC}"
 cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
 [Unit]
-Description=Uptime Monitor Service
+Description=Uptime Monitor Service (Version $APP_VERSION)
 Documentation=https://github.com/$GITHUB_REPO
 After=network.target
 
@@ -229,6 +241,7 @@ Group=$USER
 WorkingDirectory=$INSTALL_DIR
 Environment="PATH=$INSTALL_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="CONFIG_PATH=$CONFIG_DIR/config.json"
+Environment="APP_VERSION=$APP_VERSION"
 ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/main.py --port $PORT
 Restart=always
 RestartSec=10
