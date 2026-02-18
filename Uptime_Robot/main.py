@@ -1367,7 +1367,7 @@ async def login_page(request: Request, error: str = None):
         print(f"Login page error: {e}")
         return HTMLResponse(content=f"Error: {str(e)}", status_code=500)
 
- @app.post("/login")
+@app.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
     """Обробка логіну"""
     conn = get_db_connection()
