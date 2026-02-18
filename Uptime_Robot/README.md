@@ -70,11 +70,13 @@ docker run -d -p 8080:8080 -v uptime-data:/var/lib/uptime-monitor ghcr.io/ajjs1a
 Uptime_Robot/
 ├── main.py                 # Головна програма
 ├── requirements.txt        # Залежності Python
+├── requirements-linux.txt  # Linux-специфічні залежності
 ├── icon.ico               # Іконка програми
-├── install.bat            # Встановлення як служба
-├── build.bat              # Збірка інсталятора
-├── build_installer.py     # Скрипт створення інсталятора
-├── create_icon.py         # Генератор іконки
+├── install.bat            # Встановлення як служба (Windows)
+├── install.sh             # Встановлення як служба (Linux)
+├── build_exe.bat          # Збірка інсталятора
+├── create_task.ps1        # Створення Windows Task
+├── create_task_simple.ps1 # Простий скрипт створення Task
 ├── uptime_monitor.spec    # Конфігурація PyInstaller
 ├── README.md              # Цей файл
 └── sites.db               # База даних (створюється автоматично)
@@ -114,7 +116,7 @@ python main.py 8080
 2. Введіть порт
 3. Служба буде встановлена та запущена
 
-```bash
+```cmd
 install.bat
 ```
 
@@ -137,7 +139,7 @@ build.bat
 
 3. **Доступ:**
 - Веб-інтерфейс: http://localhost:[port]
-- Автоматичний визначення IP показується на головній сторінці
+- Автоматичне визначення IP показується на головній сторінці
 
 ### Управління службою
 
@@ -155,14 +157,81 @@ net stop UptimeMonitor && net start UptimeMonitor
 sc delete UptimeMonitor
 ```
 
+## Встановлення як Linux служба
+
+### Спосіб 1: Через install.sh
+```bash
+sudo ./install.sh
+```
+
+### Спосіб 2: Вручну
+```bash
+# Встановити залежності
+sudo apt update && sudo apt install python3-pip python3-venv sqlite3 curl
+
+# Клонувати репозиторій
+git clone https://github.com/ajjs1ajjs/Uptime-Monitor-APP.git
+cd Uptime-Monitor-APP
+
+# Створити віртуальне середовище
+python3 -m venv venv
+source venv/bin/activate
+
+# Встановити залежності
+pip install -r requirements.txt
+
+# Запустити
+python main.py --port 8080
+```
+
+### Створення системної служби (systemd)
+```bash
+# Створити файл служби
+sudo nano /etc/systemd/system/uptime-monitor.service
+```
+
+Додайте наступне:
+```ini
+[Unit]
+Description=Uptime Monitor Service
+After=network.target
+
+[Service]
+Type=simple
+User=uptime-monitor
+WorkingDirectory=/opt/uptime-monitor
+ExecStart=/opt/uptime-monitor/venv/bin/python /opt/uptime-monitor/main.py --port 8080
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# Запустити
+sudo systemctl daemon-reload
+sudo systemctl enable uptime-monitor
+sudo systemctl start uptime-monitor
+```
+
 ## Видалення програми
 
-### Якщо встановлено через інсталятор:
+### Якщо встановлено через інсталятор (Windows):
 1. Відкрийте "Settings" -> "Apps" -> "Installed apps"
 2. Знайдіть "Uptime Monitor"
 3. Натисніть "Uninstall"
 
-### Ручне видалення:
+### Якщо встановлено через install.sh (Linux):
+```bash
+sudo systemctl stop uptime-monitor
+sudo systemctl disable uptime-monitor
+sudo rm /etc/systemd/system/uptime-monitor.service
+sudo systemctl daemon-reload
+sudo rm -rf /opt/uptime-monitor
+```
+
+### Ручне видалення (Windows):
 ```cmd
 net stop UptimeMonitor
 sc delete UptimeMonitor
@@ -216,7 +285,7 @@ rd /s /q "C:\Program Files\UptimeMonitor"
 
 ## Порт
 
-За замовчуванням: **8000**
+За замовчуванням: **8000** (Windows) або **8080** (Linux)
 
 Можна змінити:
 - При запуску: `python main.py 8080`
@@ -229,7 +298,8 @@ rd /s /q "C:\Program Files\UptimeMonitor"
 - **База даних:** SQLite
 - **HTTP клієнт:** aiohttp
 - **Windows служба:** pywin32
-- **Порт:** Конфігурований (за замовч. 8000)
+- **Linux служба:** systemd
+- **Порт:** Конфігурований (за замовч. 8000/8080)
 - **IP:** Автоматично визначається локальна IP адреса
 
 ## Проблеми та рішення

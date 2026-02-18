@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-aiohttp
-pydantic
-python-multipart
-bcrypt
-jinja2

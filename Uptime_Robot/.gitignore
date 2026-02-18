@@ -1,13 +1,12 @@
-# Environment variables
-.env
-.env.local
-
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+venv/
+env/
+ENV/
 build/
 develop-eggs/
 dist/
@@ -24,12 +23,10 @@ wheels/
 .installed.cfg
 *.egg
 
-# Database
-sites.db
-*.db
-
-# Logs
-*.log
+# Virtual Environment
+venv/
+ENV/
+env/
 
 # IDE
 .vscode/
@@ -42,7 +39,44 @@ sites.db
 .DS_Store
 Thumbs.db
 
-# Application specific
-port.txt
+# Logs
+*.log
 uptime_monitor.log
-null
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Documentation
+docs/_build/
+docs/.doctrees/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Project specific
+port.txt
+sites.db
+uptime_monitor.log
