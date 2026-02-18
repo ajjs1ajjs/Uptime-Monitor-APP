@@ -1367,21 +1367,23 @@ async def login_page(request: Request, error: str = None):
         print(f"Login page error: {e}")
         return HTMLResponse(content=f"Error: {str(e)}", status_code=500)
 
-@app.post("/login")
+ @app.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
     """Обробка логіну"""
-    password_hash = auth_module.hash_password(password)
-    
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT id, must_change_password FROM users WHERE username = ? AND password_hash = ?",
-             (username, password_hash))
+    c.execute("SELECT id, password_hash, must_change_password FROM users WHERE username = ?",
+             (username,))
     user = c.fetchone()
     conn.close()
-    
+
     if not user:
         return RedirectResponse(url='/login?error=Невірне ім\'я користувача або пароль', status_code=302)
-    
+
+    # Перевіряємо пароль через verify_password
+    if not auth_module.verify_password(password, user['password_hash']):
+        return RedirectResponse(url='/login?error=Невірне ім\'я користувача або пароль', status_code=302)
+
     # Створюємо сесію
     session_id = auth_module.create_session(user['id'], DB_PATH)
     
