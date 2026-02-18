@@ -334,6 +334,315 @@ sudo /opt/uptime-monitor/scripts/config-rollback.sh --to config.20260218-120000.
 sudo /opt/uptime-monitor/scripts/config-rollback.sh --diff config.latest.json
 ```
 
+## Backup System
+
+Uptime Monitor includes a comprehensive backup system that supports local storage, NFS, and Samba shares.
+
+### Quick Start
+
+**Create your first backup:**
+```bash
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type daily
+```
+
+**Check backup status:**
+```bash
+sudo /opt/uptime-monitor/scripts/backup-system.sh --status
+```
+
+**List available backups:**
+```bash
+sudo /opt/uptime-monitor/scripts/restore-system.sh --list
+```
+
+**Restore from latest backup:**
+```bash
+sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
+```
+
+### What Gets Backed Up
+
+- **Database**: SQLite database with all sites and monitoring data
+- **Configuration**: config.json and configuration history
+- **SSL Certificates**: Your SSL certificates and keys
+- **Logs**: Recent log files (last 7 days)
+- **Systemd Service**: Service configuration file
+
+### Backup Types
+
+| Type | When | Retention |
+|------|------|-----------|
+| on-change | After config changes | 10 backups |
+| daily | Every day at 2:00 AM | 7 days |
+| weekly | Every Sunday at 3:00 AM | All (kept until monthly) |
+| monthly | 1st of month at 4:00 AM | All (kept until yearly) |
+| yearly | January 1st at 5:00 AM | Forever |
+
+### Manual Backup
+
+**Create immediate backup:**
+```bash
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+```
+
+**Create backup with comment:**
+```bash
+sudo /opt/uptime-monitor/scripts/backup-system.sh \
+    --dest /backup/uptime-monitor/ \
+    --type on-change \
+    --comment "Before major config change"
+```
+
+**Verify backup integrity:**
+```bash
+sudo /opt/uptime-monitor/scripts/backup-system.sh --verify --dest /backup/uptime-monitor/
+```
+
+### Scheduled Backups (Automatic)
+
+**Install daily backups:**
+```bash
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
+    --daily "0 2 * * *" \
+    --dest /backup/uptime-monitor/
+```
+
+**Install with full schedule:**
+```bash
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
+    --daily "0 2 * * *" \
+    --weekly "0 3 * * 0" \
+    --monthly "0 4 1 * *" \
+    --dest /backup/uptime-monitor/
+```
+
+**Check schedule status:**
+```bash
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --status
+```
+
+**Remove all schedules:**
+```bash
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --remove
+```
+
+**Test backup system:**
+```bash
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --test
+```
+
+### NFS Backup Setup
+
+**1. Install NFS client:**
+```bash
+sudo apt-get update
+sudo apt-get install -y nfs-common
+```
+
+**2. Mount NFS share:**
+```bash
+sudo /opt/uptime-monitor/scripts/mount-backup.sh \
+    --type nfs \
+    --server 192.168.1.10 \
+    --path /exports/backups \
+    --mount-point /mnt/nfs-backup \
+    --persist
+```
+
+**3. Create backup to NFS:**
+```bash
+sudo /opt/uptime-monitor/scripts/backup-system.sh \
+    --dest /mnt/nfs-backup/uptime-monitor/ \
+    --type daily
+```
+
+**4. Schedule automatic NFS backups:**
+```bash
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
+    --daily "0 2 * * *" \
+    --dest /mnt/nfs-backup/uptime-monitor/
+```
+
+**Manual NFS mount (alternative):**
+```bash
+# Create mount point
+sudo mkdir -p /mnt/nfs-backup
+
+# Mount
+sudo mount -t nfs 192.168.1.10:/exports/backups /mnt/nfs-backup
+
+# Add to /etc/fstab for persistence
+echo "192.168.1.10:/exports/backups /mnt/nfs-backup nfs defaults 0 0" | sudo tee -a /etc/fstab
+```
+
+### Samba (SMB) Backup Setup
+
+**1. Install Samba client:**
+```bash
+sudo apt-get update
+sudo apt-get install -y cifs-utils
+```
+
+**2. Create credentials file:**
+```bash
+sudo mkdir -p /root/.backup-creds
+sudo tee /root/.backup-creds/smb-credentials << EOF
+username=backupuser
+password=yourpassword
+domain=WORKGROUP
+EOF
+sudo chmod 600 /root/.backup-creds/smb-credentials
+```
+
+**3. Mount Samba share:**
+```bash
+sudo /opt/uptime-monitor/scripts/mount-backup.sh \
+    --type smb \
+    --server 192.168.1.11 \
+    --share backups \
+    --mount-point /mnt/smb-backup \
+    --credentials /root/.backup-creds/smb-credentials \
+    --persist
+```
+
+**4. Create backup to Samba:**
+```bash
+sudo /opt/uptime-monitor/scripts/backup-system.sh \
+    --dest /mnt/smb-backup/uptime-monitor/ \
+    --type daily
+```
+
+**Manual Samba mount (alternative):**
+```bash
+# Create mount point
+sudo mkdir -p /mnt/smb-backup
+
+# Mount
+sudo mount -t cifs //192.168.1.11/backups /mnt/smb-backup \
+    -o credentials=/root/.backup-creds/smb-credentials
+
+# Add to /etc/fstab
+echo "//192.168.1.11/backups /mnt/smb-backup cifs credentials=/root/.backup-creds/smb-credentials,_netdev 0 0" | sudo tee -a /etc/fstab
+```
+
+### Using Both NFS and Samba
+
+You can use multiple backup destinations simultaneously:
+
+```bash
+# Install schedule for both
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
+    --daily "0 2 * * *" \
+    --dest /backup/uptime-monitor/ \
+    --enable-nfs
+
+# This will backup to:
+# 1. /backup/uptime-monitor/ (local)
+# 2. /mnt/nfs-backup/uptime-monitor/ (NFS)
+```
+
+### Restore from Backup
+
+**List available backups:**
+```bash
+sudo /opt/uptime-monitor/scripts/restore-system.sh --list
+```
+
+**Restore from latest backup:**
+```bash
+sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
+```
+
+**Restore from specific backup:**
+```bash
+sudo /opt/uptime-monitor/scripts/restore-system.sh \
+    --from /backup/uptime-monitor/daily/backup-20260218-020000.tar.gz
+```
+
+**Restore only database:**
+```bash
+sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --only database
+```
+
+**Restore only configuration:**
+```bash
+sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --only config
+```
+
+**Dry run (see what would be restored):**
+```bash
+sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --dry-run
+```
+
+### Backup Rotation
+
+Automatic rotation runs after each backup. To run manually:
+
+```bash
+# Check what would be deleted (dry run)
+sudo /opt/uptime-monitor/scripts/backup-rotation.sh --dry-run
+
+# Run rotation
+sudo /opt/uptime-monitor/scripts/backup-rotation.sh
+
+# Keep only last 5 backups of each type
+sudo /opt/uptime-monitor/scripts/backup-rotation.sh --keep 5
+```
+
+### Verify Backups
+
+**Verify specific backup:**
+```bash
+sudo /opt/uptime-monitor/scripts/verify-backup.sh \
+    /backup/uptime-monitor/daily/backup-20260218-020000.tar.gz
+```
+
+**Verify all backups:**
+```bash
+sudo /opt/uptime-monitor/scripts/verify-backup.sh --all
+```
+
+**Show backup statistics:**
+```bash
+sudo /opt/uptime-monitor/scripts/verify-backup.sh --list
+```
+
+### Backup Configuration
+
+Edit `/etc/uptime-monitor/config.json`:
+
+```json
+{
+    "backup": {
+        "enabled": true,
+        "on_change_backup": true,
+        "retention": {
+            "on_change": 10,
+            "daily": 7,
+            "weekly": "all",
+            "monthly": "all",
+            "yearly": "all"
+        }
+    }
+}
+```
+
+### Unmount Backup Storage
+
+**Unmount NFS:**
+```bash
+sudo /opt/uptime-monitor/scripts/mount-backup.sh \
+    --unmount \
+    --mount-point /mnt/nfs-backup
+```
+
+**Unmount Samba:**
+```bash
+sudo /opt/uptime-monitor/scripts/mount-backup.sh \
+    --unmount \
+    --mount-point /mnt/smb-backup
+```
+
 ## SSL/HTTPS Setup
 
 ### Option 1: Using Your Own Certificates (Recommended)

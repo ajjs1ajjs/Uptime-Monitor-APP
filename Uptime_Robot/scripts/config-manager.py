@@ -111,6 +111,37 @@ def log_change(old_config, new_config, user='system'):
         print(f"Error logging change: {e}")
         return False
 
+def trigger_system_backup(comment="Configuration changed"):
+    """Trigger system backup after configuration change"""
+    try:
+        # Get backup destination from config
+        config = load_config()
+        backup_config = config.get('backup', {})
+        
+        if not backup_config.get('enabled', True):
+            return False
+        
+        # Check if on-change backups are enabled
+        if backup_config.get('on_change_backup', True):
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            backup_script = os.path.join(script_dir, 'backup-system.sh')
+            
+            if os.path.exists(backup_script):
+                import subprocess
+                # Run backup in background
+                subprocess.Popen([
+                    'bash', backup_script,
+                    '--type', 'on-change',
+                    '--dest', backup_config.get('backup_dir', '/backup/uptime-monitor'),
+                    '--comment', comment,
+                    '--quiet'
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return True
+    except Exception as e:
+        print(f"Error triggering backup: {e}")
+    
+    return False
+
 def list_backups():
     """List all available backups"""
     try:
