@@ -1429,14 +1429,14 @@ async def change_password(request: Request, current_password: str = Form(...), n
         return RedirectResponse(url='/login', status_code=302)
     
     # Перевіряємо поточний пароль
-    current_hash = auth_module.hash_password(current_password)
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT id FROM users WHERE id = ? AND password_hash = ?", (user['user_id'], current_hash))
-    if not c.fetchone():
-        conn.close()
-        return RedirectResponse(url='/change-password?error=Невірний поточний пароль', status_code=302)
+    c.execute("SELECT password_hash FROM users WHERE id = ?", (user['user_id'],))
+    user_data = c.fetchone()
     conn.close()
+
+    if not user_data or not auth_module.verify_password(current_password, user_data['password_hash']):
+        return RedirectResponse(url='/change-password?error=Невірний поточний пароль', status_code=302)
     
     # Перевіряємо чи паролі співпадають
     if new_password != confirm_password:
