@@ -1,5 +1,187 @@
 # Uptime Monitor - Installation Guide
 
+## 🚀 Quick Start (5 minutes)
+
+Get Uptime Monitor running with backup protection in 5 minutes:
+
+### 1. Install
+```bash
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
+```
+
+### 2. Access Web Interface
+- **URL**: http://{SERVER_IP}:8080 (IP detected automatically)
+- **Login**: admin
+- **Password**: admin
+
+### 3. Create First Backup ⚠️ IMPORTANT
+```bash
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+```
+
+### 4. Setup Automatic Backups
+```bash
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+```
+
+### 5. Change Default Password
+1. Open http://{SERVER_IP}:8080 in browser
+2. Login with admin/admin
+3. Change password immediately!
+
+---
+
+## 📋 Post-Installation Checklist
+
+Complete these steps after installation:
+
+- [ ] **Change default password** (admin/admin) - CRITICAL!
+- [ ] **Create first backup** - Protect your data
+- [ ] **Configure automatic backups** - Daily backups at 2:00 AM
+- [ ] **Set up external backup** (NFS/Samba) - Optional but recommended
+- [ ] **Configure domain and SSL** - When ready for production
+- [ ] **Add monitoring sites** - Start monitoring your services
+- [ ] **Configure notifications** - Email, Telegram, etc.
+
+---
+
+## ✨ What's New
+
+### 🔄 Backup System (NEW!)
+Complete backup and restore solution:
+- **Automatic backups**: daily, weekly, monthly, yearly
+- **Backup on changes**: Automatic backup when you modify configuration
+- **Multiple destinations**: Local disk, NFS, Samba shares
+- **One-command restore**: Restore everything with single command
+- **Backup verification**: Check integrity of your backups
+- **Retention policy**: Automatic cleanup of old backups
+
+### ⚙️ Configuration Management (NEW!)
+- **JSON configuration**: Easy to read and edit
+- **Auto-IP detection**: Server IP detected automatically
+- **Easy domain setup**: Just edit config.json
+- **Configuration rollback**: Rollback to previous configs
+- **Change logging**: Track all configuration changes
+
+### 🔒 SSL/HTTPS (NEW!)
+- **Custom certificates**: Use your own SSL certificates
+- **Auto-redirect**: HTTP → HTTPS automatically
+- **HSTS headers**: Enhanced security
+
+---
+
+## 📝 Commands Cheat Sheet
+
+### Backup Commands
+```bash
+# Create backup now
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+
+# Check backup status
+sudo /opt/uptime-monitor/scripts/backup-system.sh --status
+
+# List all backups
+sudo /opt/uptime-monitor/scripts/restore-system.sh --list
+
+# Restore from latest backup
+sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
+
+# Restore specific backup
+sudo /opt/uptime-monitor/scripts/restore-system.sh --from /backup/uptime-monitor/daily/backup-20260218-020000.tar.gz
+```
+
+### Service Management
+```bash
+# Start/Stop/Restart
+sudo systemctl start uptime-monitor
+sudo systemctl stop uptime-monitor
+sudo systemctl restart uptime-monitor
+
+# View logs in real-time
+sudo journalctl -u uptime-monitor -f
+
+# Check service status
+sudo systemctl status uptime-monitor
+
+# View last 50 log lines
+sudo journalctl -u uptime-monitor -n 50
+```
+
+### Configuration Commands
+```bash
+# Edit configuration
+sudo nano /etc/uptime-monitor/config.json
+
+# Rollback to previous configuration
+sudo /opt/uptime-monitor/scripts/config-rollback.sh --previous
+
+# List configuration backups
+sudo /opt/uptime-monitor/scripts/config-rollback.sh --list
+
+# Restart after changes
+sudo systemctl restart uptime-monitor
+```
+
+### Backup Management
+```bash
+# Schedule automatic backups
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+
+# Check backup schedule status
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --status
+
+# Verify all backups
+sudo /opt/uptime-monitor/scripts/verify-backup.sh --all
+
+# Mount NFS for backups
+sudo /opt/uptime-monitor/scripts/mount-backup.sh --type nfs --server 192.168.1.10 --path /exports/backups --mount-point /mnt/nfs-backup --persist
+
+# Mount Samba for backups
+sudo /opt/uptime-monitor/scripts/mount-backup.sh --type smb --server 192.168.1.11 --share backups --mount-point /mnt/smb-backup --persist
+```
+
+---
+
+## ⬆️ Upgrading from Previous Version
+
+If you have an older version installed:
+
+### 1. Backup Current Installation
+```bash
+# Create backup before upgrade
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type on-change --comment "Pre-upgrade backup"
+```
+
+### 2. Update Code
+```bash
+cd /opt/uptime-monitor
+sudo git pull
+```
+
+### 3. Restart Service
+```bash
+sudo systemctl restart uptime-monitor
+```
+
+### 4. Verify Backup System
+```bash
+# Check backup system status
+sudo /opt/uptime-monitor/scripts/backup-system.sh --status
+
+# Create test backup
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type on-change --comment "Post-upgrade test"
+
+# Verify backup
+sudo /opt/uptime-monitor/scripts/verify-backup.sh --all
+```
+
+### 5. Setup Automatic Backups (if not already configured)
+```bash
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+```
+
+---
+
 ## Linux Installation via CURL
 
 ### Install Latest Version
@@ -233,9 +415,127 @@ whoami /priv
    ```bash
    sudo journalctl -u uptime-monitor -f
    ```
-   ```cmd
-   type "%USERPROFILE%\UptimeMonitor\uptime_monitor.log"
-   ```
+    ```cmd
+    type "%USERPROFILE%\UptimeMonitor\uptime_monitor.log"
+    ```
+
+### Backup Issues
+
+**Backup fails with permission error:**
+```bash
+# Check backup directory permissions
+sudo ls -la /backup/
+sudo ls -la /backup/uptime-monitor/
+
+# Fix permissions
+sudo mkdir -p /backup/uptime-monitor
+sudo chown -R root:root /backup/uptime-monitor/
+sudo chmod 755 /backup/uptime-monitor/
+
+# Retry backup
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+```
+
+**NFS mount fails:**
+```bash
+# Install NFS client
+sudo apt-get update
+sudo apt-get install -y nfs-common
+
+# Check NFS server availability
+showmount -e 192.168.1.10
+
+# Test manual mount
+sudo mkdir -p /mnt/nfs-backup
+sudo mount -t nfs 192.168.1.10:/exports/backups /mnt/nfs-backup
+
+# Check mount
+mount | grep nfs
+
+# If successful, use the mount-backup script
+sudo /opt/uptime-monitor/scripts/mount-backup.sh --type nfs --server 192.168.1.10 --path /exports/backups --mount-point /mnt/nfs-backup --persist
+```
+
+**Samba (SMB) mount fails:**
+```bash
+# Install Samba client
+sudo apt-get update
+sudo apt-get install -y cifs-utils
+
+# Create credentials file
+sudo mkdir -p /root/.backup-creds
+sudo tee /root/.backup-creds/smb-credentials << EOF
+username=backupuser
+password=yourpassword
+domain=WORKGROUP
+EOF
+sudo chmod 600 /root/.backup-creds/smb-credentials
+
+# Test manual mount
+sudo mkdir -p /mnt/smb-backup
+sudo mount -t cifs //192.168.1.11/backups /mnt/smb-backup -o credentials=/root/.backup-creds/smb-credentials
+
+# Use the mount-backup script
+sudo /opt/uptime-monitor/scripts/mount-backup.sh --type smb --server 192.168.1.11 --share backups --mount-point /mnt/smb-backup --credentials /root/.backup-creds/smb-credentials --persist
+```
+
+**Restore fails or service won't start after restore:**
+```bash
+# Check backup integrity
+sudo /opt/uptime-monitor/scripts/verify-backup.sh /path/to/backup.tar.gz
+
+# Check service status
+sudo systemctl status uptime-monitor
+
+# View restore logs
+sudo tail -f /var/log/uptime-monitor/backup.log
+
+# View service logs
+sudo journalctl -u uptime-monitor -n 50
+
+# Manual restore safety backup (created during restore)
+ls -la /tmp/uptime-pre-restore-*/
+
+# Restore from safety backup if needed
+sudo cp -r /tmp/uptime-pre-restore-*/sites.db /var/lib/uptime-monitor/
+sudo cp /tmp/uptime-pre-restore-*/config.json /etc/uptime-monitor/
+sudo systemctl restart uptime-monitor
+```
+
+**Scheduled backups not running:**
+```bash
+# Check if cron service is running
+sudo systemctl status cron
+
+# Check cron jobs
+sudo cat /etc/cron.d/uptime-monitor-backup
+
+# Check cron logs
+sudo grep CRON /var/log/syslog | tail -20
+
+# Test backup manually
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type daily
+
+# Reinstall schedule
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --remove
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+```
+
+**Backup too large / disk space issues:**
+```bash
+# Check backup sizes
+sudo du -sh /backup/uptime-monitor/*
+
+# Clean old backups manually
+sudo /opt/uptime-monitor/scripts/backup-rotation.sh --keep 3
+
+# Check available space
+df -h /backup
+
+# Move backups to external storage
+sudo /opt/uptime-monitor/scripts/mount-backup.sh --type nfs --server <IP> --path /exports/backups --mount-point /mnt/nfs-backup --persist
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /mnt/nfs-backup/uptime-monitor/
+```
 
 ## Configuration
 

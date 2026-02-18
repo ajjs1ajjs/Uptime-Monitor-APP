@@ -8,6 +8,9 @@
 Website uptime monitoring service with multi-channel notifications and SSL certificate tracking.
 
 **Features:**
+- ✅ **NEW! Backup System** - Automatic backups with restore capability
+- ✅ **NEW! Configuration Management** - JSON config with rollback support
+- ✅ **NEW! SSL/HTTPS** - Custom certificates with auto-redirect
 - Monitor multiple websites and endpoints
 - SSL certificate expiration tracking
 - Multi-channel notifications (Telegram, Email, Slack, Discord, Teams, SMS)
@@ -57,12 +60,27 @@ docker run -d -p 8080:8080 -v uptime-data:/var/lib/uptime-monitor ghcr.io/ajjs1a
 2. Extract to desired location
 3. Run `install.bat` as Administrator
 
+## ⚡ Quick Start with Backup (IMPORTANT!)
+
+After installation, immediately set up backups:
+
+```bash
+# 1. Create first backup
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+
+# 2. Schedule automatic backups
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+
+# 3. Verify backup system
+sudo /opt/uptime-monitor/scripts/backup-system.sh --status
+```
+
 ## Default Credentials
 
 - **Username:** `admin`
 - **Password:** `admin`
 
-**Change password after first login!**
+**⚠️ Change password after first login!**
 
 ## Структура проекту
 
@@ -272,6 +290,113 @@ rd /s /q "C:\Program Files\UptimeMonitor"
 - Кожні 60 секунд
 - Автоматичні сповіщення при падінні
 - Антиспам: сповіщення не частіше ніж раз в 5 хвилин
+
+## 🆕 Новий функціонал (Остання версія)
+
+### 🔄 Система резервного копіювання
+
+**Команди:**
+```bash
+# Створити резервну копію
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+
+# Перевірити статус
+sudo /opt/uptime-monitor/scripts/backup-system.sh --status
+
+# Відновити з останньої копії
+sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
+
+# Запланувати автоматичні копії
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+
+# NFS монтування
+sudo /opt/uptime-monitor/scripts/mount-backup.sh --type nfs --server 192.168.1.10 --path /exports/backups --mount-point /mnt/nfs-backup --persist
+
+# Samba монтування
+sudo /opt/uptime-monitor/scripts/mount-backup.sh --type smb --server 192.168.1.11 --share backups --mount-point /mnt/smb-backup --persist
+```
+
+**Що зберігається:**
+- База даних SQLite (всі сайти та історія)
+- Конфігурація (config.json)
+- SSL сертифікати
+- Логи (останні 7 днів)
+- Systemd служба
+
+**Типи бекапів:**
+- `on-change` - Після зміни конфігурації (10 копій)
+- `daily` - Щодня о 2:00 (7 днів)
+- `weekly` - Щонеділі о 3:00 (всі)
+- `monthly` - 1-го числа о 4:00 (всі)
+- `yearly` - 1 січня о 5:00 (назавжди)
+
+### ⚙️ Управління конфігурацією
+
+**Файл конфігурації:** `/etc/uptime-monitor/config.json`
+
+```json
+{
+    "server": {
+        "port": 8080,
+        "host": "0.0.0.0",
+        "domain": "auto"
+    },
+    "ssl": {
+        "enabled": false,
+        "type": "custom",
+        "cert_path": "/etc/uptime-monitor/ssl/cert.pem",
+        "key_path": "/etc/uptime-monitor/ssl/key.pem"
+    },
+    "backup": {
+        "enabled": true,
+        "retention": {
+            "daily": 7,
+            "weekly": "all"
+        }
+    }
+}
+```
+
+**Команди:**
+```bash
+# Редагувати конфіг
+sudo nano /etc/uptime-monitor/config.json
+
+# Відкат до попередньої версії
+sudo /opt/uptime-monitor/scripts/config-rollback.sh --previous
+
+# Список версій
+sudo /opt/uptime-monitor/scripts/config-rollback.sh --list
+
+# Перезапуск після змін
+sudo systemctl restart uptime-monitor
+```
+
+### 🔒 SSL/HTTPS
+
+**Налаштування:**
+1. Додайте сертифікати:
+```bash
+sudo mkdir -p /etc/uptime-monitor/ssl
+sudo cp cert.pem key.pem /etc/uptime-monitor/ssl/
+sudo chmod 600 /etc/uptime-monitor/ssl/*.pem
+```
+
+2. Відредагуйте конфіг:
+```bash
+sudo nano /etc/uptime-monitor/config.json
+# Змініть: "ssl.enabled": true, "server.port": 443
+```
+
+3. Перезапустіть:
+```bash
+sudo systemctl restart uptime-monitor
+```
+
+**Функції:**
+- Автоматичний редирект HTTP → HTTPS
+- HSTS заголовки
+- Підтримка власних сертифікатів
 
 ## API Endpoints
 
