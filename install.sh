@@ -259,6 +259,11 @@ if [ -d "$SRC_DIR/scripts" ]; then
     chmod +x "$INSTALL_DIR/scripts/"*.py 2>/dev/null || true
 fi
 
+# Create default backup directory
+echo -e "${BLUE}Creating backup directories...${NC}"
+mkdir -p "/backup/uptime-monitor"
+chown -R "$USER:$USER" "/backup/uptime-monitor" 2>/dev/null || true
+
 # Create systemd service
 echo -e "${BLUE}Creating systemd service...${NC}"
 cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
@@ -348,6 +353,14 @@ if systemctl is-active --quiet $SERVICE_NAME; then
     echo "  sudo $INSTALL_DIR/scripts/config-rollback.sh --list     # List backups"
     echo "  sudo $INSTALL_DIR/scripts/config-rollback.sh            # Rollback to previous"
     echo ""
+    echo "Backup System (NEW!):"
+    echo "  Create backup:  sudo $INSTALL_DIR/scripts/backup-system.sh --dest /backup/uptime-monitor/"
+    echo "  Check status:   sudo $INSTALL_DIR/scripts/backup-system.sh --status"
+    echo "  Restore:        sudo $INSTALL_DIR/scripts/restore-system.sh --auto"
+    echo "  Schedule:       sudo $INSTALL_DIR/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/"
+    echo "  NFS Setup:      sudo $INSTALL_DIR/scripts/mount-backup.sh --type nfs --server <IP> --path /exports/backups --mount-point /mnt/nfs-backup --persist"
+    echo "  Samba Setup:    sudo $INSTALL_DIR/scripts/mount-backup.sh --type smb --server <IP> --share backups --mount-point /mnt/smb-backup --persist"
+    echo ""
     echo "Enable SSL (when ready):"
     echo "  1. Add your certificates to $CONFIG_DIR/ssl/"
     echo "  2. Edit $CONFIG_DIR/config.json"
@@ -360,6 +373,7 @@ if systemctl is-active --quiet $SERVICE_NAME; then
     echo "  Location: $CONFIG_DIR/config.json"
     echo "  Logs:     $LOG_DIR/"
     echo "  SSL:      $CONFIG_DIR/ssl/"
+    echo "  Backups:  /backup/uptime-monitor/ (default)"
     echo ""
 else
     echo -e "${RED}=========================================="
