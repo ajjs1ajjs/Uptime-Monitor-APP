@@ -1,6 +1,9 @@
 import sys
 import os
 import json
+import socket
+import ssl as ssl_module
+from datetime import datetime
 
 # Windows-specific imports (only on Windows)
 IS_WINDOWS = sys.platform == 'win32'
@@ -19,15 +22,183 @@ else:
     # Running as script
     APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Get port from file if exists, otherwise use default
-port = 8000
-port_file = os.path.join(APP_DIR, "port.txt")
-if os.path.exists(port_file):
+# Configuration paths
+CONFIG_PATH = os.environ.get('CONFIG_PATH', '/etc/uptime-monitor/config.json')
+if not os.path.exists(CONFIG_PATH) and IS_WINDOWS:
+    CONFIG_PATH = os.path.join(os.environ.get('USERPROFILE', APP_DIR), 'UptimeMonitor', 'config.json')
+
+# Default configuration
+DEFAULT_CONFIG = {
+    "server": {
+        "port": 8080,
+        "host": "0.0.0.0",
+        "domain": "auto"
+    },
+    "ssl": {
+        "enabled": False,
+        "type": "custom",
+        "cert_path": "/etc/uptime-monitor/ssl/cert.pem",
+        "key_path": "/etc/uptime-monitor/ssl/key.pem",
+        "redirect_http": True,
+        "hsts": True,
+        "hsts_max_age": 31536000
+    },
+    "data_dir": "/var/lib/uptime-monitor" if not IS_WINDOWS else os.path.join(os.environ.get('USERPROFILE', ''), 'UptimeMonitor', 'data'),
+    "log_dir": "/var/log/uptime-monitor" if not IS_WINDOWS else os.path.join(os.environ.get('USERPROFILE', ''), 'UptimeMonitor', 'logs'),
+    "check_interval": 60,
+    "notifications": {
+        "email_enabled": False,
+        "email_smtp_server": "",
+        "email_smtp_port": 587,
+        "email_username": "",
+        "email_password": "",
+        "email_to": ""
+    },
+    "backup": {
+        "enabled": True,
+        "max_backups": 10,
+        "backup_dir": "/etc/uptime-monitor/config.backups" if not IS_WINDOWS else os.path.join(os.environ.get('USERPROFILE', ''), 'UptimeMonitor', 'config.backups')
+    }
+}
+
+def get_server_ip():
+    """Get the server IP address"""
     try:
-        with open(port_file, "r") as f:
-            port = int(f.read().strip())
+        # Get all network interfaces
+        hostname = socket.gethostname()
+        # Get IP from hostname
+        ip = socket.gethostbyname(hostname)
+        # If it's localhost, try to get external IP
+        if ip.startswith('127.'):
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                s.connect(('8.8.8.8', 80))
+                ip = s.getsockname()[0]
+            except:
+                pass
+            finally:
+                s.close()
+        return ip
+    except:
+        return '0.0.0.0'
+
+def load_config():
+    """Load configuration from file or create default"""
+    global CONFIG
+    
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+                CONFIG = json.load(f)
+            # Merge with defaults to ensure all keys exist
+            for key, value in DEFAULT_CONFIG.items():
+                if key not in CONFIG:
+                    CONFIG[key] = value
+                elif isinstance(value, dict):
+                    for sub_key, sub_value in value.items():
+                        if sub_key not in CONFIG[key]:
+                            CONFIG[key][sub_key] = sub_value
+        except Exception as e:
+            print(f"Error loading config: {e}")
+            CONFIG = DEFAULT_CONFIG.copy()
+    else:
+        CONFIG = DEFAULT_CONFIG.copy()
+        # Create default config file
+        try:
+            os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+            with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+                json.dump(CONFIG, f, indent=4, ensure_ascii=False)
+        except:
+            pass
+    
+    # Handle auto domain
+    if CONFIG['server'].get('domain') == 'auto':
+        CONFIG['server']['domain'] = get_server_ip()
+    
+    return CONFIG
+
+def log_config_change(old_config, new_config, user='system'):
+    """Log configuration changes"""
+    try:
+        log_dir = CONFIG.get('log_dir', '/var/log/uptime-monitor')
+        log_file = os.path.join(log_dir, 'config-changes.log')
+        os.makedirs(log_dir, exist_ok=True)
+        
+        change_entry = {
+            'timestamp': datetime.now().isoformat(),
+            'user': user,
+            'action': 'config_changed',
+            'changes': {
+                'old': old_config,
+                'new': new_config
+            }
+        }
+        
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(change_entry, ensure_ascii=False) + '\n')
     except:
         pass
+
+def backup_config():
+    """Create backup of current configuration"""
+    try:
+        backup_dir = CONFIG.get('backup', {}).get('backup_dir', '/etc/uptime-monitor/config.backups')
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+        backup_file = os.path.join(backup_dir, f'config.{timestamp}.json')
+        
+        with open(backup_file, 'w', encoding='utf-8') as f:
+            json.dump(CONFIG, f, indent=4, ensure_ascii=False)
+        
+        # Create symlinks
+        latest_link = os.path.join(backup_dir, 'config.latest.json')
+        prev_link = os.path.join(backup_dir, 'config.previous.json')
+        
+        if os.path.exists(latest_link):
+            if os.path.exists(prev_link):
+                os.remove(prev_link)
+            os.rename(latest_link, prev_link)
+        
+        if os.path.exists(latest_link):
+            os.remove(latest_link)
+        os.symlink(backup_file, latest_link)
+        
+        # Clean old backups
+        max_backups = CONFIG.get('backup', {}).get('max_backups', 10)
+        backups = sorted([f for f in os.listdir(backup_dir) if f.startswith('config.') and f.endswith('.json') and not f.endswith('.latest.json')])
+        if len(backups) > max_backups:
+            for old_backup in backups[:-max_backups]:
+                os.remove(os.path.join(backup_dir, old_backup))
+                
+    except:
+        pass
+
+def setup_ssl():
+    """Setup SSL context"""
+    if not CONFIG.get('ssl', {}).get('enabled', False):
+        return None
+    
+    try:
+        cert_path = CONFIG['ssl'].get('cert_path', '')
+        key_path = CONFIG['ssl'].get('key_path', '')
+        
+        if not os.path.exists(cert_path) or not os.path.exists(key_path):
+            print(f"SSL certificates not found: {cert_path}, {key_path}")
+            return None
+        
+        ssl_context = ssl_module.create_default_context(ssl_module.Purpose.CLIENT_AUTH)
+        ssl_context.load_cert_chain(cert_path, key_path)
+        return ssl_context
+    except Exception as e:
+        print(f"SSL setup error: {e}")
+        return None
+
+# Load configuration
+CONFIG = load_config()
+port = CONFIG['server'].get('port', 8080)
+host = CONFIG['server'].get('host', '0.0.0.0')
+domain = CONFIG['server'].get('domain', get_server_ip())
 
 # Allow command line override
 if len(sys.argv) > 1:
@@ -54,6 +225,19 @@ from ssl_checker import check_ssl_certificate, should_notify_certificate, format
 import auth_module
 
 app = FastAPI(title="Uptime Monitor")
+
+# Middleware for HTTPS redirect and HSTS
+@app.middleware("http")
+async def https_redirect_middleware(request: Request, call_next):
+    """Redirect HTTP to HTTPS if SSL is enabled"""
+    response = await call_next(request)
+    
+    # Add HSTS header if enabled
+    if CONFIG.get('ssl', {}).get('enabled', False) and CONFIG.get('ssl', {}).get('hsts', True):
+        max_age = CONFIG['ssl'].get('hsts_max_age', 31536000)
+        response.headers['Strict-Transport-Security'] = f'max-age={max_age}; includeSubDomains'
+    
+    return response
 
 DB_PATH = os.path.join(APP_DIR, "sites.db")
 
@@ -1343,7 +1527,16 @@ if IS_WINDOWS:
             monitor_thread = threading.Thread(target=lambda: asyncio.run(monitor_loop()), daemon=True)
             monitor_thread.start()
             
-            uvicorn.run(app, host="0.0.0.0", port=port, log_level="error")
+            # Setup SSL if enabled
+            ssl_context = setup_ssl()
+            uvicorn.run(
+                app, 
+                host=CONFIG['server'].get('host', '0.0.0.0'), 
+                port=CONFIG['server'].get('port', 8080), 
+                log_level="error",
+                ssl_keyfile=CONFIG['ssl'].get('key_path') if ssl_context else None,
+                ssl_certfile=CONFIG['ssl'].get('cert_path') if ssl_context else None
+            )
             
             win32event.WaitForSingleObject(self.stop_event, win32event.INFINITE)
 
@@ -1494,15 +1687,38 @@ if __name__ == "__main__":
         
         print(f"="*60)
         print(f"  Uptime Monitor - Production Ready")
+        # Get current configuration
+        current_port = CONFIG['server'].get('port', 8080)
+        current_host = CONFIG['server'].get('host', '0.0.0.0')
+        current_domain = CONFIG['server'].get('domain', get_server_ip())
+        ssl_enabled = CONFIG.get('ssl', {}).get('enabled', False)
+        
+        protocol = 'https' if ssl_enabled else 'http'
+        access_url = f"{protocol}://{current_domain}:{current_port}"
+        
         print(f"="*60)
-        print(f"  Port: {port}")
-        print(f"  Database: {DB_PATH}")
-        print(f"  App Directory: {APP_DIR}")
-        print(f"  Access URL: http://{LOCAL_IP}:{port}")
+        print(f"  Uptime Monitor - Production Ready")
         print(f"="*60)
-        print(f"  LOGIN: admin")
-        print(f"  PASSWORD: admin")
-        print(f"  WARNING: Change password after first login!")
+        print(f"  Version:     latest (main branch)")
+        print(f"  Port:        {current_port}")
+        print(f"  Host:        {current_host}")
+        print(f"  Domain:      {current_domain}")
+        print(f"  SSL:         {'Enabled' if ssl_enabled else 'Disabled'}")
+        print(f"  URL:         {access_url}")
+        print(f"="*60)
+        print(f"  Default Credentials:")
+        print(f"    Username: admin")
+        print(f"    Password: admin")
+        print(f"  Please change the password after first login!")
+        print(f"="*60)
+        print(f"Management commands:")
+        print(f"  sudo systemctl status uptime-monitor")
+        print(f"  sudo systemctl restart uptime-monitor")
+        print(f"  sudo systemctl stop uptime-monitor")
+        print(f"")
+        print(f"Configuration:")
+        print(f"  Config file: {CONFIG_PATH}")
+        print(f"  Logs:        {CONFIG.get('log_dir', '/var/log/uptime-monitor')}/")
         print(f"="*60)
         
         import uvicorn
@@ -1511,4 +1727,13 @@ if __name__ == "__main__":
         monitor_thread = threading.Thread(target=lambda: asyncio.run(monitor_loop()), daemon=True)
         monitor_thread.start()
         
-        uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
+        # Setup SSL if enabled
+        ssl_context = setup_ssl()
+        uvicorn.run(
+            app, 
+            host=current_host, 
+            port=current_port, 
+            log_level="warning",
+            ssl_keyfile=CONFIG['ssl'].get('key_path') if ssl_context else None,
+            ssl_certfile=CONFIG['ssl'].get('cert_path') if ssl_context else None
+        )

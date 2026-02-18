@@ -17,6 +17,8 @@ curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/i
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash -s -- --version v1.0.0
 ```
 
+**Note:** After installation, the server will be accessible at `http://{SERVER_IP}:8080` where `{SERVER_IP}` is automatically detected.
+
 ## Linux Installation via APT
 
 ### Add Repository
@@ -243,24 +245,198 @@ Location: `/etc/uptime-monitor/config.json`
 
 ```json
 {
-    "port": 8080,
-    "host": "0.0.0.0",
+    "server": {
+        "port": 8080,
+        "host": "0.0.0.0",
+        "domain": "auto"
+    },
+    "ssl": {
+        "enabled": false,
+        "type": "custom",
+        "cert_path": "/etc/uptime-monitor/ssl/cert.pem",
+        "key_path": "/etc/uptime-monitor/ssl/key.pem",
+        "redirect_http": true,
+        "hsts": true,
+        "hsts_max_age": 31536000
+    },
     "data_dir": "/var/lib/uptime-monitor",
     "log_dir": "/var/log/uptime-monitor",
     "check_interval": 60,
-
-    "notify_email_enabled": false,
-    "notify_email_smtp_server": "",
-    "notify_email_smtp_port": 587,
-    "notify_email_username": "",
-    "notify_email_password": "",
-    "notify_email_to": ""
+    "notifications": {
+        "email_enabled": false,
+        "email_smtp_server": "",
+        "email_smtp_port": 587,
+        "email_username": "",
+        "email_password": "",
+        "email_to": ""
+    },
+    "backup": {
+        "enabled": true,
+        "max_backups": 10,
+        "backup_dir": "/etc/uptime-monitor/config.backups"
+    }
 }
 ```
+
+**Configuration Parameters:**
+
+- `server.port` - Port number (default: 8080)
+- `server.host` - Bind address (default: 0.0.0.0 - all interfaces)
+- `server.domain` - Server domain or IP (default: "auto" - auto-detect IP)
+- `ssl.enabled` - Enable HTTPS (default: false)
+- `ssl.type` - Certificate type: "custom", "selfsigned", "letsencrypt"
+- `ssl.cert_path` - Path to SSL certificate
+- `ssl.key_path` - Path to SSL private key
+- `backup.enabled` - Enable automatic backups (default: true)
+- `backup.max_backups` - Number of backups to keep (default: 10)
 
 ### Windows Configuration File
 
 Location: `%USERPROFILE%\UptimeMonitor\config.json`
+
+## Configuration Management
+
+### Editing Configuration
+
+**Linux:**
+```bash
+# Edit configuration
+sudo nano /etc/uptime-monitor/config.json
+
+# Restart service to apply changes
+sudo systemctl restart uptime-monitor
+
+# Check status
+sudo systemctl status uptime-monitor
+```
+
+### Configuration Rollback
+
+Automatic backups are created before each configuration change.
+
+**List available backups:**
+```bash
+sudo /opt/uptime-monitor/scripts/config-rollback.sh --list
+```
+
+**Rollback to previous configuration:**
+```bash
+sudo /opt/uptime-monitor/scripts/config-rollback.sh --previous
+```
+
+**Rollback to specific backup:**
+```bash
+sudo /opt/uptime-monitor/scripts/config-rollback.sh --to config.20260218-120000.json
+```
+
+**View differences:**
+```bash
+sudo /opt/uptime-monitor/scripts/config-rollback.sh --diff config.latest.json
+```
+
+## SSL/HTTPS Setup
+
+### Option 1: Using Your Own Certificates (Recommended)
+
+**Step 1:** Copy your certificates to the SSL directory:
+```bash
+sudo mkdir -p /etc/uptime-monitor/ssl
+sudo cp /path/to/your/certificate.pem /etc/uptime-monitor/ssl/cert.pem
+sudo cp /path/to/your/private.key /etc/uptime-monitor/ssl/key.pem
+sudo chmod 600 /etc/uptime-monitor/ssl/*.pem
+```
+
+**Step 2:** Update configuration:
+```bash
+sudo nano /etc/uptime-monitor/config.json
+```
+
+Change the following settings:
+```json
+{
+    "server": {
+        "port": 443,
+        "domain": "your-domain.com"
+    },
+    "ssl": {
+        "enabled": true,
+        "type": "custom",
+        "cert_path": "/etc/uptime-monitor/ssl/cert.pem",
+        "key_path": "/etc/uptime-monitor/ssl/key.pem"
+    }
+}
+```
+
+**Step 3:** Restart service:
+```bash
+sudo systemctl restart uptime-monitor
+```
+
+### Option 2: Self-Signed Certificate (Testing Only)
+
+```bash
+# Generate self-signed certificate
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout /etc/uptime-monitor/ssl/key.pem \
+  -out /etc/uptime-monitor/ssl/cert.pem \
+  -subj "/CN=localhost"
+
+# Update config and restart
+sudo nano /etc/uptime-monitor/config.json
+sudo systemctl restart uptime-monitor
+```
+
+**Warning:** Browsers will show security warnings with self-signed certificates.
+
+## Domain and IP Configuration
+
+### Automatic IP Detection
+
+By default, the server auto-detects the server's IP address:
+```json
+{
+    "server": {
+        "domain": "auto"
+    }
+}
+```
+
+### Using Specific IP
+
+```bash
+# Get your server IP
+hostname -I
+
+# Edit config
+sudo nano /etc/uptime-monitor/config.json
+```
+
+Set domain to your IP:
+```json
+{
+    "server": {
+        "domain": "192.168.1.100"
+    }
+}
+```
+
+### Using Domain Name
+
+**Step 1:** Configure DNS A-record pointing to your server IP
+
+**Step 2:** Update configuration:
+```json
+{
+    "server": {
+        "domain": "monitor.yourdomain.com"
+    }
+}
+```
+
+**Step 3:** Restart service:
+```bash
+sudo systemctl restart uptime-monitor
+```
 
 ## API Endpoints
 
@@ -274,8 +450,17 @@ Location: `%USERPROFILE%\UptimeMonitor\config.json`
 
 ## Accessing the Web Interface
 
-- **Linux:** `http://localhost:8080` or `http://<your-ip>:8080`
+**Initial Setup (after installation):**
+- **Linux:** `http://<server-ip>:8080` (IP auto-detected during installation)
 - **Windows:** `http://localhost:8000` or `http://<your-ip>:8000`
+
+**After SSL configuration:**
+- **HTTPS:** `https://your-domain.com` (port 443)
+
+**To check your server IP:**
+```bash
+hostname -I
+```
 
 ## Technical Details
 
@@ -284,8 +469,12 @@ Location: `%USERPROFILE%\UptimeMonitor\config.json`
 - **HTTP Client:** aiohttp
 - **Windows Service:** pywin32
 - **Linux Service:** systemd
-- **Default Port:** 8000 (Windows) / 8080 (Linux)
+- **Default Port:** 8080 (Linux) / 8000 (Windows)
+- **SSL Support:** Yes (custom certificates, self-signed, Let's Encrypt ready)
+- **Configuration:** JSON-based with automatic backup/rollback
 - **Check Interval:** 60 seconds
+- **Configuration File:** `/etc/uptime-monitor/config.json` (Linux)
+- **Backup Directory:** `/etc/uptime-monitor/config.backups` (Linux)
 
 ## Support
 

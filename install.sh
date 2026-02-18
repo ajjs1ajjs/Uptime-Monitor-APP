@@ -205,25 +205,58 @@ elif [ -f "requirements.txt" ]; then
     ./venv/bin/pip install -r requirements.txt
 fi
 
+# Get server IP for auto-detection
+SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "0.0.0.0")
+
 # Create configuration
 echo -e "${BLUE}Creating configuration...${NC}"
 if [ ! -f "$CONFIG_DIR/config.json" ]; then
     cat > "$CONFIG_DIR/config.json" << EOF
 {
-    "port": $PORT,
-    "host": "0.0.0.0",
+    "server": {
+        "port": $PORT,
+        "host": "0.0.0.0",
+        "domain": "$SERVER_IP"
+    },
+    "ssl": {
+        "enabled": false,
+        "type": "custom",
+        "cert_path": "$CONFIG_DIR/ssl/cert.pem",
+        "key_path": "$CONFIG_DIR/ssl/key.pem",
+        "redirect_http": true,
+        "hsts": true,
+        "hsts_max_age": 31536000
+    },
     "data_dir": "$DATA_DIR",
     "log_dir": "$LOG_DIR",
     "check_interval": 60,
-    
-    "notify_email_enabled": false,
-    "notify_email_smtp_server": "",
-    "notify_email_smtp_port": 587,
-    "notify_email_username": "",
-    "notify_email_password": "",
-    "notify_email_to": ""
+    "notifications": {
+        "email_enabled": false,
+        "email_smtp_server": "",
+        "email_smtp_port": 587,
+        "email_username": "",
+        "email_password": "",
+        "email_to": ""
+    },
+    "backup": {
+        "enabled": true,
+        "max_backups": 10,
+        "backup_dir": "$CONFIG_DIR/config.backups"
+    }
 }
 EOF
+fi
+
+# Create SSL directory
+mkdir -p "$CONFIG_DIR/ssl"
+mkdir -p "$CONFIG_DIR/config.backups"
+
+# Copy scripts
+echo -e "${BLUE}Installing management scripts...${NC}"
+if [ -d "$SRC_DIR/scripts" ]; then
+    cp -r "$SRC_DIR/scripts" "$INSTALL_DIR/"
+    chmod +x "$INSTALL_DIR/scripts/"*.sh 2>/dev/null || true
+    chmod +x "$INSTALL_DIR/scripts/"*.py 2>/dev/null || true
 fi
 
 # Create systemd service
@@ -242,7 +275,7 @@ WorkingDirectory=$INSTALL_DIR
 Environment="PATH=$INSTALL_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="CONFIG_PATH=$CONFIG_DIR/config.json"
 Environment="APP_VERSION=$APP_VERSION"
-ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/main.py --port $PORT
+ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/main.py
 Restart=always
 RestartSec=10
 StandardOutput=append:$LOG_DIR/uptime-monitor.log
@@ -289,11 +322,14 @@ if systemctl is-active --quiet $SERVICE_NAME; then
     
     echo ""
     echo -e "${GREEN}=========================================="
-    echo "   Installation Successful!"
+    echo "   Uptime Monitor - Installation Successful!"
     echo "==========================================${NC}"
     echo ""
     echo -e "  ${GREEN}Version:${NC}     $APP_VERSION"
     echo -e "  ${GREEN}Port:${NC}        $PORT"
+    echo -e "  ${GREEN}Host:${NC}        0.0.0.0"
+    echo -e "  ${GREEN}Domain:${NC}      $IP (auto-detected)"
+    echo -e "  ${GREEN}SSL:${NC}         Disabled (configure manually)"
     echo -e "  ${GREEN}URL:${NC}         http://$IP:$PORT"
     echo ""
     echo -e "  ${YELLOW}Default Credentials:${NC}"
@@ -302,14 +338,28 @@ if systemctl is-active --quiet $SERVICE_NAME; then
     echo ""
     echo -e "  ${YELLOW}Please change the password after first login!${NC}"
     echo ""
-    echo "Management commands:"
+    echo "Management Commands:"
     echo "  sudo systemctl status $SERVICE_NAME"
     echo "  sudo systemctl restart $SERVICE_NAME"
     echo "  sudo systemctl stop $SERVICE_NAME"
     echo ""
-    echo "Configuration:"
-    echo "  Config file: $CONFIG_DIR/config.json"
-    echo "  Logs:        $LOG_DIR/"
+    echo "Configuration Commands:"
+    echo "  sudo nano $CONFIG_DIR/config.json     # Edit configuration"
+    echo "  sudo $INSTALL_DIR/scripts/config-rollback.sh --list     # List backups"
+    echo "  sudo $INSTALL_DIR/scripts/config-rollback.sh            # Rollback to previous"
+    echo ""
+    echo "Enable SSL (when ready):"
+    echo "  1. Add your certificates to $CONFIG_DIR/ssl/"
+    echo "  2. Edit $CONFIG_DIR/config.json"
+    echo "  3. Change ssl.enabled to true"
+    echo "  4. Update server.port to 443"
+    echo "  5. Update server.domain to your domain"
+    echo "  6. Restart: sudo systemctl restart $SERVICE_NAME"
+    echo ""
+    echo "Configuration File:"
+    echo "  Location: $CONFIG_DIR/config.json"
+    echo "  Logs:     $LOG_DIR/"
+    echo "  SSL:      $CONFIG_DIR/ssl/"
     echo ""
 else
     echo -e "${RED}=========================================="
