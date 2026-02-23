@@ -270,6 +270,7 @@ class SiteCreate(BaseModel):
     check_interval: int = 60
     is_active: bool = True
     notify_methods: Optional[List[str]] = []
+    monitor_type: str = "http"
 
 class SiteUpdate(BaseModel):
     name: Optional[str] = None
@@ -913,6 +914,30 @@ async def dashboard(request: Request):
         @keyframes scaleIn {{ from {{ opacity: 0; transform: scale(0.9); }} to {{ opacity: 1; transform: scale(1); }} }}
         @keyframes slideDown {{ from {{ opacity: 0; transform: translateY(-10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
         @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.7; }} }}
+        
+        .notify-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }}
+        .notify-card {{ background: linear-gradient(145deg, rgba(30,42,74,0.6), rgba(22,33,62,0.8)); padding: 24px; border-radius: 20px; border: 1px solid var(--border); transition: all 0.3s ease; }}
+        .notify-card:hover {{ transform: translateY(-3px); box-shadow: 0 15px 40px rgba(0,0,0,0.4); border-color: var(--accent); }}
+        .notify-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }}
+        .notify-name {{ font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }}
+        .toggle {{ position: relative; display: inline-block; width: 50px; height: 26px; }}
+        .toggle input {{ opacity: 0; width: 0; height: 0; }}
+        .toggle-slider {{ position: absolute; cursor: pointer; inset: 0; background: var(--bg-secondary); border-radius: 26px; transition: 0.3s; border: 1px solid var(--border); }}
+        .toggle-slider::before {{ content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: var(--text-secondary); border-radius: 50%; transition: 0.3s; }}
+        .toggle input:checked + .toggle-slider {{ background: var(--accent); border-color: var(--accent); }}
+        .toggle input:checked + .toggle-slider::before {{ transform: translateX(24px); background: #000; }}
+        .notify-fields {{ display: flex; flex-direction: column; gap: 10px; }}
+        .notify-fields input {{ width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; transition: border-color 0.3s; }}
+        .notify-fields input:focus {{ outline: none; border-color: var(--accent); }}
+        
+        .form-row {{ display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }}
+        .form-row input, .form-row select {{ flex: 1; min-width: 200px; padding: 14px; border-radius: 12px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); font-size: 14px; }}
+        .form-row input:focus, .form-row select:focus {{ outline: none; border-color: var(--accent); }}
+        
+        .address-config {{ padding: 20px; background: var(--bg-secondary); border-radius: 15px; }}
+        .address-config input {{ flex: 1; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); }}
+        
+        .ssl-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }}
     </style>
 </head>
 <body>
@@ -1059,16 +1084,6 @@ async def dashboard(request: Request):
                     </div>
                 </div>
                 
-                <div class="notify-card" id="card-slack">
-                    <div class="notify-header">
-                        <div class="notify-name">💬 Slack</div>
-                        <label class="toggle"><input type="checkbox" id="toggle-slack" onchange="toggleNotify('slack')"><span class="toggle-slider"></span></label>
-                    </div>
-                    <div class="notify-fields">
-                        <input type="text" id="slack-webhook" placeholder="Webhook URL">
-                    </div>
-                </div>
-                
                 <div class="notify-card" id="card-email">
                     <div class="notify-header">
                         <div class="notify-name">📧 Email (SMTP)</div>
@@ -1081,41 +1096,8 @@ async def dashboard(request: Request):
                         <input type="password" id="email-pass" placeholder="Password / App Password">
                         <input type="text" id="email-to" placeholder="To Email">
                     </div>
-                </div>
-                
-                <div class="notify-card" id="card-sms">
-                    <div class="notify-header">
-                        <div class="notify-name">📱 SMS (Twilio)</div>
-                        <label class="toggle"><input type="checkbox" id="toggle-sms" onchange="toggleNotify('sms')"><span class="toggle-slider"></span></label>
-                    </div>
-                    <div class="notify-fields">
-                        <input type="text" id="sms-sid" placeholder="Account SID">
-                        <input type="password" id="sms-token" placeholder="Auth Token">
-                        <input type="text" id="sms-from" placeholder="From Number">
-                        <input type="text" id="sms-to" placeholder="To Number">
-                    </div>
-                </div>
             </div>
             <button class="btn btn-check" style="margin-top: 20px; width: 100%;" onclick="saveNotifySettings()">💾 Зберегти налаштування</button>
-        </div>
-        
-        <div class="panel">
-            <div class="panel-title">➕ Додати новий сайт</div>
-            <div class="form-row">
-                <input type="text" id="siteName" placeholder="Назва сайту">
-                <input type="url" id="siteUrl" placeholder="URL (https://example.com)">
-                <select id="siteNotify" multiple style="flex:1; min-width:200px; padding:12px; border-radius:10px; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border);">
-                    <option value="telegram">📱 Telegram</option>
-                    <option value="teams">🏢 MS Teams</option>
-                    <option value="discord">🎮 Discord</option>
-                    <option value="slack">💬 Slack</option>
-                    <option value="email">📧 Email</option>
-                    <option value="sms">📱 SMS</option>
-                </select>
-                <button onclick="addSite()">Додати сайт</button>
-            </div>
-            <div style="margin-top: 10px; color: var(--text-secondary); font-size: 12px;">Виберіть способи сповіщень (Ctrl+Click для вибору кількох)</div>
-        </div>
         </div>
         
         <div id="tab-ssl" class="tab-content">
@@ -1185,9 +1167,7 @@ async def dashboard(request: Request):
                     <option value="telegram">📱 Telegram</option>
                     <option value="teams">🏢 MS Teams</option>
                     <option value="discord">🎮 Discord</option>
-                    <option value="slack">💬 Slack</option>
                     <option value="email">📧 Email</option>
-                    <option value="sms">📱 SMS</option>
                 </select>
             </div>
             <div class="modal-actions">
@@ -1460,7 +1440,7 @@ async def dashboard(request: Request):
                 return;
             }}
             grid.innerHTML = sitesData.map(site => {{
-                const notifyBadges = (site.notify_methods || []).map(m => {{ const names = {{telegram:'📱 Telegram', teams:'🏢 Teams', discord:'🎮 Discord', slack:'💬 Slack', email:'📧 Email', sms:'📱 SMS'}}; return '<span class="notify-badge">' + (names[m] || m) + '</span>' }}).join('');
+                const notifyBadges = (site.notify_methods || []).map(m => {{ const names = {{telegram:'📱 Telegram', teams:'🏢 Teams', discord:'🎮 Discord', email:'📧 Email'}}; return '<span class="notify-badge">' + (names[m] || m) + '</span>' }}).join('');
                 const safeName = site.name.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                 const safeUrl = site.url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                 const notifyMethodsJson = JSON.stringify(site.notify_methods || []).replace(/"/g, '&quot;');
@@ -1489,6 +1469,7 @@ async def dashboard(request: Request):
         async function addSite() {{
             const name = document.getElementById('siteName').value.trim();
             const url = document.getElementById('siteUrl').value.trim();
+            const monitorType = document.getElementById('monitorType').value;
             const notifySelect = document.getElementById('siteNotify');
             const notifyMethods = Array.from(notifySelect.selectedOptions).map(o => o.value);
             if (!name || !url) return alert('Заповніть всі поля!');
@@ -1496,11 +1477,12 @@ async def dashboard(request: Request):
             await fetch('/api/sites', {{
                 method: 'POST',
                 headers: {{'Content-Type': 'application/json'}},
-                body: JSON.stringify({{name, url, notify_methods: notifyMethods}})
+                body: JSON.stringify({{name, url, monitor_type: monitorType, notify_methods: notifyMethods}})
             }});
             document.getElementById('siteName').value = '';
             document.getElementById('siteUrl').value = '';
-            loadSites();
+            document.getElementById('addMonitorModal').classList.remove('active');
+            loadMonitors();
         }}
         
         async function deleteSite(id) {{
@@ -1769,8 +1751,8 @@ async def add_site(site: SiteCreate):
     notify_methods = site.notify_methods or []
     notify_json = json.dumps(notify_methods)
     try:
-        c.execute("INSERT INTO sites (name, url, check_interval, is_active, notify_methods) VALUES (?, ?, ?, ?, ?)",
-                  (site.name, site.url, site.check_interval, site.is_active, notify_json))
+        c.execute("INSERT INTO sites (name, url, check_interval, is_active, notify_methods, monitor_type) VALUES (?, ?, ?, ?, ?, ?)",
+                  (site.name, site.url, site.check_interval, site.is_active, notify_json, site.monitor_type))
         site_id = c.lastrowid
         conn.commit()
     except sqlite3.IntegrityError:
