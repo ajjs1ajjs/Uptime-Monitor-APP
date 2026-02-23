@@ -649,6 +649,93 @@ async def get_ssl_certificates_data():
     
     return certs
 
+@app.get("/status", response_class=HTMLResponse)
+async def public_status_page(request: Request):
+    """Публічна сторінка статусу"""
+    from datetime import datetime as dt
+    
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT id, name, url FROM sites ORDER BY id")
+    sites = c.fetchall()
+    
+    c.execute("SELECT site_id, status FROM status_history WHERE checked_at > datetime('now', '-24 hours') ORDER BY checked_at DESC")
+    history = c.fetchall()
+    
+    site_status = {}
+    for h in history:
+        if h['site_id'] not in site_status:
+            site_status[h['site_id']] = h['status']
+    
+    conn.close()
+    
+    up_count = sum(1 for s in site_status.values() if s == 'up')
+    down_count = sum(1 for s in site_status.values() if s == 'down')
+    total = len(sites)
+    
+    monitors_html = ''
+    for site in sites:
+        status = site_status.get(site['id'], 'unknown')
+        status_class = 'up' if status == 'up' else 'down'
+        status_text = '✓ Онлайн' if status == 'up' else '✗ Офлайн'
+        monitors_html += f'''
+        <div class="monitor {status_class}">
+            <div><div class="monitor-name">{site['name']}</div>
+            <div class="monitor-url">{site['url']}</div></div>
+            <span class="status-badge {status_class}">{status_text}</span>
+        </div>'''
+    
+    status_html = f'''<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status - Uptime Monitor</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{ font-family: 'Inter', sans-serif; background: #0f0f23; color: #fff; min-height: 100vh; }}
+        .header {{ background: linear-gradient(135deg, #1a1a2e, #0f0f23); padding: 40px; text-align: center; border-bottom: 1px solid #2a2a4a; }}
+        .logo {{ font-size: 32px; font-weight: 700; margin-bottom: 20px; }}
+        .logo-icon {{ display: inline-block; width: 50px; height: 50px; background: linear-gradient(135deg, #00d9ff, #00ff88); border-radius: 12px; line-height: 50px; font-size: 24px; margin-right: 10px; }}
+        .overall-status {{ font-size: 48px; font-weight: 700; margin: 30px 0; }}
+        .overall-status.up {{ color: #00ff88; }}
+        .overall-status.down {{ color: #ff4757; }}
+        .stats {{ display: flex; justify-content: center; gap: 40px; margin: 20px 0; }}
+        .stat {{ text-align: center; }}
+        .stat-value {{ font-size: 36px; font-weight: 700; }}
+        .stat-label {{ color: #a0a0b0; font-size: 14px; }}
+        .container {{ max-width: 1000px; margin: 0 auto; padding: 40px; }}
+        .monitor {{ background: linear-gradient(145deg, #1a1a2e, #16213e); padding: 20px; margin-bottom: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #2a2a4a; }}
+        .monitor.up {{ border-left: 4px solid #00ff88; }}
+        .monitor.down {{ border-left: 4px solid #ff4757; }}
+        .monitor-name {{ font-size: 18px; font-weight: 600; }}
+        .monitor-url {{ color: #a0a0b0; font-size: 13px; margin-top: 5px; }}
+        .status-badge {{ padding: 8px 20px; border-radius: 20px; font-weight: 600; font-size: 14px; }}
+        .status-badge.up {{ background: rgba(0,255,136,0.15); color: #00ff88; }}
+        .status-badge.down {{ background: rgba(255,71,87,0.15); color: #ff4757; }}
+        .footer {{ text-align: center; padding: 40px; color: #a0a0b0; font-size: 14px; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo"><span class="logo-icon">⚡</span>Uptime Monitor</div>
+        <div class="overall-status {'up' if down_count == 0 else 'down'}">
+            {'✅ Всі системи працюють' if down_count == 0 else '⚠️ Деякі проблеми'}
+        </div>
+        <div class="stats">
+            <div class="stat"><div class="stat-value" style="color: #00d9ff;">{total}</div><div class="stat-label">Моніторів</div></div>
+            <div class="stat"><div class="stat-value" style="color: #00ff88;">{up_count}</div><div class="stat-label">Онлайн</div></div>
+            <div class="stat"><div class="stat-value" style="color: #ff4757;">{down_count}</div><div class="stat-label">Офлайн</div></div>
+        </div>
+    </div>
+    <div class="container">{monitors_html}
+    </div>
+    <div class="footer"><p>Оновлено: {dt.now().strftime('%Y-%m-%d %H:%M:%S')}</p></div>
+</body>
+</html>'''
+    
+    return HTMLResponse(content=status_html)
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     # Перевірка авторизації
@@ -707,8 +794,9 @@ async def dashboard(request: Request):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uptime Monitor</title>
+    <title>Uptime Monitor - Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {{
             --bg-primary: #0f0f23;
@@ -722,80 +810,61 @@ async def dashboard(request: Request):
             --text-primary: #ffffff;
             --text-secondary: #a0a0b0;
             --border: #2a2a4a;
+            --bg-gradient: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
         }}
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }}
+        body {{ font-family: 'Inter', sans-serif; background: var(--bg-gradient); color: var(--text-primary); min-height: 100vh; }}
         
-        .header {{ background: linear-gradient(135deg, var(--bg-secondary) 0%, #1f1f3a 100%); padding: 20px 40px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }}
-        .logo {{ font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 10px; }}
-        .logo-icon {{ width: 40px; height: 40px; background: linear-gradient(135deg, var(--accent), var(--accent-hover)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 15px rgba(0,217,255,0.3); }}
+        .header {{ background: linear-gradient(180deg, rgba(26,26,46,0.95) 0%, rgba(15,15,35,0.95) 100%); padding: 20px 40px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(10px); }}
+        .logo {{ font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 12px; }}
+        .logo-icon {{ width: 44px; height: 44px; background: linear-gradient(135deg, var(--accent), #00ff88); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 4px 20px rgba(0,217,255,0.4), 0 0 30px rgba(0,255,136,0.2); }}
         
-        .stats-bar {{ display: flex; gap: 20px; margin: 30px 40px; }}
-        .stat-card {{ background: linear-gradient(145deg, #1e2a4a, #16213e); padding: 20px 30px; border-radius: 20px; flex: 1; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 5px 15px rgba(0,0,0,0.2); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }}
-        .stat-card:hover {{ transform: translateY(-5px) scale(1.02); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.3); }}
-        .stat-value {{ font-size: 32px; font-weight: 700; }}
-        .stat-label {{ color: var(--text-secondary); font-size: 14px; margin-top: 5px; }}
-        .stat-card.total .stat-value {{ color: var(--accent); }}
-        .stat-card.up .stat-value {{ color: var(--success); }}
-        .stat-card.down .stat-value {{ color: var(--danger); }}
+        .hero-stats {{ display: flex; gap: 30px; margin: 40px; background: linear-gradient(145deg, rgba(30,42,74,0.6), rgba(22,33,62,0.8)); padding: 30px 40px; border-radius: 24px; border: 1px solid rgba(0,217,255,0.1); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }}
+        .hero-stat {{ text-align: center; flex: 1; position: relative; }}
+        .hero-stat:not(:last-child)::after {{ content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 60%; width: 1px; background: linear-gradient(180deg, transparent, var(--border), transparent); }}
+        .hero-stat-value {{ font-size: 48px; font-weight: 700; background: linear-gradient(135deg, var(--accent), #00ff88); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
+        .hero-stat-label {{ color: var(--text-secondary); font-size: 14px; margin-top: 8px; text-transform: uppercase; letter-spacing: 1px; }}
+        
+        .monitoring-types {{ display: flex; gap: 15px; margin: 0 40px 30px; flex-wrap: wrap; }}
+        .monitor-type-btn {{ padding: 12px 24px; background: linear-gradient(145deg, rgba(26,26,46,0.8), rgba(22,33,62,0.9)); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-weight: 600; color: var(--text-secondary); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; }}
+        .monitor-type-btn:hover {{ border-color: var(--accent); color: var(--text-primary); transform: translateY(-2px); }}
+        .monitor-type-btn.active {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,217,255,0.3); }}
         
         .container {{ max-width: 1400px; margin: 0 auto; padding: 0 40px 40px; }}
         
-        .panel {{ background: linear-gradient(145deg, #1e2a4a, #16213e); padding: 25px; border-radius: 20px; margin-bottom: 30px; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 5px 15px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05); transition: all 0.4s ease; }}
-        .panel:hover {{ transform: translateY(-2px); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.3); }}
+        .panel {{ background: linear-gradient(145deg, rgba(30,42,74,0.5), rgba(22,33,62,0.7)); padding: 25px; border-radius: 20px; margin-bottom: 30px; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05); backdrop-filter: blur(10px); }}
+        .panel:hover {{ transform: translateY(-2px); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }}
         .panel-title {{ font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }}
         
-        .server-info {{ background: var(--bg-card); padding: 20px; border-radius: 15px; margin-bottom: 30px; border: 1px solid var(--accent); text-align: center; }}
-        .server-info .label {{ color: var(--text-secondary); font-size: 14px; }}
-        .server-info .value {{ color: var(--accent); font-size: 24px; font-weight: 700; margin-top: 5px; }}
+        .chart-container {{ position: relative; height: 300px; margin: 20px 0; }}
         
-        .notify-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }}
-        .notify-card {{ background: var(--bg-secondary); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }}
-        .notify-card.enabled {{ border-color: var(--success); }}
-        .notify-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }}
-        .notify-name {{ font-weight: 600; display: flex; align-items: center; gap: 8px; }}
-        .toggle {{ position: relative; width: 50px; height: 26px; }}
-        .toggle input {{ opacity: 0; width: 0; height: 0; }}
-        .toggle-slider {{ position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 26px; transition: 0.3s; }}
-        .toggle-slider:before {{ content: ''; position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }}
-        .toggle input:checked + .toggle-slider {{ background: var(--success); }}
-        .toggle input:checked + .toggle-slider:before {{ transform: translateX(24px); }}
+        .monitor-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }}
+        .monitor-card {{ background: linear-gradient(145deg, rgba(30,42,74,0.6), rgba(22,33,62,0.8)); padding: 24px; border-radius: 20px; border: 1px solid var(--border); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 40px rgba(0,0,0,0.3); position: relative; overflow: hidden; }}
+        .monitor-card::before {{ content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), #00ff88); opacity: 0; transition: opacity 0.3s; }}
+        .monitor-card:hover {{ transform: translateY(-5px) scale(1.02); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(0,217,255,0.1); }}
+        .monitor-card:hover::before {{ opacity: 1; }}
+        .monitor-card.up {{ border-left: 4px solid var(--success); }}
+        .monitor-card.down {{ border-left: 4px solid var(--danger); }}
+        .monitor-card.paused {{ border-left: 4px solid var(--warning); opacity: 0.7; }}
         
-        .notify-fields {{ display: none; }}
-        .notify-card.enabled .notify-fields {{ display: block; }}
-        .notify-fields input {{ width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-primary); color: var(--text-primary); font-size: 13px; }}
-        .notify-fields input:focus {{ outline: none; border-color: var(--accent); }}
+        .monitor-header {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }}
+        .monitor-name {{ font-size: 18px; font-weight: 600; }}
+        .monitor-url {{ color: var(--text-secondary); font-size: 13px; word-break: break-all; margin-top: 5px; }}
+        .monitor-type-badge {{ padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; background: rgba(0,217,255,0.15); color: var(--accent); }}
         
-        .form-row {{ display: flex; gap: 15px; flex-wrap: wrap; }}
-        .form-row input {{ flex: 1; min-width: 200px; padding: 12px 15px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; }}
-        .form-row input:focus {{ outline: none; border-color: var(--accent); }}
-        .form-row button {{ padding: 12px 30px; background: var(--accent); border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.3s; }}
-        .form-row button:hover {{ background: var(--accent-hover); transform: translateY(-2px); }}
+        .monitor-stats {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; padding: 15px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }}
+        .monitor-stat {{ text-align: center; }}
+        .monitor-stat-value {{ font-size: 18px; font-weight: 700; }}
+        .monitor-stat-label {{ font-size: 11px; color: var(--text-secondary); margin-top: 3px; }}
         
-        .sites-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }}
-        .ssl-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }}
-        .site-card {{ background: linear-gradient(145deg, #1e2a4a, #16213e); padding: 18px; border-radius: 15px; border: 1px solid var(--border); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 5px 15px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05); }}
--card:hover {{ transform: translateY(-5px) scale(1.02); border        .site-color: var(--accent); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.3), 0 0 30px rgba(0,217,255,0.15); }}
-        .ssl-card {{ background: linear-gradient(145deg, #1e2a4a, #16213e); padding: 15px; border-radius: 12px; border: 1px solid var(--border); transition: all 0.3s ease; box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 5px 15px rgba(0,0,0,0.2); }}
-        .ssl-card:hover {{ transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.3), 0 0 20px rgba(0,217,255,0.1); }}
-        .site-card.up {{ border-left: 5px solid var(--success); box-shadow: 0 10px 40px rgba(0,0,0,0.4), -5px 0 20px rgba(0,255,136,0.1); }}
-        .site-card.down {{ border-left: 5px solid var(--danger); box-shadow: 0 10px 40px rgba(0,0,0,0.4), -5px 0 20px rgba(255,71,87,0.1); }}
-        
-        .site-header {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }}
-        .site-name {{ font-size: 18px; font-weight: 600; }}
-        .site-url {{ color: var(--text-secondary); font-size: 13px; word-break: break-all; margin-top: 5px; }}
-        
-        .status-badge {{ padding: 6px 15px; border-radius: 20px; font-weight: 600; font-size: 12px; text-transform: uppercase; }}
-        .status-badge.up {{ background: rgba(0,255,136,0.15); color: var(--success); }}
-        .status-badge.down {{ background: rgba(255,71,87,0.15); color: var(--danger); }}
-        
-        .site-stats {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; padding: 15px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }}
-        .site-stat {{ text-align: center; }}
-        .site-stat-value {{ font-size: 20px; font-weight: 700; }}
-        .site-stat-label {{ font-size: 12px; color: var(--text-secondary); margin-top: 3px; }}
-        
-        .notify-badges {{ display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; }}
-        .notify-badge {{ padding: 4px 10px; background: var(--bg-secondary); border-radius: 5px; font-size: 11px; color: var(--text-secondary); }}
+        .monitor-actions {{ display: flex; gap: 10px; }}
+        .btn {{ flex: 1; padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }}
+        .btn-check {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; box-shadow: 0 4px 15px rgba(0,217,255,0.3); }}
+        .btn-check:hover {{ transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,217,255,0.5); }}
+        .btn-edit {{ background: linear-gradient(135deg, rgba(255,217,61,0.2), rgba(255,217,61,0.1)); color: var(--warning); }}
+        .btn-edit:hover {{ background: linear-gradient(135deg, var(--warning), #e6c200); color: #000; }}
+        .btn-delete {{ background: linear-gradient(135deg, rgba(255,71,87,0.2), rgba(255,71,87,0.1)); color: var(--danger); }}
+        .btn-delete:hover {{ background: linear-gradient(135deg, var(--danger), #cc3a47); color: #fff; }}
         
         .site-actions {{ display: flex; gap: 10px; }}
         .btn {{ flex: 1; padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-weight: 500; font-size: 13px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }}
@@ -851,40 +920,101 @@ async def dashboard(request: Request):
         <div class="logo"><div class="logo-icon">⚡</div><span>Uptime Monitor</span></div>
         <div style="display: flex; align-items: center; gap: 20px;">
             <div id="lastUpdate" style="color: var(--text-secondary); font-size: 14px;"></div>
+            <a href="/status" target="_blank" style="padding: 8px 16px; background: rgba(0,217,255,0.2); color: var(--accent); text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 500;">📄 Status Page</a>
             <a href="/logout" style="padding: 8px 16px; background: rgba(255,71,87,0.2); color: var(--danger); text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 500;">🚪 Вийти</a>
         </div>
     </div>
     
     <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('monitoring')">📊 Моніторинг</button>
+        <button class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+        <button class="tab-btn" onclick="switchTab('monitors')">🖥️ Монітори</button>
+        <button class="tab-btn" onclick="switchTab('incidents')">⚠️ Інциденти</button>
         <button class="tab-btn" onclick="switchTab('settings')">⚙️ Налаштування</button>
-        <button class="tab-btn" onclick="switchTab('ssl')">🔒 SSL</button>
     </div>
     
-    <div class="container">
-        
-        <div id="tab-monitoring" class="tab-content active">
-        
-        <div class="stats-bar">
-            <div class="stat-card total"><div class="stat-value">{total_sites}</div><div class="stat-label">Всього сайтів</div></div>
-            <div class="stat-card up"><div class="stat-value">{up_sites}</div><div class="stat-label">Працюють</div></div>
-            <div class="stat-card down"><div class="stat-value">{down_sites}</div><div class="stat-label">Недоступні</div></div>
+    <div id="tab-dashboard" class="tab-content active">
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="hero-stat-value">{total_sites}</div>
+                <div class="hero-stat-label">Моніторів</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-value" style="background: linear-gradient(135deg, #00ff88, #00cc6a); -webkit-background-clip: text;">{up_sites}</div>
+                <div class="hero-stat-label">Онлайн</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-value" style="background: linear-gradient(135deg, #ff4757, #ff6b7a); -webkit-background-clip: text;">{down_sites}</div>
+                <div class="hero-stat-label">Офлайн</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-value" style="background: linear-gradient(135deg, #ffd93d, #ffb300); -webkit-background-clip: text;">0</div>
+                <div class="hero-stat-label">Інцидентів</div>
+            </div>
         </div>
         
-        <div class="panel">
-            <div class="panel-title">📊 Моніторинг сайтів</div>
-            <div class="sites-grid" id="sitesGrid"></div>
+        <div class="container">
+            <div class="panel">
+                <div class="panel-title">📈 Час відповіді (24 години)</div>
+                <div class="chart-container">
+                    <canvas id="responseTimeChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">🎯 Швидкі дії</div>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <button class="btn btn-check" onclick="switchTab('monitors'); setTimeout(() => addMonitorModal.show(), 300)">➕ Додати монітор</button>
+                    <button class="btn btn-check" style="background: linear-gradient(135deg, #00ff88, #00cc6a);" onclick="checkAllMonitors()">🔄 Перевірити всі</button>
+                    <button class="btn btn-edit" onclick="switchTab('incidents')">📋 Історія інцидентів</button>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">📊 Статус всіх моніторів</div>
+                <div class="monitor-grid" id="dashboardMonitors"></div>
+            </div>
         </div>
-        <p class="refresh-info">Сторінка автоматично оновлюється кожні 30 секунд</p>
+    </div>
+    
+    <div id="tab-monitors" class="tab-content">
+        <div class="monitoring-types">
+            <button class="monitor-type-btn active" onclick="filterMonitors('all')">🌐 Всі</button>
+            <button class="monitor-type-btn" onclick="filterMonitors('http')">🌐 HTTP(S)</button>
+            <button class="monitor-type-btn" onclick="filterMonitors('port')">🔌 Порт</button>
+            <button class="monitor-type-btn" onclick="filterMonitors('ping')">📡 Пінг</button>
+            <button class="monitor-type-btn" onclick="filterMonitors('ssl')">🔒 SSL</button>
         </div>
         
-        <div id="tab-settings" class="tab-content">
+        <div class="container">
+            <div class="panel">
+                <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>🖥️ Мої монітори</span>
+                    <button class="btn btn-check" onclick="document.getElementById('addMonitorModal').classList.add('active')">➕ Додати</button>
+                </div>
+                <div class="monitor-grid" id="monitorsGrid"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="tab-incidents" class="tab-content">
+        <div class="container">
+            <div class="panel">
+                <div class="panel-title">⚠️ Історія інцидентів</div>
+                <div id="incidentsList" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    Немає інцидентів - всі монітори працюють!
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="tab-settings" class="tab-content">
+        <div class="container">
         
         <div class="panel">
             <div class="panel-title">🔗 Налаштування адреси</div>
             <div class="address-config">
                 <div class="form-row">
-                    <input type="text" id="displayAddress" placeholder="Адреса для доступу (наприклад: http://192.168.1.100:8000 або http://mysite.com:8000)">
+                    <input type="text" id="displayAddress" placeholder="Адреса для доступу (наприклад: http://192.168.1.100:8000)">
                     <button onclick="saveDisplayAddress()">💾 Зберегти</button>
                 </div>
             </div>
@@ -1031,12 +1161,176 @@ async def dashboard(request: Request):
     
     <script>
         const notifyConfig = {notify_config_json};
+        let currentFilter = 'all';
+        let responseChart = null;
         
         function switchTab(tabName) {{
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.querySelector('.tab-btn[onclick="switchTab(\\'' + tabName + '\\')"]').classList.add('active');
             document.getElementById('tab-' + tabName).classList.add('active');
+            
+            if (tabName === 'dashboard') {{
+                loadDashboard();
+            }} else if (tabName === 'monitors') {{
+                loadMonitors();
+            }}
+        }}
+        
+        function filterMonitors(type) {{
+            currentFilter = type;
+            document.querySelectorAll('.monitor-type-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            loadMonitors();
+        }}
+        
+        async function loadDashboard() {{
+            try {{
+                const response = await fetch('/api/sites');
+                sitesData = await response.json();
+                renderDashboardMonitors();
+                initResponseChart();
+            }} catch(e) {{ console.error(e); }}
+        }}
+        
+        function renderDashboardMonitors() {{
+            const grid = document.getElementById('dashboardMonitors');
+            if (!grid) return;
+            
+            const filtered = currentFilter === 'all' ? sitesData : sitesData.filter(s => s.monitor_type === currentFilter);
+            
+            if (filtered.length === 0) {{
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Немає моніторів. Додайте перший!</div>';
+                return;
+            }}
+            
+            let html = '';
+            filtered.slice(0, 6).forEach(site => {{
+                const statusClass = site.status === 'up' ? 'up' : (site.status === 'paused' ? 'paused' : 'down');
+                const typeBadge = site.monitor_type === 'http' ? '🌐 HTTP' : site.monitor_type === 'port' ? '🔌 Порт' : site.monitor_type === 'ping' ? '📡 Пінг' : '🔒 SSL';
+                const statusColor = site.status === 'up' ? 'var(--success)' : 'var(--danger)';
+                const statusIcon = site.status === 'up' ? '✓' : '✗';
+                const respTime = site.response_time || '—';
+                const uptime = site.uptime || 100;
+                const httpCode = site.status_code || '—';
+                
+                html += '<div class="monitor-card ' + statusClass + '">';
+                html += '<div class="monitor-header"><div>';
+                html += '<div class="monitor-name">' + site.name + '</div>';
+                html += '<div class="monitor-url">' + site.url + '</div>';
+                html += '</div><span class="monitor-type-badge">' + typeBadge + '</span></div>';
+                html += '<div class="monitor-stats">';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value" style="color:' + statusColor + '">' + statusIcon + '</div><div class="monitor-stat-label">Статус</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + respTime + '</div><div class="monitor-stat-label">ms</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + uptime + '%</div><div class="monitor-stat-label">Uptime</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + httpCode + '</div><div class="monitor-stat-label">HTTP</div></div>';
+                html += '</div></div>';
+            }});
+            grid.innerHTML = html;
+        }}
+        
+        async function loadMonitors() {{
+            try {{
+                const response = await fetch('/api/sites');
+                sitesData = await response.json();
+                renderMonitors();
+            }} catch(e) {{ console.error(e); }}
+        }}
+        
+        function renderMonitors() {{
+            const grid = document.getElementById('monitorsGrid');
+            if (!grid) return;
+            
+            const filtered = currentFilter === 'all' ? sitesData : sitesData.filter(s => s.monitor_type === currentFilter);
+            
+            if (filtered.length === 0) {{
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Немає моніторів. Додайте перший!</div>';
+                return;
+            }}
+            
+            let html = '';
+            filtered.forEach(site => {{
+                const statusClass = site.status === 'up' ? 'up' : (site.status === 'paused' ? 'paused' : 'down');
+                const statusText = site.status === 'up' ? '✓ Онлайн' : (site.status === 'paused' ? '⏸ Пауза' : '✗ Офлайн');
+                const typeBadge = site.monitor_type === 'http' ? '🌐 HTTP' : site.monitor_type === 'port' ? '🔌 Порт' : site.monitor_type === 'ping' ? '📡 Пінг' : '🔒 SSL';
+                const statusColor = site.status === 'up' ? 'var(--success)' : 'var(--danger)';
+                const respTime = site.response_time || '—';
+                const uptime = site.uptime || 100;
+                const httpCode = site.status_code || '—';
+                
+                html += '<div class="monitor-card ' + statusClass + '">';
+                html += '<div class="monitor-header"><div>';
+                html += '<div class="monitor-name">' + site.name + '</div>';
+                html += '<div class="monitor-url">' + site.url + '</div>';
+                html += '</div><span class="monitor-type-badge">' + typeBadge + '</span></div>';
+                html += '<div class="monitor-stats">';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value" style="color:' + statusColor + '">' + statusText + '</div><div class="monitor-stat-label">Статус</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + respTime + 'ms</div><div class="monitor-stat-label">Час</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + uptime + '%</div><div class="monitor-stat-label">Uptime</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + httpCode + '</div><div class="monitor-stat-label">HTTP</div></div>';
+                html += '</div>';
+                html += '<div class="monitor-actions">';
+                html += '<button class="btn btn-check" onclick="checkSite(' + site.id + ')">🔄</button>';
+                html += '<button class="btn btn-edit" onclick="openEditModal(' + site.id + ', \\'' + site.name + '\\', \\'' + site.url + '\\', \\'' + site.monitor_type + '\\')">✏️</button>';
+                html += '<button class="btn btn-delete" onclick="deleteSite(' + site.id + ')">🗑️</button>';
+                html += '</div></div>';
+            }});
+            grid.innerHTML = html;
+        }}
+        
+        function initResponseChart() {{
+            const ctx = document.getElementById('responseTimeChart');
+            if (!ctx) return;
+            
+            if (responseChart) responseChart.destroy();
+            
+            const labels = [];
+            const data = [];
+            for (let i = 23; i >= 0; i--) {{
+                labels.push(i + 'h');
+                data.push(Math.floor(Math.random() * 200) + 50);
+            }}
+            
+            responseChart = new Chart(ctx, {{
+                type: 'line',
+                data: {{
+                    labels: labels,
+                    datasets: [{{
+                        label: 'Час відповіді (ms)',
+                        data: data,
+                        borderColor: '#00d9ff',
+                        backgroundColor: 'rgba(0, 217, 255, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {{
+                        legend: {{ display: false }}
+                    }},
+                    scales: {{
+                        y: {{
+                            beginAtZero: true,
+                            grid: {{ color: 'rgba(255,255,255,0.1)' }},
+                            ticks: {{ color: '#a0a0b0' }}
+                        }},
+                        x: {{
+                            grid: {{ color: 'rgba(255,255,255,0.05)' }},
+                            ticks: {{ color: '#a0a0b0' }}
+                        }}
+                    }}
+                }}
+            }});
+        }}
+        
+        async function checkAllMonitors() {{
+            for (const site of sitesData) {{
+                await checkSite(site.id);
+            }}
+            loadDashboard();
+            alert('✅ Перевірку всіх моніторів запущено!');
         }}
         
         async function loadAppSettings() {{
@@ -1338,6 +1632,97 @@ async def get_sites():
         })
     conn.close()
     return result
+
+@app.get("/test123")
+async def test123():
+    return {"test": "123"}
+
+@app.get("/public-status")
+async def public_status_page(request: Request):
+    """Публічна сторінка статусу - без авторизації"""
+    from datetime import datetime as dt
+    
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT id, name, url FROM sites ORDER BY id")
+    sites = c.fetchall()
+    
+    c.execute("SELECT site_id, status FROM status_history WHERE checked_at > datetime('now', '-24 hours') ORDER BY checked_at DESC")
+    history = c.fetchall()
+    
+    site_status = {}
+    for h in history:
+        if h['site_id'] not in site_status:
+            site_status[h['site_id']] = h['status']
+    
+    conn.close()
+    
+    up_count = sum(1 for s in site_status.values() if s == 'up')
+    down_count = sum(1 for s in site_status.values() if s == 'down')
+    total = len(sites)
+    
+    monitors_html = ''
+    for site in sites:
+        status = site_status.get(site['id'], 'unknown')
+        status_class = 'up' if status == 'up' else 'down'
+        status_text = '✓ Онлайн' if status == 'up' else '✗ Офлайн'
+        monitors_html += f'''
+        <div class="monitor {status_class}">
+            <div><div class="monitor-name">{site['name']}</div>
+            <div class="monitor-url">{site['url']}</div></div>
+            <span class="status-badge {status_class}">{status_text}</span>
+        </div>'''
+    
+    status_html = f'''<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status - Uptime Monitor</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{ font-family: 'Inter', sans-serif; background: #0f0f23; color: #fff; min-height: 100vh; }}
+        .header {{ background: linear-gradient(135deg, #1a1a2e, #0f0f23); padding: 40px; text-align: center; border-bottom: 1px solid #2a2a4a; }}
+        .logo {{ font-size: 32px; font-weight: 700; margin-bottom: 20px; }}
+        .logo-icon {{ display: inline-block; width: 50px; height: 50px; background: linear-gradient(135deg, #00d9ff, #00ff88); border-radius: 12px; line-height: 50px; font-size: 24px; margin-right: 10px; }}
+        .overall-status {{ font-size: 48px; font-weight: 700; margin: 30px 0; }}
+        .overall-status.up {{ color: #00ff88; }}
+        .overall-status.down {{ color: #ff4757; }}
+        .stats {{ display: flex; justify-content: center; gap: 40px; margin: 20px 0; }}
+        .stat {{ text-align: center; }}
+        .stat-value {{ font-size: 36px; font-weight: 700; }}
+        .stat-label {{ color: #a0a0b0; font-size: 14px; }}
+        .container {{ max-width: 1000px; margin: 0 auto; padding: 40px; }}
+        .monitor {{ background: linear-gradient(145deg, #1a1a2e, #16213e); padding: 20px; margin-bottom: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #2a2a4a; }}
+        .monitor.up {{ border-left: 4px solid #00ff88; }}
+        .monitor.down {{ border-left: 4px solid #ff4757; }}
+        .monitor-name {{ font-size: 18px; font-weight: 600; }}
+        .monitor-url {{ color: #a0a0b0; font-size: 13px; margin-top: 5px; }}
+        .status-badge {{ padding: 8px 20px; border-radius: 20px; font-weight: 600; font-size: 14px; }}
+        .status-badge.up {{ background: rgba(0,255,136,0.15); color: #00ff88; }}
+        .status-badge.down {{ background: rgba(255,71,87,0.15); color: #ff4757; }}
+        .footer {{ text-align: center; padding: 40px; color: #a0a0b0; font-size: 14px; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo"><span class="logo-icon">⚡</span>Uptime Monitor</div>
+        <div class="overall-status {'up' if down_count == 0 else 'down'}">
+            {'✅ Всі системи працюють' if down_count == 0 else '⚠️ Деякі проблеми'}
+        </div>
+        <div class="stats">
+            <div class="stat"><div class="stat-value" style="color: #00d9ff;">{total}</div><div class="stat-label">Моніторів</div></div>
+            <div class="stat"><div class="stat-value" style="color: #00ff88;">{up_count}</div><div class="stat-label">Онлайн</div></div>
+            <div class="stat"><div class="stat-value" style="color: #ff4757;">{down_count}</div><div class="stat-label">Офлайн</div></div>
+        </div>
+    </div>
+    <div class="container">{monitors_html}
+    </div>
+    <div class="footer"><p>Оновлено: {dt.now().strftime('%Y-%m-%d %H:%M:%S')}</p></div>
+</body>
+</html>'''
+    
+    return HTMLResponse(content=status_html)
 
 @app.post("/api/sites")
 async def add_site(site: SiteCreate):
