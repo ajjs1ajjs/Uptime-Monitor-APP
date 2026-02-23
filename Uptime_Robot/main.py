@@ -517,7 +517,7 @@ async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
         else:
             # Site is still down - check if 1 minute passed since last alert
             last_alert = LAST_DOWN_ALERT.get(site_id)
-            if last_alert is None or (checked_at - last_alert).total_seconds() >= 60:
+            if last_alert is None or (checked_at - last_alert).total_seconds() >= 1800:
                 should_alert = True
                 alert_type = "REPEAT"
         
