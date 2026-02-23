@@ -958,14 +958,6 @@ async def dashboard(request: Request):
     </div>
     
     <div id="tab-dashboard" class="tab-content active">
-        <div class="monitoring-types">
-            <button class="monitor-type-btn active" onclick="filterMonitors('all')">🌐 Всі</button>
-            <button class="monitor-type-btn" onclick="filterMonitors('http')">🌐 HTTP(S)</button>
-            <button class="monitor-type-btn" onclick="filterMonitors('port')">🔌 Порт</button>
-            <button class="monitor-type-btn" onclick="filterMonitors('ping')">📡 Пінг</button>
-            <button class="monitor-type-btn" onclick="filterMonitors('ssl')">🔒 SSL</button>
-        </div>
-        
         <div class="hero-stats">
             <div class="hero-stat">
                 <div class="hero-stat-value">{total_sites}</div>
