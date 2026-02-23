@@ -4,6 +4,9 @@ import asyncio
 import sqlite3
 import os
 import sys
+import json
+import shutil
+import tempfile
 from datetime import datetime, timedelta
 
 # Додаємо шлях до модулів
@@ -13,6 +16,51 @@ from auth_module import hash_password, verify_password, hash_password as old_has
 from database import get_db_path
 from models import init_database, add_site, get_all_sites, delete_site
 from notifications import NotificationService
+
+
+async def _asgi_json_request(app, method: str, path: str, payload: dict):
+    """Minimal ASGI JSON request helper without external test clients."""
+    body = json.dumps(payload).encode("utf-8")
+    response_chunks = []
+    status_code = None
+    request_sent = False
+
+    async def receive():
+        nonlocal request_sent
+        if not request_sent:
+            request_sent = True
+            return {"type": "http.request", "body": body, "more_body": False}
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        nonlocal status_code
+        if message["type"] == "http.response.start":
+            status_code = message["status"]
+        elif message["type"] == "http.response.body":
+            response_chunks.append(message.get("body", b""))
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": method,
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode("ascii"),
+        "query_string": b"",
+        "headers": [
+            (b"host", b"testserver"),
+            (b"content-type", b"application/json"),
+            (b"content-length", str(len(body)).encode("ascii")),
+        ],
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 80),
+    }
+
+    await app(scope, receive, send)
+    response_body = b"".join(response_chunks).decode("utf-8") if response_chunks else ""
+    response_json = json.loads(response_body) if response_body else {}
+    return status_code, response_json
 
 
 class TestAuth:
@@ -176,6 +224,81 @@ python_functions = test_*
 asyncio_mode = auto
 """
 
+class TestApiSmoke:
+    """Smoke tests for API routes."""
+
+    def setup_method(self):
+        self.tmp_dir = tempfile.mkdtemp(prefix="uptime-smoke-")
+        self.test_db = os.path.join(self.tmp_dir, "smoke_sites.db")
+        self._create_legacy_db_without_monitor_type(self.test_db)
+
+    def teardown_method(self):
+        shutil.rmtree(self.tmp_dir, ignore_errors=True)
+
+    def _create_legacy_db_without_monitor_type(self, db_path: str):
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE sites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL UNIQUE,
+            check_interval INTEGER DEFAULT 60,
+            is_active BOOLEAN DEFAULT 1,
+            last_notification TEXT,
+            notify_methods TEXT DEFAULT '[]'
+        )''')
+        conn.commit()
+        conn.close()
+
+    def test_post_sites_smoke_with_monitor_type_migration(self):
+        import main
+
+        original_db_path = main.DB_PATH
+        original_check_site_status = main.check_site_status
+        main.DB_PATH = self.test_db
+
+        async def fake_check_site_status(site_id, url, notify_methods):
+            return None
+
+        try:
+            main.init_db()
+            conn = sqlite3.connect(self.test_db)
+            c = conn.cursor()
+            c.execute("PRAGMA table_info(sites)")
+            columns = [row[1] for row in c.fetchall()]
+            conn.close()
+            assert "monitor_type" in columns
+
+            main.check_site_status = fake_check_site_status
+
+            payload = {
+                "name": "Smoke Monitor",
+                "url": "https://example.com",
+                "notify_methods": ["telegram"]
+            }
+            status_code, response = asyncio.run(_asgi_json_request(main.app, "POST", "/api/sites", payload))
+
+            assert status_code == 200
+            assert response.get("message") == "Site added"
+            assert isinstance(response.get("id"), int)
+
+            conn = sqlite3.connect(self.test_db)
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT name, url, monitor_type, notify_methods FROM sites WHERE id = ?", (response["id"],))
+            row = c.fetchone()
+            conn.close()
+
+            assert row is not None
+            assert row["name"] == "Smoke Monitor"
+            assert row["url"] == "https://example.com"
+            assert row["monitor_type"] == "http"
+            assert json.loads(row["notify_methods"]) == ["telegram"]
+        finally:
+            main.DB_PATH = original_db_path
+            main.check_site_status = original_check_site_status
+
+
 if __name__ == "__main__":
     # Запуск тестів
     print("Running tests...")
@@ -215,7 +338,15 @@ if __name__ == "__main__":
     notif_tests = TestNotificationService()
     notif_tests.test_notification_service_init()
     print("[OK] Notification service test passed")
-    
+
+    smoke_tests = TestApiSmoke()
+    smoke_tests.setup_method()
+    try:
+        smoke_tests.test_post_sites_smoke_with_monitor_type_migration()
+        print("[OK] API smoke test (/api/sites + monitor_type migration) passed")
+    finally:
+        smoke_tests.teardown_method()
+
     print("\n" + "="*50)
     print("All tests passed!")
     print("="*50)

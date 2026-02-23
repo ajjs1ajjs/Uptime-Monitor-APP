@@ -301,7 +301,8 @@ def init_db():
         check_interval INTEGER DEFAULT 60,
         is_active BOOLEAN DEFAULT 1,
         last_notification TEXT,
-        notify_methods TEXT DEFAULT '[]'
+        notify_methods TEXT DEFAULT '[]',
+        monitor_type TEXT DEFAULT 'http'
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS status_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -336,6 +337,13 @@ def init_db():
         last_checked TEXT,
         FOREIGN KEY (site_id) REFERENCES sites(id)
     )''')
+    # Backward-compatible migration for old databases.
+    c.execute("PRAGMA table_info(sites)")
+    site_columns = {row[1] for row in c.fetchall()}
+    if 'monitor_type' not in site_columns:
+        c.execute("ALTER TABLE sites ADD COLUMN monitor_type TEXT DEFAULT 'http'")
+    c.execute("UPDATE sites SET monitor_type = 'http' WHERE monitor_type IS NULL OR monitor_type = ''")
+
     conn.commit()
     conn.close()
 
@@ -771,6 +779,7 @@ async def dashboard(request: Request):
             'name': site['name'],
             'url': site['url'],
             'is_active': site['is_active'],
+            'monitor_type': site['monitor_type'] if 'monitor_type' in site.keys() and site['monitor_type'] else 'http',
             'status': last_status['status'] if last_status else 'unknown',
             'status_code': last_status['status_code'] if last_status else None,
             'response_time': last_status['response_time'] if last_status else None,
@@ -989,7 +998,9 @@ async def dashboard(request: Request):
                 <div class="panel-title">🎯 Швидкі дії</div>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                     <button class="btn btn-check" style="background: linear-gradient(135deg, #00ff88, #00cc6a);" onclick="checkAllMonitors()">🔄 Перевірити всі</button>
-                    <button class="btn btn-edit" onclick="switchTab('incidents')">📋 Історія інцидентів</button>
+                    <button class="btn btn-check" onclick="loadDashboard()">📊 Оновити дані</button>
+                    <button class="btn btn-edit" onclick="switchTab('incidents')">⚠️ Інциденти</button>
+                    <button class="btn btn-edit" onclick="window.open('/status', '_blank')">🌐 Статус сторінка</button>
                 </div>
             </div>
             
@@ -1021,12 +1032,6 @@ async def dashboard(request: Request):
                 <input type="url" id="siteUrl" placeholder="URL (https://example.com)">
             </div>
             <div class="form-row" style="margin-top: 15px;">
-                <select id="monitorType" style="flex:1;">
-                    <option value="http">🌐 HTTP(S)</option>
-                    <option value="port">🔌 Порт</option>
-                    <option value="ping">📡 Пінг</option>
-                    <option value="ssl">🔒 SSL</option>
-                </select>
                 <select id="siteNotify" multiple style="flex:1; min-width: 200px;">
                     <option value="telegram">📱 Telegram</option>
                     <option value="teams">🏢 MS Teams</option>
@@ -1423,19 +1428,29 @@ async def dashboard(request: Request):
         async function addSite() {{
             const name = document.getElementById('siteName').value.trim();
             const url = document.getElementById('siteUrl').value.trim();
-            const monitorType = document.getElementById('monitorType').value;
             const notifySelect = document.getElementById('siteNotify');
             const notifyMethods = Array.from(notifySelect.selectedOptions).map(o => o.value);
             if (!name || !url) return alert('Заповніть всі поля!');
             
-            await fetch('/api/sites', {{
-                method: 'POST',
-                headers: {{'Content-Type': 'application/json'}},
-                body: JSON.stringify({{name, url, monitor_type: monitorType, notify_methods: notifyMethods}})
-            }});
-            document.getElementById('siteName').value = '';
-            document.getElementById('siteUrl').value = '';
-            loadDashboard();
+            try {{
+                const response = await fetch('/api/sites', {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{name, url, monitor_type: 'http', notify_methods: notifyMethods}})
+                }});
+                const result = await response.json().catch(() => ({{}}));
+                if (!response.ok) {{
+                    throw new Error(result.detail || 'РќРµ РІРґР°Р»РѕСЃСЏ РґРѕРґР°С‚Рё РјРѕРЅС–С‚РѕСЂ');
+                }}
+                document.getElementById('siteName').value = '';
+                document.getElementById('siteUrl').value = '';
+                Array.from(notifySelect.options).forEach(option => option.selected = false);
+                await Promise.all([loadDashboard(), loadMonitors(), loadSites()]);
+                alert('вњ… РњРѕРЅС–С‚РѕСЂ РґРѕРґР°РЅРѕ!');
+            }} catch (e) {{
+                console.error(e);
+                alert('вќЊ ' + (e.message || 'РџРѕРјРёР»РєР° РґРѕРґР°РІР°РЅРЅСЏ РјРѕРЅС–С‚РѕСЂР°'));
+            }}
         }}
         
         async function deleteSite(id) {{
@@ -1595,6 +1610,7 @@ async def get_sites():
             'name': site['name'],
             'url': site['url'],
             'is_active': site['is_active'],
+            'monitor_type': site['monitor_type'] if 'monitor_type' in site.keys() and site['monitor_type'] else 'http',
             'status': last_status['status'] if last_status else 'unknown',
             'status_code': last_status['status_code'] if last_status else None,
             'response_time': last_status['response_time'] if last_status else None,
@@ -1703,9 +1719,12 @@ async def add_site(site: SiteCreate):
     c = conn.cursor()
     notify_methods = site.notify_methods or []
     notify_json = json.dumps(notify_methods)
+    monitor_type = (site.monitor_type or "http").strip().lower()
+    if monitor_type not in {"http", "port", "ping", "ssl"}:
+        monitor_type = "http"
     try:
         c.execute("INSERT INTO sites (name, url, check_interval, is_active, notify_methods, monitor_type) VALUES (?, ?, ?, ?, ?, ?)",
-                  (site.name, site.url, site.check_interval, site.is_active, notify_json, site.monitor_type))
+                  (site.name, site.url, site.check_interval, site.is_active, notify_json, monitor_type))
         site_id = c.lastrowid
         conn.commit()
     except sqlite3.IntegrityError:
