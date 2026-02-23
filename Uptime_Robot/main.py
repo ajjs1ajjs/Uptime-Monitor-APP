@@ -988,7 +988,7 @@ async def dashboard(request: Request):
             <div class="panel">
                 <div class="panel-title">🎯 Швидкі дії</div>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                    <button class="btn btn-check" onclick="document.getElementById('addMonitorModal').classList.add('active')">➕ Додати монітор</button>
+                    <button class="btn btn-check" onclick="openAddMonitorModal()">➕ Додати монітор</button>
                     <button class="btn btn-check" style="background: linear-gradient(135deg, #00ff88, #00cc6a);" onclick="checkAllMonitors()">🔄 Перевірити всі</button>
                     <button class="btn btn-edit" onclick="switchTab('incidents')">📋 Історія інцидентів</button>
                 </div>
@@ -1156,6 +1156,15 @@ async def dashboard(request: Request):
         const notifyConfig = {notify_config_json};
         let currentFilter = 'all';
         let responseChart = null;
+        
+        function openAddMonitorModal() {{
+            const modal = document.getElementById('addMonitorModal');
+            if (modal) {{
+                modal.classList.add('active');
+            }} else {{
+                console.error('Modal not found');
+            }}
+        }}
         
         function switchTab(tabName) {{
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
