@@ -15,6 +15,7 @@ dist/
 *.spec
 
 # Налаштування IDE
+.idea/
 .vscode/
 .opencode/
 Project.code-workspace
