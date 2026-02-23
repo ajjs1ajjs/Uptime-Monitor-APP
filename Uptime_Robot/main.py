@@ -963,7 +963,7 @@ async def dashboard(request: Request):
             <div class="panel">
                 <div class="panel-title">🎯 Швидкі дії</div>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                    <button class="btn btn-check" onclick="switchTab('monitors'); setTimeout(() => addMonitorModal.show(), 300)">➕ Додати монітор</button>
+                    <button class="btn btn-check" onclick="document.getElementById('addMonitorModal').classList.add('active')">➕ Додати монітор</button>
                     <button class="btn btn-check" style="background: linear-gradient(135deg, #00ff88, #00cc6a);" onclick="checkAllMonitors()">🔄 Перевірити всі</button>
                     <button class="btn btn-edit" onclick="switchTab('incidents')">📋 Історія інцидентів</button>
                 </div>
@@ -1155,6 +1155,44 @@ async def dashboard(request: Request):
             <div class="modal-actions">
                 <button onclick="closeEditModal()" style="background: var(--border); color: var(--text-primary);">Скасувати</button>
                 <button onclick="saveEdit()" style="background: var(--accent); color: #000;">💾 Зберегти</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="addMonitorModal">
+        <div class="modal-content">
+            <div class="modal-title">➕ Додати новий монітор</div>
+            <div class="modal-field">
+                <label>Назва</label>
+                <input type="text" id="siteName" placeholder="Мій веб-сайт">
+            </div>
+            <div class="modal-field">
+                <label>URL</label>
+                <input type="url" id="siteUrl" placeholder="https://example.com">
+            </div>
+            <div class="modal-field">
+                <label>Тип моніторингу</label>
+                <select id="monitorType">
+                    <option value="http">🌐 HTTP(S) - Перевірка веб-сайту</option>
+                    <option value="port">🔌 Порт - Перевірка порту</option>
+                    <option value="ping">📡 Пінг - Перевірка Ping</option>
+                    <option value="ssl">🔒 SSL - Перевірка сертифіката</option>
+                </select>
+            </div>
+            <div class="modal-field">
+                <label>Способи сповіщень</label>
+                <select id="siteNotify" multiple style="height: 120px;">
+                    <option value="telegram">📱 Telegram</option>
+                    <option value="teams">🏢 MS Teams</option>
+                    <option value="discord">🎮 Discord</option>
+                    <option value="slack">💬 Slack</option>
+                    <option value="email">📧 Email</option>
+                    <option value="sms">📱 SMS</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button onclick="document.getElementById('addMonitorModal').classList.remove('active')" style="background: var(--border); color: var(--text-primary);">Скасувати</button>
+                <button onclick="addSite()" style="background: var(--accent); color: #000;">💾 Зберегти</button>
             </div>
         </div>
     </div>
