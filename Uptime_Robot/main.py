@@ -952,12 +952,20 @@ async def dashboard(request: Request):
     
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</button>
-        <button class="tab-btn" onclick="switchTab('monitors')">🖥️ Монітори</button>
         <button class="tab-btn" onclick="switchTab('incidents')">⚠️ Інциденти</button>
         <button class="tab-btn" onclick="switchTab('settings')">⚙️ Налаштування</button>
+        <button class="tab-btn" onclick="switchTab('ssl')">🔒 SSL</button>
     </div>
     
     <div id="tab-dashboard" class="tab-content active">
+        <div class="monitoring-types">
+            <button class="monitor-type-btn active" onclick="filterMonitors('all')">🌐 Всі</button>
+            <button class="monitor-type-btn" onclick="filterMonitors('http')">🌐 HTTP(S)</button>
+            <button class="monitor-type-btn" onclick="filterMonitors('port')">🔌 Порт</button>
+            <button class="monitor-type-btn" onclick="filterMonitors('ping')">📡 Пінг</button>
+            <button class="monitor-type-btn" onclick="filterMonitors('ssl')">🔒 SSL</button>
+        </div>
+        
         <div class="hero-stats">
             <div class="hero-stat">
                 <div class="hero-stat-value">{total_sites}</div>
@@ -997,26 +1005,6 @@ async def dashboard(request: Request):
             <div class="panel">
                 <div class="panel-title">📊 Статус всіх моніторів</div>
                 <div class="monitor-grid" id="dashboardMonitors"></div>
-            </div>
-        </div>
-    </div>
-    
-    <div id="tab-monitors" class="tab-content">
-        <div class="monitoring-types">
-            <button class="monitor-type-btn active" onclick="filterMonitors('all')">🌐 Всі</button>
-            <button class="monitor-type-btn" onclick="filterMonitors('http')">🌐 HTTP(S)</button>
-            <button class="monitor-type-btn" onclick="filterMonitors('port')">🔌 Порт</button>
-            <button class="monitor-type-btn" onclick="filterMonitors('ping')">📡 Пінг</button>
-            <button class="monitor-type-btn" onclick="filterMonitors('ssl')">🔒 SSL</button>
-        </div>
-        
-        <div class="container">
-            <div class="panel">
-                <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>🖥️ Мої монітори</span>
-                    <button class="btn btn-check" onclick="document.getElementById('addMonitorModal').classList.add('active')">➕ Додати</button>
-                </div>
-                <div class="monitor-grid" id="monitorsGrid"></div>
             </div>
         </div>
     </div>
