@@ -988,7 +988,6 @@ async def dashboard(request: Request):
             <div class="panel">
                 <div class="panel-title">🎯 Швидкі дії</div>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                    <button class="btn btn-check" onclick="openAddMonitorModal()">➕ Додати монітор</button>
                     <button class="btn btn-check" style="background: linear-gradient(135deg, #00ff88, #00cc6a);" onclick="checkAllMonitors()">🔄 Перевірити всі</button>
                     <button class="btn btn-edit" onclick="switchTab('incidents')">📋 Історія інцидентів</button>
                 </div>
@@ -1014,6 +1013,30 @@ async def dashboard(request: Request):
     
     <div id="tab-settings" class="tab-content">
         <div class="container">
+        
+        <div class="panel">
+            <div class="panel-title">➕ Додати новий монітор</div>
+            <div class="form-row">
+                <input type="text" id="siteName" placeholder="Назва (наприклад: Мій сайт)">
+                <input type="url" id="siteUrl" placeholder="URL (https://example.com)">
+            </div>
+            <div class="form-row" style="margin-top: 15px;">
+                <select id="monitorType" style="flex:1;">
+                    <option value="http">🌐 HTTP(S)</option>
+                    <option value="port">🔌 Порт</option>
+                    <option value="ping">📡 Пінг</option>
+                    <option value="ssl">🔒 SSL</option>
+                </select>
+                <select id="siteNotify" multiple style="flex:1; min-width: 200px;">
+                    <option value="telegram">📱 Telegram</option>
+                    <option value="teams">🏢 MS Teams</option>
+                    <option value="discord">🎮 Discord</option>
+                    <option value="email">📧 Email</option>
+                </select>
+            </div>
+            <button class="btn btn-check" style="margin-top: 15px; width: 100%;" onclick="addSite()">➕ Додати монітор</button>
+            <div style="margin-top: 10px; color: var(--text-secondary); font-size: 12px;">Виберіть способи сповіщень (Ctrl+Click для вибору кількох)</div>
+        </div>
         
         <div class="panel">
             <div class="panel-title">🔗 Налаштування адреси</div>
@@ -1116,55 +1139,10 @@ async def dashboard(request: Request):
         </div>
     </div>
     
-    <div class="modal" id="addMonitorModal">
-        <div class="modal-content">
-            <div class="modal-title">➕ Додати новий монітор</div>
-            <div class="modal-field">
-                <label>Назва</label>
-                <input type="text" id="siteName" placeholder="Мій веб-сайт">
-            </div>
-            <div class="modal-field">
-                <label>URL</label>
-                <input type="url" id="siteUrl" placeholder="https://example.com">
-            </div>
-            <div class="modal-field">
-                <label>Тип моніторингу</label>
-                <select id="monitorType">
-                    <option value="http">🌐 HTTP(S) - Перевірка веб-сайту</option>
-                    <option value="port">🔌 Порт - Перевірка порту</option>
-                    <option value="ping">📡 Пінг - Перевірка Ping</option>
-                    <option value="ssl">🔒 SSL - Перевірка сертифіката</option>
-                </select>
-            </div>
-            <div class="modal-field">
-                <label>Способи сповіщень</label>
-                <select id="siteNotify" multiple style="height: 120px;">
-                    <option value="telegram">📱 Telegram</option>
-                    <option value="teams">🏢 MS Teams</option>
-                    <option value="discord">🎮 Discord</option>
-                    <option value="email">📧 Email</option>
-                </select>
-            </div>
-            <div class="modal-actions">
-                <button onclick="document.getElementById('addMonitorModal').classList.remove('active')" style="background: var(--border); color: var(--text-primary);">Скасувати</button>
-                <button onclick="addSite()" style="background: var(--accent); color: #000;">💾 Зберегти</button>
-            </div>
-        </div>
-    </div>
-    
     <script>
         const notifyConfig = {notify_config_json};
         let currentFilter = 'all';
         let responseChart = null;
-        
-        function openAddMonitorModal() {{
-            const modal = document.getElementById('addMonitorModal');
-            if (modal) {{
-                modal.classList.add('active');
-            }} else {{
-                console.error('Modal not found');
-            }}
-        }}
         
         function switchTab(tabName) {{
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -1457,8 +1435,7 @@ async def dashboard(request: Request):
             }});
             document.getElementById('siteName').value = '';
             document.getElementById('siteUrl').value = '';
-            document.getElementById('addMonitorModal').classList.remove('active');
-            loadMonitors();
+            loadDashboard();
         }}
         
         async function deleteSite(id) {{
