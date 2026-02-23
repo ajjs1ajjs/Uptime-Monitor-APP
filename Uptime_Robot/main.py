@@ -1420,13 +1420,13 @@ async def dashboard(request: Request):
             try {{
                 const response = await fetch('/api/sites');
                 sitesData = await response.json();
-                renderSites();
                 document.getElementById('lastUpdate').textContent = 'Оновлено: ' + new Date().toLocaleTimeString('uk-UA');
             }} catch(e) {{ console.error(e); }}
         }}
         
         function renderSites() {{
             const grid = document.getElementById('sitesGrid');
+            if (!grid) return;
             if (sitesData.length === 0) {{
                 grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Немає сайтів для моніторингу. Додайте перший сайт!</div>';
                 return;
