@@ -905,9 +905,9 @@ async def dashboard(request: Request):
         .tab-content {{ display: none; animation: fadeSlideIn 0.4s ease; }}
         .tab-content.active {{ display: block; animation: fadeSlideIn 0.4s ease; }}
         
-        .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(5px); }}
-        .modal.active {{ display: flex; animation: fadeIn 0.3s ease; }}
-        .modal-content {{ background: linear-gradient(145deg, #1e2a4a, #16213e); padding: 30px; border-radius: 20px; max-width: 500px; width: 90%; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 50px rgba(0,0,0,0.5); animation: scaleIn 0.3s ease; }}
+        .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px); }}
+        .modal.active {{ display: flex; }}
+        .modal-content {{ background: linear-gradient(145deg, #1e2a4a, #16213e); padding: 30px; border-radius: 20px; max-width: 500px; width: 90%; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.5); animation: scaleIn 0.3s ease; }}
         
         @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
         @keyframes fadeSlideIn {{ from {{ opacity: 0; transform: translateY(20px); }} to {{ opacity: 1; transform: translateY(0); }} }}
@@ -1031,11 +1031,6 @@ async def dashboard(request: Request):
                     <button onclick="saveDisplayAddress()">💾 Зберегти</button>
                 </div>
             </div>
-        </div>
-        
-        <div class="panel">
-            <div class="panel-title">🔒 SSL Сертифікати</div>
-            <div class="ssl-grid" id="sslGridSettings"></div>
         </div>
         
         <div class="panel">
