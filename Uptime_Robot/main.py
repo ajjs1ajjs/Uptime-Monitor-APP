@@ -552,13 +552,29 @@ async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
     conn.close()
     return status, status_code, response_time, error_message
 
+def normalize_ssl_url(url: str) -> Optional[str]:
+    if not url:
+        return None
+    candidate = url.strip()
+    if not candidate:
+        return None
+    lower_candidate = candidate.lower()
+    if lower_candidate.startswith("https://"):
+        return candidate
+    if lower_candidate.startswith("http://"):
+        return "https://" + candidate[len("http://"):]
+    if "://" in candidate:
+        return None
+    return f"https://{candidate}"
+
 async def check_site_certificate(site_id: int, url: str, notify_methods: List[str]):
     """Перевіряє SSL сертифікат сайту та зберігає результати"""
     # Перевіряємо тільки HTTPS сайти
-    if not url.startswith('https://'):
+    ssl_url = normalize_ssl_url(url)
+    if not ssl_url:
         return
     
-    cert_info = await check_ssl_certificate(url)
+    cert_info = await check_ssl_certificate(ssl_url)
     
     if not cert_info:
         return
@@ -569,7 +585,7 @@ async def check_site_certificate(site_id: int, url: str, notify_methods: List[st
     # Отримуємо назву сайту
     c.execute("SELECT name FROM sites WHERE id = ?", (site_id,))
     site = c.fetchone()
-    site_name = site['name'] if site else url
+    site_name = site['name'] if site else ssl_url
     
     # Зберігаємо або оновлюємо інформацію про сертифікат
     c.execute("""
@@ -606,7 +622,7 @@ async def check_site_certificate(site_id: int, url: str, notify_methods: List[st
                 should_notify = False
         
         if should_notify and notify_methods:
-            msg = format_certificate_alert(cert_info, site_name, url)
+            msg = format_certificate_alert(cert_info, site_name, ssl_url)
             await send_notification(msg, notify_methods)
             
             # Оновлюємо час останнього сповіщення
@@ -620,7 +636,7 @@ async def check_all_certificates():
     """Перевіряє SSL сертифікати всіх активних сайтів"""
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT id, url, notify_methods FROM sites WHERE is_active = 1 AND url LIKE 'https://%'")
+    c.execute("SELECT id, url, notify_methods, monitor_type FROM sites WHERE is_active = 1 AND (url LIKE 'https://%' OR monitor_type = 'ssl')")
     sites = c.fetchall()
     conn.close()
     
@@ -1439,6 +1455,7 @@ async def dashboard(request: Request):
             const name = document.getElementById('siteName').value.trim();
             const url = document.getElementById('siteUrl').value.trim();
             const monitorType = document.getElementById('monitorType').value;
+            const finalUrl = (monitorType === 'ssl' && !/^https?:\\/\\//i.test(url)) ? ('https://' + url) : url;
             const notifySelect = document.getElementById('siteNotify');
             const notifyMethods = Array.from(notifySelect.selectedOptions).map(o => o.value);
             if (!name || !url) return alert('Заповніть всі поля!');
@@ -1447,13 +1464,13 @@ async def dashboard(request: Request):
                 const response = await fetch('/api/sites', {{
                     method: 'POST',
                     headers: {{'Content-Type': 'application/json'}},
-                    body: JSON.stringify({{name, url, monitor_type: monitorType, notify_methods: notifyMethods}})
+                    body: JSON.stringify({{name, url: finalUrl, monitor_type: monitorType, notify_methods: notifyMethods}})
                 }});
                 const result = await response.json().catch(() => ({{}}));
                 if (!response.ok) {{
                     throw new Error(result.detail || 'РќРµ РІРґР°Р»РѕСЃСЏ РґРѕРґР°С‚Рё РјРѕРЅС–С‚РѕСЂ');
                 }}
-                if (monitorType === 'ssl' || url.toLowerCase().startsWith('https://')) {{
+                if (monitorType === 'ssl' || finalUrl.toLowerCase().startsWith('https://')) {{
                     await fetch('/api/ssl-certificates/check', {{ method: 'POST' }});
                 }}
                 document.getElementById('siteName').value = '';
@@ -1734,12 +1751,22 @@ async def add_site(site: SiteCreate):
     c = conn.cursor()
     notify_methods = site.notify_methods or []
     notify_json = json.dumps(notify_methods)
+    site_url = (site.url or "").strip()
+    if not site_url:
+        conn.close()
+        raise HTTPException(status_code=400, detail="URL is required")
     monitor_type = (site.monitor_type or "http").strip().lower()
     if monitor_type not in {"http", "port", "ping", "ssl"}:
         monitor_type = "http"
+    if monitor_type == "ssl":
+        normalized_ssl_url = normalize_ssl_url(site_url)
+        if not normalized_ssl_url:
+            conn.close()
+            raise HTTPException(status_code=400, detail="SSL monitor URL must be a domain or HTTP/HTTPS URL")
+        site_url = normalized_ssl_url
     try:
         c.execute("INSERT INTO sites (name, url, check_interval, is_active, notify_methods, monitor_type) VALUES (?, ?, ?, ?, ?, ?)",
-                  (site.name, site.url, site.check_interval, site.is_active, notify_json, monitor_type))
+                  (site.name, site_url, site.check_interval, site.is_active, notify_json, monitor_type))
         site_id = c.lastrowid
         conn.commit()
     except sqlite3.IntegrityError:
@@ -1748,9 +1775,9 @@ async def add_site(site: SiteCreate):
     conn.close()
     if site_id is None:
         raise HTTPException(status_code=500, detail="Failed to create site")
-    await check_site_status(site_id, site.url, notify_methods)
-    if monitor_type == "ssl" or site.url.lower().startswith("https://"):
-        await check_site_certificate(site_id, site.url, notify_methods)
+    await check_site_status(site_id, site_url, notify_methods)
+    if monitor_type == "ssl" or site_url.lower().startswith("https://"):
+        await check_site_certificate(site_id, site_url, notify_methods)
     return {"id": site_id, "message": "Site added"}
 
 @app.get("/api/ssl-certificates")

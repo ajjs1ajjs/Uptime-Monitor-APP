@@ -257,11 +257,13 @@ class TestApiSmoke:
         original_check_site_status = main.check_site_status
         original_check_site_certificate = main.check_site_certificate
         main.DB_PATH = self.test_db
+        certificate_check_calls = []
 
         async def fake_check_site_status(site_id, url, notify_methods):
             return None
 
         async def fake_check_site_certificate(site_id, url, notify_methods):
+            certificate_check_calls.append(url)
             return None
 
         try:
@@ -278,8 +280,9 @@ class TestApiSmoke:
 
             payload = {
                 "name": "Smoke Monitor",
-                "url": "https://example.com",
-                "notify_methods": ["telegram"]
+                "url": "example.com",
+                "monitor_type": "ssl",
+                "notify_methods": ["telegram"],
             }
             status_code, response = asyncio.run(_asgi_json_request(main.app, "POST", "/api/sites", payload))
 
@@ -297,8 +300,9 @@ class TestApiSmoke:
             assert row is not None
             assert row["name"] == "Smoke Monitor"
             assert row["url"] == "https://example.com"
-            assert row["monitor_type"] == "http"
+            assert row["monitor_type"] == "ssl"
             assert json.loads(row["notify_methods"]) == ["telegram"]
+            assert certificate_check_calls == ["https://example.com"]
         finally:
             main.DB_PATH = original_db_path
             main.check_site_status = original_check_site_status
