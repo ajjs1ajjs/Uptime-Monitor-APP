@@ -1032,6 +1032,12 @@ async def dashboard(request: Request):
                 <input type="url" id="siteUrl" placeholder="URL (https://example.com)">
             </div>
             <div class="form-row" style="margin-top: 15px;">
+                <select id="monitorType" style="flex:1;">
+                    <option value="http">🌐 HTTP(S)</option>
+                    <option value="port">🔌 Порт</option>
+                    <option value="ping">📡 Пінг</option>
+                    <option value="ssl">🔒 SSL</option>
+                </select>
                 <select id="siteNotify" multiple style="flex:1; min-width: 200px;">
                     <option value="telegram">📱 Telegram</option>
                     <option value="teams">🏢 MS Teams</option>
@@ -1099,11 +1105,14 @@ async def dashboard(request: Request):
                         <input type="password" id="email-pass" placeholder="Password / App Password">
                         <input type="text" id="email-to" placeholder="To Email">
                     </div>
+                </div>
             </div>
             <button class="btn btn-check" style="margin-top: 20px; width: 100%;" onclick="saveNotifySettings()">💾 Зберегти налаштування</button>
         </div>
-        
-        <div id="tab-ssl" class="tab-content">
+        </div>
+    </div>
+    
+    <div id="tab-ssl" class="tab-content">
             <div class="panel">
                 <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
                     <span>🔒 SSL Сертифікати</span>
@@ -1112,7 +1121,6 @@ async def dashboard(request: Request):
                 <div class="ssl-grid" id="sslGrid"></div>
             </div>
         </div>
-    </div>
     
     <div class="modal" id="editModal">
         <div class="modal-content">
@@ -1159,6 +1167,8 @@ async def dashboard(request: Request):
                 loadDashboard();
             }} else if (tabName === 'monitors') {{
                 loadMonitors();
+            }} else if (tabName === 'ssl') {{
+                loadSSLCertificates();
             }}
         }}
         
@@ -1428,6 +1438,7 @@ async def dashboard(request: Request):
         async function addSite() {{
             const name = document.getElementById('siteName').value.trim();
             const url = document.getElementById('siteUrl').value.trim();
+            const monitorType = document.getElementById('monitorType').value;
             const notifySelect = document.getElementById('siteNotify');
             const notifyMethods = Array.from(notifySelect.selectedOptions).map(o => o.value);
             if (!name || !url) return alert('Заповніть всі поля!');
@@ -1436,16 +1447,20 @@ async def dashboard(request: Request):
                 const response = await fetch('/api/sites', {{
                     method: 'POST',
                     headers: {{'Content-Type': 'application/json'}},
-                    body: JSON.stringify({{name, url, monitor_type: 'http', notify_methods: notifyMethods}})
+                    body: JSON.stringify({{name, url, monitor_type: monitorType, notify_methods: notifyMethods}})
                 }});
                 const result = await response.json().catch(() => ({{}}));
                 if (!response.ok) {{
                     throw new Error(result.detail || 'РќРµ РІРґР°Р»РѕСЃСЏ РґРѕРґР°С‚Рё РјРѕРЅС–С‚РѕСЂ');
                 }}
+                if (monitorType === 'ssl' || url.toLowerCase().startsWith('https://')) {{
+                    await fetch('/api/ssl-certificates/check', {{ method: 'POST' }});
+                }}
                 document.getElementById('siteName').value = '';
                 document.getElementById('siteUrl').value = '';
+                document.getElementById('monitorType').value = 'http';
                 Array.from(notifySelect.options).forEach(option => option.selected = false);
-                await Promise.all([loadDashboard(), loadMonitors(), loadSites()]);
+                await Promise.all([loadDashboard(), loadMonitors(), loadSites(), loadSSLCertificates()]);
                 alert('вњ… РњРѕРЅС–С‚РѕСЂ РґРѕРґР°РЅРѕ!');
             }} catch (e) {{
                 console.error(e);
@@ -1734,6 +1749,8 @@ async def add_site(site: SiteCreate):
     if site_id is None:
         raise HTTPException(status_code=500, detail="Failed to create site")
     await check_site_status(site_id, site.url, notify_methods)
+    if monitor_type == "ssl" or site.url.lower().startswith("https://"):
+        await check_site_certificate(site_id, site.url, notify_methods)
     return {"id": site_id, "message": "Site added"}
 
 @app.get("/api/ssl-certificates")

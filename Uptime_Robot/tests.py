@@ -255,9 +255,13 @@ class TestApiSmoke:
 
         original_db_path = main.DB_PATH
         original_check_site_status = main.check_site_status
+        original_check_site_certificate = main.check_site_certificate
         main.DB_PATH = self.test_db
 
         async def fake_check_site_status(site_id, url, notify_methods):
+            return None
+
+        async def fake_check_site_certificate(site_id, url, notify_methods):
             return None
 
         try:
@@ -270,6 +274,7 @@ class TestApiSmoke:
             assert "monitor_type" in columns
 
             main.check_site_status = fake_check_site_status
+            main.check_site_certificate = fake_check_site_certificate
 
             payload = {
                 "name": "Smoke Monitor",
@@ -297,6 +302,7 @@ class TestApiSmoke:
         finally:
             main.DB_PATH = original_db_path
             main.check_site_status = original_check_site_status
+            main.check_site_certificate = original_check_site_certificate
 
 
 if __name__ == "__main__":
