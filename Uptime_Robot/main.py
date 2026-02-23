@@ -976,10 +976,10 @@ async def dashboard(request: Request):
     </div>
     
     <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</button>
-        <button class="tab-btn" onclick="switchTab('incidents')">⚠️ Інциденти</button>
-        <button class="tab-btn" onclick="switchTab('settings')">⚙️ Налаштування</button>
-        <button class="tab-btn" onclick="switchTab('ssl')">🔒 SSL</button>
+        <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+        <button class="tab-btn" onclick="switchTab('ssl')">SSL</button>
+        <button class="tab-btn" onclick="switchTab('incidents')">Incidents</button>
+        <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
     </div>
     
     <div id="tab-dashboard" class="tab-content active">
@@ -1211,19 +1211,22 @@ async def dashboard(request: Request):
             const filtered = currentFilter === 'all' ? sitesData : sitesData.filter(s => s.monitor_type === currentFilter);
             
             if (filtered.length === 0) {{
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Немає моніторів. Додайте перший!</div>';
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">No monitors found. Add one.</div>';
                 return;
             }}
             
             let html = '';
-            filtered.slice(0, 6).forEach(site => {{
+            filtered.forEach(site => {{
                 const statusClass = site.status === 'up' ? 'up' : (site.status === 'paused' ? 'paused' : 'down');
-                const typeBadge = site.monitor_type === 'http' ? '🌐 HTTP' : site.monitor_type === 'port' ? '🔌 Порт' : site.monitor_type === 'ping' ? '📡 Пінг' : '🔒 SSL';
+                const typeBadge = site.monitor_type === 'http' ? 'HTTP' : site.monitor_type === 'port' ? 'PORT' : site.monitor_type === 'ping' ? 'PING' : 'SSL';
                 const statusColor = site.status === 'up' ? 'var(--success)' : 'var(--danger)';
-                const statusIcon = site.status === 'up' ? '✓' : '✗';
-                const respTime = site.response_time || '—';
+                const statusIcon = site.status === 'up' ? 'UP' : 'DOWN';
+                const respTime = site.response_time || 'N/A';
                 const uptime = site.uptime || 100;
-                const httpCode = site.status_code || '—';
+                const httpCode = site.status_code || 'N/A';
+                const safeNameJson = JSON.stringify(site.name || '').replace(/"/g, '&quot;');
+                const safeUrlJson = JSON.stringify(site.url || '').replace(/"/g, '&quot;');
+                const notifyMethodsJson = JSON.stringify(site.notify_methods || []).replace(/"/g, '&quot;');
                 
                 html += '<div class="monitor-card ' + statusClass + '">';
                 html += '<div class="monitor-header"><div>';
@@ -1231,10 +1234,15 @@ async def dashboard(request: Request):
                 html += '<div class="monitor-url">' + site.url + '</div>';
                 html += '</div><span class="monitor-type-badge">' + typeBadge + '</span></div>';
                 html += '<div class="monitor-stats">';
-                html += '<div class="monitor-stat"><div class="monitor-stat-value" style="color:' + statusColor + '">' + statusIcon + '</div><div class="monitor-stat-label">Статус</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value" style="color:' + statusColor + '">' + statusIcon + '</div><div class="monitor-stat-label">Status</div></div>';
                 html += '<div class="monitor-stat"><div class="monitor-stat-value">' + respTime + '</div><div class="monitor-stat-label">ms</div></div>';
                 html += '<div class="monitor-stat"><div class="monitor-stat-value">' + uptime + '%</div><div class="monitor-stat-label">Uptime</div></div>';
                 html += '<div class="monitor-stat"><div class="monitor-stat-value">' + httpCode + '</div><div class="monitor-stat-label">HTTP</div></div>';
+                html += '</div>';
+                html += '<div class="monitor-actions">';
+                html += '<button class="btn btn-check" onclick="checkSite(' + site.id + ')">Check</button>';
+                html += '<button class="btn btn-edit" onclick="openEditModal(' + site.id + ', ' + safeNameJson + ', ' + safeUrlJson + ', ' + notifyMethodsJson + ')">Edit</button>';
+                html += '<button class="btn btn-delete" onclick="deleteSite(' + site.id + ')">Delete</button>';
                 html += '</div></div>';
             }});
             grid.innerHTML = html;
@@ -1255,19 +1263,22 @@ async def dashboard(request: Request):
             const filtered = currentFilter === 'all' ? sitesData : sitesData.filter(s => s.monitor_type === currentFilter);
             
             if (filtered.length === 0) {{
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Немає моніторів. Додайте перший!</div>';
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">No monitors found. Add one.</div>';
                 return;
             }}
             
             let html = '';
             filtered.forEach(site => {{
                 const statusClass = site.status === 'up' ? 'up' : (site.status === 'paused' ? 'paused' : 'down');
-                const statusText = site.status === 'up' ? '✓ Онлайн' : (site.status === 'paused' ? '⏸ Пауза' : '✗ Офлайн');
-                const typeBadge = site.monitor_type === 'http' ? '🌐 HTTP' : site.monitor_type === 'port' ? '🔌 Порт' : site.monitor_type === 'ping' ? '📡 Пінг' : '🔒 SSL';
+                const statusText = site.status === 'up' ? 'UP' : (site.status === 'paused' ? 'PAUSED' : 'DOWN');
+                const typeBadge = site.monitor_type === 'http' ? 'HTTP' : site.monitor_type === 'port' ? 'PORT' : site.monitor_type === 'ping' ? 'PING' : 'SSL';
                 const statusColor = site.status === 'up' ? 'var(--success)' : 'var(--danger)';
-                const respTime = site.response_time || '—';
+                const respTime = site.response_time || 'N/A';
                 const uptime = site.uptime || 100;
-                const httpCode = site.status_code || '—';
+                const httpCode = site.status_code || 'N/A';
+                const safeNameJson = JSON.stringify(site.name || '').replace(/"/g, '&quot;');
+                const safeUrlJson = JSON.stringify(site.url || '').replace(/"/g, '&quot;');
+                const notifyMethodsJson = JSON.stringify(site.notify_methods || []).replace(/"/g, '&quot;');
                 
                 html += '<div class="monitor-card ' + statusClass + '">';
                 html += '<div class="monitor-header"><div>';
@@ -1275,15 +1286,15 @@ async def dashboard(request: Request):
                 html += '<div class="monitor-url">' + site.url + '</div>';
                 html += '</div><span class="monitor-type-badge">' + typeBadge + '</span></div>';
                 html += '<div class="monitor-stats">';
-                html += '<div class="monitor-stat"><div class="monitor-stat-value" style="color:' + statusColor + '">' + statusText + '</div><div class="monitor-stat-label">Статус</div></div>';
-                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + respTime + 'ms</div><div class="monitor-stat-label">Час</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value" style="color:' + statusColor + '">' + statusText + '</div><div class="monitor-stat-label">Status</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + respTime + 'ms</div><div class="monitor-stat-label">Time</div></div>';
                 html += '<div class="monitor-stat"><div class="monitor-stat-value">' + uptime + '%</div><div class="monitor-stat-label">Uptime</div></div>';
                 html += '<div class="monitor-stat"><div class="monitor-stat-value">' + httpCode + '</div><div class="monitor-stat-label">HTTP</div></div>';
                 html += '</div>';
                 html += '<div class="monitor-actions">';
-                html += '<button class="btn btn-check" onclick="checkSite(' + site.id + ')">🔄</button>';
-                html += '<button class="btn btn-edit" onclick="openEditModal(' + site.id + ', \\'' + site.name + '\\', \\'' + site.url + '\\', \\'' + site.monitor_type + '\\')">✏️</button>';
-                html += '<button class="btn btn-delete" onclick="deleteSite(' + site.id + ')">🗑️</button>';
+                html += '<button class="btn btn-check" onclick="checkSite(' + site.id + ')">Check</button>';
+                html += '<button class="btn btn-edit" onclick="openEditModal(' + site.id + ', ' + safeNameJson + ', ' + safeUrlJson + ', ' + notifyMethodsJson + ')">Edit</button>';
+                html += '<button class="btn btn-delete" onclick="deleteSite(' + site.id + ')">Delete</button>';
                 html += '</div></div>';
             }});
             grid.innerHTML = html;
@@ -1486,14 +1497,14 @@ async def dashboard(request: Request):
         }}
         
         async function deleteSite(id) {{
-            if (!confirm('Видалити сайт з моніторингу?')) return;
+            if (!confirm('Delete monitor?')) return;
             await fetch(`/api/sites/${{id}}`, {{method: 'DELETE'}});
-            loadSites();
+            await Promise.all([loadDashboard(), loadMonitors(), loadSites(), loadSSLCertificates()]);
         }}
         
         async function checkSite(id) {{
             await fetch(`/api/sites/${{id}}/check`, {{method: 'POST'}});
-            loadSites();
+            await Promise.all([loadDashboard(), loadMonitors(), loadSites(), loadSSLCertificates()]);
         }}
         
         function openEditModal(id, name, url, notifyMethods) {{
@@ -1501,9 +1512,10 @@ async def dashboard(request: Request):
             document.getElementById('editSiteName').value = name;
             document.getElementById('editSiteUrl').value = url;
             
+            const methods = Array.isArray(notifyMethods) ? notifyMethods : [];
             const select = document.getElementById('editSiteNotify');
             Array.from(select.options).forEach(opt => {{
-                opt.selected = notifyMethods.includes(opt.value);
+                opt.selected = methods.includes(opt.value);
             }});
             
             document.getElementById('editModal').classList.add('active');
@@ -1520,16 +1532,20 @@ async def dashboard(request: Request):
             const notifySelect = document.getElementById('editSiteNotify');
             const notifyMethods = Array.from(notifySelect.selectedOptions).map(o => o.value);
             
-            if (!name || !url) return alert('Заповніть всі поля!');
+            if (!name || !url) return alert('Fill all fields');
             
             await fetch(`/api/sites/${{id}}`, {{
                 method: 'PUT',
                 headers: {{'Content-Type': 'application/json'}},
                 body: JSON.stringify({{name, url, notify_methods: notifyMethods}})
             }});
+
+            if (url.toLowerCase().startsWith('https://')) {{
+                await fetch('/api/ssl-certificates/check', {{ method: 'POST' }});
+            }}
             
             closeEditModal();
-            loadSites();
+            await Promise.all([loadDashboard(), loadMonitors(), loadSites(), loadSSLCertificates()]);
         }}
         
         let sslCertificatesData = [];
