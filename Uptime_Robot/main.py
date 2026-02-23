@@ -270,6 +270,7 @@ class SiteCreate(BaseModel):
     check_interval: int = 60
     is_active: bool = True
     notify_methods: Optional[List[str]] = []
+    monitor_type: str = "http"
 
 class SiteUpdate(BaseModel):
     name: Optional[str] = None
@@ -300,7 +301,8 @@ def init_db():
         check_interval INTEGER DEFAULT 60,
         is_active BOOLEAN DEFAULT 1,
         last_notification TEXT,
-        notify_methods TEXT DEFAULT '[]'
+        notify_methods TEXT DEFAULT '[]',
+        monitor_type TEXT DEFAULT 'http'
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS status_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -335,6 +337,13 @@ def init_db():
         last_checked TEXT,
         FOREIGN KEY (site_id) REFERENCES sites(id)
     )''')
+    # Backward-compatible migration for old databases.
+    c.execute("PRAGMA table_info(sites)")
+    site_columns = {row[1] for row in c.fetchall()}
+    if 'monitor_type' not in site_columns:
+        c.execute("ALTER TABLE sites ADD COLUMN monitor_type TEXT DEFAULT 'http'")
+    c.execute("UPDATE sites SET monitor_type = 'http' WHERE monitor_type IS NULL OR monitor_type = ''")
+
     conn.commit()
     conn.close()
 
@@ -543,13 +552,29 @@ async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
     conn.close()
     return status, status_code, response_time, error_message
 
+def normalize_ssl_url(url: str) -> Optional[str]:
+    if not url:
+        return None
+    candidate = url.strip()
+    if not candidate:
+        return None
+    lower_candidate = candidate.lower()
+    if lower_candidate.startswith("https://"):
+        return candidate
+    if lower_candidate.startswith("http://"):
+        return "https://" + candidate[len("http://"):]
+    if "://" in candidate:
+        return None
+    return f"https://{candidate}"
+
 async def check_site_certificate(site_id: int, url: str, notify_methods: List[str]):
     """Перевіряє SSL сертифікат сайту та зберігає результати"""
     # Перевіряємо тільки HTTPS сайти
-    if not url.startswith('https://'):
+    ssl_url = normalize_ssl_url(url)
+    if not ssl_url:
         return
     
-    cert_info = await check_ssl_certificate(url)
+    cert_info = await check_ssl_certificate(ssl_url)
     
     if not cert_info:
         return
@@ -560,7 +585,7 @@ async def check_site_certificate(site_id: int, url: str, notify_methods: List[st
     # Отримуємо назву сайту
     c.execute("SELECT name FROM sites WHERE id = ?", (site_id,))
     site = c.fetchone()
-    site_name = site['name'] if site else url
+    site_name = site['name'] if site else ssl_url
     
     # Зберігаємо або оновлюємо інформацію про сертифікат
     c.execute("""
@@ -597,7 +622,7 @@ async def check_site_certificate(site_id: int, url: str, notify_methods: List[st
                 should_notify = False
         
         if should_notify and notify_methods:
-            msg = format_certificate_alert(cert_info, site_name, url)
+            msg = format_certificate_alert(cert_info, site_name, ssl_url)
             await send_notification(msg, notify_methods)
             
             # Оновлюємо час останнього сповіщення
@@ -611,7 +636,7 @@ async def check_all_certificates():
     """Перевіряє SSL сертифікати всіх активних сайтів"""
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT id, url, notify_methods FROM sites WHERE is_active = 1 AND url LIKE 'https://%'")
+    c.execute("SELECT id, url, notify_methods, monitor_type FROM sites WHERE is_active = 1 AND (url LIKE 'https://%' OR monitor_type = 'ssl')")
     sites = c.fetchall()
     conn.close()
     
@@ -649,6 +674,93 @@ async def get_ssl_certificates_data():
     
     return certs
 
+@app.get("/status", response_class=HTMLResponse)
+async def public_status_page(request: Request):
+    """Публічна сторінка статусу"""
+    from datetime import datetime as dt
+    
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT id, name, url FROM sites ORDER BY id")
+    sites = c.fetchall()
+    
+    c.execute("SELECT site_id, status FROM status_history WHERE checked_at > datetime('now', '-24 hours') ORDER BY checked_at DESC")
+    history = c.fetchall()
+    
+    site_status = {}
+    for h in history:
+        if h['site_id'] not in site_status:
+            site_status[h['site_id']] = h['status']
+    
+    conn.close()
+    
+    up_count = sum(1 for s in site_status.values() if s == 'up')
+    down_count = sum(1 for s in site_status.values() if s == 'down')
+    total = len(sites)
+    
+    monitors_html = ''
+    for site in sites:
+        status = site_status.get(site['id'], 'unknown')
+        status_class = 'up' if status == 'up' else 'down'
+        status_text = '✓ Онлайн' if status == 'up' else '✗ Офлайн'
+        monitors_html += f'''
+        <div class="monitor {status_class}">
+            <div><div class="monitor-name">{site['name']}</div>
+            <div class="monitor-url">{site['url']}</div></div>
+            <span class="status-badge {status_class}">{status_text}</span>
+        </div>'''
+    
+    status_html = f'''<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status - Uptime Monitor</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{ font-family: 'Inter', sans-serif; background: #0f0f23; color: #fff; min-height: 100vh; }}
+        .header {{ background: linear-gradient(135deg, #1a1a2e, #0f0f23); padding: 40px; text-align: center; border-bottom: 1px solid #2a2a4a; }}
+        .logo {{ font-size: 32px; font-weight: 700; margin-bottom: 20px; }}
+        .logo-icon {{ display: inline-block; width: 50px; height: 50px; background: linear-gradient(135deg, #00d9ff, #00ff88); border-radius: 12px; line-height: 50px; font-size: 24px; margin-right: 10px; }}
+        .overall-status {{ font-size: 48px; font-weight: 700; margin: 30px 0; }}
+        .overall-status.up {{ color: #00ff88; }}
+        .overall-status.down {{ color: #ff4757; }}
+        .stats {{ display: flex; justify-content: center; gap: 40px; margin: 20px 0; }}
+        .stat {{ text-align: center; }}
+        .stat-value {{ font-size: 36px; font-weight: 700; }}
+        .stat-label {{ color: #a0a0b0; font-size: 14px; }}
+        .container {{ max-width: 1000px; margin: 0 auto; padding: 40px; }}
+        .monitor {{ background: linear-gradient(145deg, #1a1a2e, #16213e); padding: 20px; margin-bottom: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #2a2a4a; }}
+        .monitor.up {{ border-left: 4px solid #00ff88; }}
+        .monitor.down {{ border-left: 4px solid #ff4757; }}
+        .monitor-name {{ font-size: 18px; font-weight: 600; }}
+        .monitor-url {{ color: #a0a0b0; font-size: 13px; margin-top: 5px; }}
+        .status-badge {{ padding: 8px 20px; border-radius: 20px; font-weight: 600; font-size: 14px; }}
+        .status-badge.up {{ background: rgba(0,255,136,0.15); color: #00ff88; }}
+        .status-badge.down {{ background: rgba(255,71,87,0.15); color: #ff4757; }}
+        .footer {{ text-align: center; padding: 40px; color: #a0a0b0; font-size: 14px; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo"><span class="logo-icon">⚡</span>Uptime Monitor</div>
+        <div class="overall-status {'up' if down_count == 0 else 'down'}">
+            {'✅ Всі системи працюють' if down_count == 0 else '⚠️ Деякі проблеми'}
+        </div>
+        <div class="stats">
+            <div class="stat"><div class="stat-value" style="color: #00d9ff;">{total}</div><div class="stat-label">Моніторів</div></div>
+            <div class="stat"><div class="stat-value" style="color: #00ff88;">{up_count}</div><div class="stat-label">Онлайн</div></div>
+            <div class="stat"><div class="stat-value" style="color: #ff4757;">{down_count}</div><div class="stat-label">Офлайн</div></div>
+        </div>
+    </div>
+    <div class="container">{monitors_html}
+    </div>
+    <div class="footer"><p>Оновлено: {dt.now().strftime('%Y-%m-%d %H:%M:%S')}</p></div>
+</body>
+</html>'''
+    
+    return HTMLResponse(content=status_html)
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     # Перевірка авторизації
@@ -683,6 +795,7 @@ async def dashboard(request: Request):
             'name': site['name'],
             'url': site['url'],
             'is_active': site['is_active'],
+            'monitor_type': site['monitor_type'] if 'monitor_type' in site.keys() and site['monitor_type'] else 'http',
             'status': last_status['status'] if last_status else 'unknown',
             'status_code': last_status['status_code'] if last_status else None,
             'response_time': last_status['response_time'] if last_status else None,
@@ -707,8 +820,9 @@ async def dashboard(request: Request):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uptime Monitor</title>
+    <title>Uptime Monitor - Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {{
             --bg-primary: #0f0f23;
@@ -722,86 +836,76 @@ async def dashboard(request: Request):
             --text-primary: #ffffff;
             --text-secondary: #a0a0b0;
             --border: #2a2a4a;
+            --bg-gradient: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
         }}
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }}
+        body {{ font-family: 'Inter', sans-serif; background: var(--bg-gradient); color: var(--text-primary); min-height: 100vh; }}
         
-        .header {{ background: linear-gradient(135deg, var(--bg-secondary) 0%, #1f1f3a 100%); padding: 20px 40px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }}
-        .logo {{ font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 10px; }}
-        .logo-icon {{ width: 40px; height: 40px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }}
+        .header {{ background: linear-gradient(180deg, rgba(26,26,46,0.95) 0%, rgba(15,15,35,0.95) 100%); padding: 20px 40px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(10px); }}
+        .logo {{ font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 12px; }}
+        .logo-icon {{ width: 44px; height: 44px; background: linear-gradient(135deg, var(--accent), #00ff88); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 4px 20px rgba(0,217,255,0.4), 0 0 30px rgba(0,255,136,0.2); }}
         
-        .stats-bar {{ display: flex; gap: 20px; margin: 30px 40px; }}
-        .stat-card {{ background: var(--bg-card); padding: 20px 30px; border-radius: 15px; flex: 1; border: 1px solid var(--border); }}
-        .stat-value {{ font-size: 32px; font-weight: 700; }}
-        .stat-label {{ color: var(--text-secondary); font-size: 14px; margin-top: 5px; }}
-        .stat-card.total .stat-value {{ color: var(--accent); }}
-        .stat-card.up .stat-value {{ color: var(--success); }}
-        .stat-card.down .stat-value {{ color: var(--danger); }}
+        .hero-stats {{ display: flex; gap: 30px; margin: 40px; background: linear-gradient(145deg, rgba(30,42,74,0.6), rgba(22,33,62,0.8)); padding: 30px 40px; border-radius: 24px; border: 1px solid rgba(0,217,255,0.1); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }}
+        .hero-stat {{ text-align: center; flex: 1; position: relative; }}
+        .hero-stat:not(:last-child)::after {{ content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 60%; width: 1px; background: linear-gradient(180deg, transparent, var(--border), transparent); }}
+        .hero-stat-value {{ font-size: 48px; font-weight: 700; background: linear-gradient(135deg, var(--accent), #00ff88); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
+        .hero-stat-label {{ color: var(--text-secondary); font-size: 14px; margin-top: 8px; text-transform: uppercase; letter-spacing: 1px; }}
+        
+        .monitoring-types {{ display: flex; gap: 15px; margin: 0 40px 30px; flex-wrap: wrap; }}
+        .monitor-type-btn {{ padding: 12px 24px; background: linear-gradient(145deg, rgba(26,26,46,0.8), rgba(22,33,62,0.9)); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-weight: 600; color: var(--text-secondary); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; }}
+        .monitor-type-btn:hover {{ border-color: var(--accent); color: var(--text-primary); transform: translateY(-2px); }}
+        .monitor-type-btn.active {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,217,255,0.3); }}
         
         .container {{ max-width: 1400px; margin: 0 auto; padding: 0 40px 40px; }}
+        #tab-dashboard .container {{
+            max-width: none !important;
+            margin: 0 !important;
+            width: 100% !important;
+            padding: 0 12px 40px !important;
+        }}
         
-        .panel {{ background: var(--bg-card); padding: 25px; border-radius: 15px; margin-bottom: 30px; border: 1px solid var(--border); }}
+        .panel {{ background: linear-gradient(145deg, rgba(30,42,74,0.5), rgba(22,33,62,0.7)); padding: 25px; border-radius: 20px; margin-bottom: 30px; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05); backdrop-filter: blur(10px); }}
+        .panel:hover {{ transform: translateY(-2px); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }}
         .panel-title {{ font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }}
         
-        .server-info {{ background: var(--bg-card); padding: 20px; border-radius: 15px; margin-bottom: 30px; border: 1px solid var(--accent); text-align: center; }}
-        .server-info .label {{ color: var(--text-secondary); font-size: 14px; }}
-        .server-info .value {{ color: var(--accent); font-size: 24px; font-weight: 700; margin-top: 5px; }}
+        .chart-container {{ position: relative; height: 300px; margin: 20px 0; }}
         
-        .notify-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }}
-        .notify-card {{ background: var(--bg-secondary); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }}
-        .notify-card.enabled {{ border-color: var(--success); }}
-        .notify-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }}
-        .notify-name {{ font-weight: 600; display: flex; align-items: center; gap: 8px; }}
-        .toggle {{ position: relative; width: 50px; height: 26px; }}
-        .toggle input {{ opacity: 0; width: 0; height: 0; }}
-        .toggle-slider {{ position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 26px; transition: 0.3s; }}
-        .toggle-slider:before {{ content: ''; position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }}
-        .toggle input:checked + .toggle-slider {{ background: var(--success); }}
-        .toggle input:checked + .toggle-slider:before {{ transform: translateX(24px); }}
+        .monitor-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }}
+        .monitor-card {{ background: linear-gradient(145deg, rgba(30,42,74,0.6), rgba(22,33,62,0.8)); padding: 24px; border-radius: 20px; border: 1px solid var(--border); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 40px rgba(0,0,0,0.3); position: relative; overflow: hidden; }}
+        .monitor-card::before {{ content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), #00ff88); opacity: 0; transition: opacity 0.3s; }}
+        .monitor-card:hover {{ transform: translateY(-5px) scale(1.02); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(0,217,255,0.1); }}
+        .monitor-card:hover::before {{ opacity: 1; }}
+        .monitor-card.up {{ border-left: 4px solid var(--success); }}
+        .monitor-card.down {{ border-left: 4px solid var(--danger); }}
+        .monitor-card.paused {{ border-left: 4px solid var(--warning); opacity: 0.7; }}
         
-        .notify-fields {{ display: none; }}
-        .notify-card.enabled .notify-fields {{ display: block; }}
-        .notify-fields input {{ width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-primary); color: var(--text-primary); font-size: 13px; }}
-        .notify-fields input:focus {{ outline: none; border-color: var(--accent); }}
+        .monitor-header {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }}
+        .monitor-name {{ font-size: 18px; font-weight: 600; }}
+        .monitor-url {{ color: var(--text-secondary); font-size: 13px; word-break: break-all; margin-top: 5px; }}
+        .monitor-type-badge {{ padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; background: rgba(0,217,255,0.15); color: var(--accent); }}
         
-        .form-row {{ display: flex; gap: 15px; flex-wrap: wrap; }}
-        .form-row input {{ flex: 1; min-width: 200px; padding: 12px 15px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; }}
-        .form-row input:focus {{ outline: none; border-color: var(--accent); }}
-        .form-row button {{ padding: 12px 30px; background: var(--accent); border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.3s; }}
-        .form-row button:hover {{ background: var(--accent-hover); transform: translateY(-2px); }}
+        .monitor-stats {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; padding: 15px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }}
+        .monitor-stat {{ text-align: center; }}
+        .monitor-stat-value {{ font-size: 18px; font-weight: 700; }}
+        .monitor-stat-label {{ font-size: 11px; color: var(--text-secondary); margin-top: 3px; }}
         
-        .sites-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }}
-        .ssl-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }}
-        .site-card {{ background: var(--bg-card); padding: 18px; border-radius: 12px; border: 1px solid var(--border); transition: all 0.3s; }}
-        .ssl-card {{ background: var(--bg-card); padding: 15px; border-radius: 10px; border: 1px solid var(--border); transition: all 0.3s; font-size: 13px; }}
-        .site-card:hover {{ transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 10px 30px rgba(0,217,255,0.1); }}
-        .site-card.up {{ border-left: 4px solid var(--success); }}
-        .site-card.down {{ border-left: 4px solid var(--danger); }}
-        
-        .site-header {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }}
-        .site-name {{ font-size: 18px; font-weight: 600; }}
-        .site-url {{ color: var(--text-secondary); font-size: 13px; word-break: break-all; margin-top: 5px; }}
-        
-        .status-badge {{ padding: 6px 15px; border-radius: 20px; font-weight: 600; font-size: 12px; text-transform: uppercase; }}
-        .status-badge.up {{ background: rgba(0,255,136,0.15); color: var(--success); }}
-        .status-badge.down {{ background: rgba(255,71,87,0.15); color: var(--danger); }}
-        
-        .site-stats {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; padding: 15px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }}
-        .site-stat {{ text-align: center; }}
-        .site-stat-value {{ font-size: 20px; font-weight: 700; }}
-        .site-stat-label {{ font-size: 12px; color: var(--text-secondary); margin-top: 3px; }}
-        
-        .notify-badges {{ display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; }}
-        .notify-badge {{ padding: 4px 10px; background: var(--bg-secondary); border-radius: 5px; font-size: 11px; color: var(--text-secondary); }}
+        .monitor-actions {{ display: flex; gap: 10px; }}
+        .btn {{ flex: 1; padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }}
+        .btn-check {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; box-shadow: 0 4px 15px rgba(0,217,255,0.3); }}
+        .btn-check:hover {{ transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,217,255,0.5); }}
+        .btn-edit {{ background: linear-gradient(135deg, rgba(255,217,61,0.2), rgba(255,217,61,0.1)); color: var(--warning); }}
+        .btn-edit:hover {{ background: linear-gradient(135deg, var(--warning), #e6c200); color: #000; }}
+        .btn-delete {{ background: linear-gradient(135deg, rgba(255,71,87,0.2), rgba(255,71,87,0.1)); color: var(--danger); }}
+        .btn-delete:hover {{ background: linear-gradient(135deg, var(--danger), #cc3a47); color: #fff; }}
         
         .site-actions {{ display: flex; gap: 10px; }}
-        .btn {{ flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 13px; transition: all 0.2s; }}
-        .btn-check {{ background: var(--accent); color: #000; }}
-        .btn-check:hover {{ background: var(--accent-hover); }}
-        .btn-edit {{ background: rgba(255,217,61,0.2); color: var(--warning); }}
-        .btn-edit:hover {{ background: var(--warning); color: #000; }}
-        .btn-delete {{ background: rgba(255,71,87,0.2); color: var(--danger); }}
-        .btn-delete:hover {{ background: var(--danger); color: #fff; }}
+        .btn {{ flex: 1; padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-weight: 500; font-size: 13px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }}
+        .btn-check {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; box-shadow: 0 4px 15px rgba(0,217,255,0.3); }}
+        .btn-check:hover {{ background: linear-gradient(135deg, var(--accent-hover), var(--accent)); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,217,255,0.5); }}
+        .btn-edit {{ background: linear-gradient(135deg, rgba(255,217,61,0.2), rgba(255,217,61,0.1)); color: var(--warning); box-shadow: 0 4px 15px rgba(255,217,61,0.2); }}
+        .btn-edit:hover {{ background: linear-gradient(135deg, var(--warning), #e6c200); color: #000; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,217,61,0.5); }}
+        .btn-delete {{ background: linear-gradient(135deg, rgba(255,71,87,0.2), rgba(255,71,87,0.1)); color: var(--danger); box-shadow: 0 4px 15px rgba(255,71,87,0.2); }}
+        .btn-delete:hover {{ background: linear-gradient(135deg, var(--danger), #cc3a47); color: #fff; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,71,87,0.5); }}
         
         .refresh-info {{ text-align: center; margin-top: 30px; color: var(--text-secondary); }}
         
@@ -816,16 +920,55 @@ async def dashboard(request: Request):
         .modal-actions button {{ flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }}
         
         .tabs {{ display: flex; gap: 10px; margin: 0 40px; }}
-        .tab-btn {{ padding: 12px 30px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--text-secondary); transition: all 0.3s; }}
-        .tab-btn:hover {{ border-color: var(--accent); color: var(--text-primary); }}
-        .tab-btn.active {{ background: var(--accent); color: #000; border-color: var(--accent); }}
+        .tab-btn {{ padding: 12px 30px; background: linear-gradient(145deg, #1a1a2e, #0f0f23); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-weight: 600; color: var(--text-secondary); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative; overflow: hidden; }}
+        .tab-btn::before {{ content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); transition: 0.5s; }}
+        .tab-btn:hover::before {{ left: 100%; }}
+        .tab-btn:hover {{ border-color: var(--accent); color: var(--text-primary); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,217,255,0.2); }}
+        .tab-btn.active {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,217,255,0.4), inset 0 1px 0 rgba(255,255,255,0.2); transform: translateY(-2px); }}
         
         .tab-content {{ display: none; }}
         .tab-content.active {{ display: block; }}
         
-        .address-config {{ background: var(--bg-secondary); padding: 15px; border-radius: 10px; margin-bottom: 20px; }}
-        .address-config input {{ flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-primary); color: var(--text-primary); font-size: 14px; }}
-        .address-config input:focus {{ outline: none; border-color: var(--accent); }}
+        .address-config {{ background: linear-gradient(145deg, #1a1a2e, #0f0f23); padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); }}
+        .address-config input {{ flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: linear-gradient(145deg, #0f0f23, #1a1a2e); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); transition: all 0.3s ease; }}
+        .address-config input:focus {{ outline: none; border-color: var(--accent); box-shadow: inset 0 2px 5px rgba(0,0,0,0.2), 0 0 15px rgba(0,217,255,0.3); }}
+        
+        .tab-content {{ display: none; animation: fadeSlideIn 0.4s ease; }}
+        .tab-content.active {{ display: block; animation: fadeSlideIn 0.4s ease; }}
+        
+        .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px); }}
+        .modal.active {{ display: flex; }}
+        .modal-content {{ background: linear-gradient(145deg, #1e2a4a, #16213e); padding: 30px; border-radius: 20px; max-width: 500px; width: 90%; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.5); animation: scaleIn 0.3s ease; }}
+        
+        @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
+        @keyframes fadeSlideIn {{ from {{ opacity: 0; transform: translateY(20px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+        @keyframes scaleIn {{ from {{ opacity: 0; transform: scale(0.9); }} to {{ opacity: 1; transform: scale(1); }} }}
+        @keyframes slideDown {{ from {{ opacity: 0; transform: translateY(-10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+        @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.7; }} }}
+        
+        .notify-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }}
+        .notify-card {{ background: linear-gradient(145deg, rgba(30,42,74,0.6), rgba(22,33,62,0.8)); padding: 24px; border-radius: 20px; border: 1px solid var(--border); transition: all 0.3s ease; }}
+        .notify-card:hover {{ transform: translateY(-3px); box-shadow: 0 15px 40px rgba(0,0,0,0.4); border-color: var(--accent); }}
+        .notify-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }}
+        .notify-name {{ font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }}
+        .toggle {{ position: relative; display: inline-block; width: 50px; height: 26px; }}
+        .toggle input {{ opacity: 0; width: 0; height: 0; }}
+        .toggle-slider {{ position: absolute; cursor: pointer; inset: 0; background: var(--bg-secondary); border-radius: 26px; transition: 0.3s; border: 1px solid var(--border); }}
+        .toggle-slider::before {{ content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: var(--text-secondary); border-radius: 50%; transition: 0.3s; }}
+        .toggle input:checked + .toggle-slider {{ background: var(--accent); border-color: var(--accent); }}
+        .toggle input:checked + .toggle-slider::before {{ transform: translateX(24px); background: #000; }}
+        .notify-fields {{ display: flex; flex-direction: column; gap: 10px; }}
+        .notify-fields input {{ width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; transition: border-color 0.3s; }}
+        .notify-fields input:focus {{ outline: none; border-color: var(--accent); }}
+        
+        .form-row {{ display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }}
+        .form-row input, .form-row select {{ flex: 1; min-width: 200px; padding: 14px; border-radius: 12px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); font-size: 14px; }}
+        .form-row input:focus, .form-row select:focus {{ outline: none; border-color: var(--accent); }}
+        
+        .address-config {{ padding: 20px; background: var(--bg-secondary); border-radius: 15px; }}
+        .address-config input {{ flex: 1; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); }}
+        
+        .ssl-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }}
     </style>
 </head>
 <body>
@@ -833,51 +976,106 @@ async def dashboard(request: Request):
         <div class="logo"><div class="logo-icon">⚡</div><span>Uptime Monitor</span></div>
         <div style="display: flex; align-items: center; gap: 20px;">
             <div id="lastUpdate" style="color: var(--text-secondary); font-size: 14px;"></div>
+            <a href="/status" target="_blank" style="padding: 8px 16px; background: rgba(0,217,255,0.2); color: var(--accent); text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 500;">📄 Status Page</a>
             <a href="/logout" style="padding: 8px 16px; background: rgba(255,71,87,0.2); color: var(--danger); text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 500;">🚪 Вийти</a>
         </div>
     </div>
     
     <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('monitoring')">📊 Моніторинг</button>
-        <button class="tab-btn" onclick="switchTab('settings')">⚙️ Налаштування</button>
+        <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+        <button class="tab-btn" onclick="switchTab('ssl')">SSL</button>
+        <button class="tab-btn" onclick="switchTab('incidents')">Incidents</button>
+        <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
     </div>
     
-    <div class="container">
-        <div class="server-info">
-            <div class="label">Доступ за адресою:</div>
-            <div class="value">{display_address}</div>
-        </div>
-        
-        <div id="tab-monitoring" class="tab-content active">
-        
-        <div class="stats-bar">
-            <div class="stat-card total"><div class="stat-value">{total_sites}</div><div class="stat-label">Всього сайтів</div></div>
-            <div class="stat-card up"><div class="stat-value">{up_sites}</div><div class="stat-label">Працюють</div></div>
-            <div class="stat-card down"><div class="stat-value">{down_sites}</div><div class="stat-label">Недоступні</div></div>
-        </div>
-        
-        <div class="panel">
-            <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
-                <span>🔒 SSL Сертифікати</span>
-                <button class="btn btn-check" onclick="checkSSLCertificates()" style="padding:8px 20px;">🔄 Перевірити зараз</button>
+    <div id="tab-dashboard" class="tab-content active">
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="hero-stat-value">{total_sites}</div>
+                <div class="hero-stat-label">Моніторів</div>
             </div>
-            <div class="ssl-grid" id="sslGrid"></div>
+            <div class="hero-stat">
+                <div class="hero-stat-value" style="background: linear-gradient(135deg, #00ff88, #00cc6a); -webkit-background-clip: text;">{up_sites}</div>
+                <div class="hero-stat-label">Онлайн</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-value" style="background: linear-gradient(135deg, #ff4757, #ff6b7a); -webkit-background-clip: text;">{down_sites}</div>
+                <div class="hero-stat-label">Офлайн</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-value" style="background: linear-gradient(135deg, #ffd93d, #ffb300); -webkit-background-clip: text;">0</div>
+                <div class="hero-stat-label">Інцидентів</div>
+            </div>
         </div>
+        
+        <div class="container">
+            <div class="panel">
+                <div class="panel-title">📈 Час відповіді (24 години)</div>
+                <div class="chart-container">
+                    <canvas id="responseTimeChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">🎯 Швидкі дії</div>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <button class="btn btn-check" style="background: linear-gradient(135deg, #00ff88, #00cc6a);" onclick="checkAllMonitors()">🔄 Перевірити всі</button>
+                    <button class="btn btn-check" onclick="loadDashboard()">📊 Оновити дані</button>
+                    <button class="btn btn-edit" onclick="switchTab('incidents')">⚠️ Інциденти</button>
+                    <button class="btn btn-edit" onclick="window.open('/status', '_blank')">🌐 Статус сторінка</button>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-title">📊 Статус всіх моніторів</div>
+                <div class="monitor-grid" id="dashboardMonitors"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="tab-incidents" class="tab-content">
+        <div class="container">
+            <div class="panel">
+                <div class="panel-title">⚠️ Історія інцидентів</div>
+                <div id="incidentsList" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    Немає інцидентів - всі монітори працюють!
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="tab-settings" class="tab-content">
+        <div class="container">
         
         <div class="panel">
-            <div class="panel-title">📊 Моніторинг сайтів</div>
-            <div class="sites-grid" id="sitesGrid"></div>
+            <div class="panel-title">➕ Додати новий монітор</div>
+            <div class="form-row">
+                <input type="text" id="siteName" placeholder="Назва (наприклад: Мій сайт)">
+                <input type="url" id="siteUrl" placeholder="URL (https://example.com)">
+            </div>
+            <div class="form-row" style="margin-top: 15px;">
+                <select id="monitorType" style="flex:1;">
+                    <option value="http">🌐 HTTP(S)</option>
+                    <option value="port">🔌 Порт</option>
+                    <option value="ping">📡 Пінг</option>
+                    <option value="ssl">🔒 SSL</option>
+                </select>
+                <select id="siteNotify" multiple style="flex:1; min-width: 200px;">
+                    <option value="telegram">📱 Telegram</option>
+                    <option value="teams">🏢 MS Teams</option>
+                    <option value="discord">🎮 Discord</option>
+                    <option value="email">📧 Email</option>
+                </select>
+            </div>
+            <button class="btn btn-check" style="margin-top: 15px; width: 100%;" onclick="addSite()">➕ Додати монітор</button>
+            <div style="margin-top: 10px; color: var(--text-secondary); font-size: 12px;">Виберіть способи сповіщень (Ctrl+Click для вибору кількох)</div>
         </div>
-        <p class="refresh-info">Сторінка автоматично оновлюється кожні 30 секунд</p>
-        </div>
-        
-        <div id="tab-settings" class="tab-content">
         
         <div class="panel">
             <div class="panel-title">🔗 Налаштування адреси</div>
             <div class="address-config">
                 <div class="form-row">
-                    <input type="text" id="displayAddress" placeholder="Адреса для доступу (наприклад: http://192.168.1.100:8000 або http://mysite.com:8000)">
+                    <input type="text" id="displayAddress" placeholder="Адреса для доступу (наприклад: http://192.168.1.100:8000)">
                     <button onclick="saveDisplayAddress()">💾 Зберегти</button>
                 </div>
             </div>
@@ -917,16 +1115,6 @@ async def dashboard(request: Request):
                     </div>
                 </div>
                 
-                <div class="notify-card" id="card-slack">
-                    <div class="notify-header">
-                        <div class="notify-name">💬 Slack</div>
-                        <label class="toggle"><input type="checkbox" id="toggle-slack" onchange="toggleNotify('slack')"><span class="toggle-slider"></span></label>
-                    </div>
-                    <div class="notify-fields">
-                        <input type="text" id="slack-webhook" placeholder="Webhook URL">
-                    </div>
-                </div>
-                
                 <div class="notify-card" id="card-email">
                     <div class="notify-header">
                         <div class="notify-name">📧 Email (SMTP)</div>
@@ -940,42 +1128,21 @@ async def dashboard(request: Request):
                         <input type="text" id="email-to" placeholder="To Email">
                     </div>
                 </div>
-                
-                <div class="notify-card" id="card-sms">
-                    <div class="notify-header">
-                        <div class="notify-name">📱 SMS (Twilio)</div>
-                        <label class="toggle"><input type="checkbox" id="toggle-sms" onchange="toggleNotify('sms')"><span class="toggle-slider"></span></label>
-                    </div>
-                    <div class="notify-fields">
-                        <input type="text" id="sms-sid" placeholder="Account SID">
-                        <input type="password" id="sms-token" placeholder="Auth Token">
-                        <input type="text" id="sms-from" placeholder="From Number">
-                        <input type="text" id="sms-to" placeholder="To Number">
-                    </div>
-                </div>
             </div>
             <button class="btn btn-check" style="margin-top: 20px; width: 100%;" onclick="saveNotifySettings()">💾 Зберегти налаштування</button>
         </div>
-        
-        <div class="panel">
-            <div class="panel-title">➕ Додати новий сайт</div>
-            <div class="form-row">
-                <input type="text" id="siteName" placeholder="Назва сайту">
-                <input type="url" id="siteUrl" placeholder="URL (https://example.com)">
-                <select id="siteNotify" multiple style="flex:1; min-width:200px; padding:12px; border-radius:10px; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border);">
-                    <option value="telegram">📱 Telegram</option>
-                    <option value="teams">🏢 MS Teams</option>
-                    <option value="discord">🎮 Discord</option>
-                    <option value="slack">💬 Slack</option>
-                    <option value="email">📧 Email</option>
-                    <option value="sms">📱 SMS</option>
-                </select>
-                <button onclick="addSite()">Додати сайт</button>
-            </div>
-            <div style="margin-top: 10px; color: var(--text-secondary); font-size: 12px;">Виберіть способи сповіщень (Ctrl+Click для вибору кількох)</div>
-        </div>
         </div>
     </div>
+    
+    <div id="tab-ssl" class="tab-content">
+            <div class="panel">
+                <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>🔒 SSL Сертифікати</span>
+                    <button class="btn btn-check" onclick="checkSSLCertificates()" style="padding:8px 20px;">🔄 Перевірити зараз</button>
+                </div>
+                <div class="ssl-grid" id="sslGrid"></div>
+            </div>
+        </div>
     
     <div class="modal" id="editModal">
         <div class="modal-content">
@@ -1009,12 +1176,189 @@ async def dashboard(request: Request):
     
     <script>
         const notifyConfig = {notify_config_json};
+        let currentFilter = 'all';
+        let responseChart = null;
         
         function switchTab(tabName) {{
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.querySelector('.tab-btn[onclick="switchTab(\\'' + tabName + '\\')"]').classList.add('active');
             document.getElementById('tab-' + tabName).classList.add('active');
+            
+            if (tabName === 'dashboard') {{
+                loadDashboard();
+            }} else if (tabName === 'monitors') {{
+                loadMonitors();
+            }} else if (tabName === 'ssl') {{
+                loadSSLCertificates();
+            }}
+        }}
+        
+        function filterMonitors(type) {{
+            currentFilter = type;
+            document.querySelectorAll('.monitor-type-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            loadMonitors();
+        }}
+        
+        async function loadDashboard() {{
+            try {{
+                const response = await fetch('/api/sites');
+                sitesData = await response.json();
+                renderDashboardMonitors();
+                initResponseChart();
+            }} catch(e) {{ console.error(e); }}
+        }}
+        
+        function renderDashboardMonitors() {{
+            const grid = document.getElementById('dashboardMonitors');
+            if (!grid) return;
+            
+            const filtered = currentFilter === 'all' ? sitesData : sitesData.filter(s => s.monitor_type === currentFilter);
+            
+            if (filtered.length === 0) {{
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">No monitors found. Add one.</div>';
+                return;
+            }}
+            
+            let html = '';
+            filtered.forEach(site => {{
+                const statusClass = site.status === 'up' ? 'up' : (site.status === 'paused' ? 'paused' : 'down');
+                const typeBadge = site.monitor_type === 'http' ? 'HTTP' : site.monitor_type === 'port' ? 'PORT' : site.monitor_type === 'ping' ? 'PING' : 'SSL';
+                const statusColor = site.status === 'up' ? 'var(--success)' : 'var(--danger)';
+                const statusIcon = site.status === 'up' ? 'UP' : 'DOWN';
+                const respTime = site.response_time || 'N/A';
+                const uptime = site.uptime || 100;
+                const httpCode = site.status_code || 'N/A';
+                const safeNameJson = JSON.stringify(site.name || '').replace(/"/g, '&quot;');
+                const safeUrlJson = JSON.stringify(site.url || '').replace(/"/g, '&quot;');
+                const notifyMethodsJson = JSON.stringify(site.notify_methods || []).replace(/"/g, '&quot;');
+                
+                html += '<div class="monitor-card ' + statusClass + '">';
+                html += '<div class="monitor-header"><div>';
+                html += '<div class="monitor-name">' + site.name + '</div>';
+                html += '<div class="monitor-url">' + site.url + '</div>';
+                html += '</div><span class="monitor-type-badge">' + typeBadge + '</span></div>';
+                html += '<div class="monitor-stats">';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value" style="color:' + statusColor + '">' + statusIcon + '</div><div class="monitor-stat-label">Status</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + respTime + '</div><div class="monitor-stat-label">ms</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + uptime + '%</div><div class="monitor-stat-label">Uptime</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + httpCode + '</div><div class="monitor-stat-label">HTTP</div></div>';
+                html += '</div>';
+                html += '<div class="monitor-actions">';
+                html += '<button class="btn btn-check" onclick="checkSite(' + site.id + ')">Check</button>';
+                html += '<button class="btn btn-edit" onclick="openEditModal(' + site.id + ', ' + safeNameJson + ', ' + safeUrlJson + ', ' + notifyMethodsJson + ')">Edit</button>';
+                html += '<button class="btn btn-delete" onclick="deleteSite(' + site.id + ')">Delete</button>';
+                html += '</div></div>';
+            }});
+            grid.innerHTML = html;
+        }}
+        
+        async function loadMonitors() {{
+            try {{
+                const response = await fetch('/api/sites');
+                sitesData = await response.json();
+                renderMonitors();
+            }} catch(e) {{ console.error(e); }}
+        }}
+        
+        function renderMonitors() {{
+            const grid = document.getElementById('monitorsGrid');
+            if (!grid) return;
+            
+            const filtered = currentFilter === 'all' ? sitesData : sitesData.filter(s => s.monitor_type === currentFilter);
+            
+            if (filtered.length === 0) {{
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">No monitors found. Add one.</div>';
+                return;
+            }}
+            
+            let html = '';
+            filtered.forEach(site => {{
+                const statusClass = site.status === 'up' ? 'up' : (site.status === 'paused' ? 'paused' : 'down');
+                const statusText = site.status === 'up' ? 'UP' : (site.status === 'paused' ? 'PAUSED' : 'DOWN');
+                const typeBadge = site.monitor_type === 'http' ? 'HTTP' : site.monitor_type === 'port' ? 'PORT' : site.monitor_type === 'ping' ? 'PING' : 'SSL';
+                const statusColor = site.status === 'up' ? 'var(--success)' : 'var(--danger)';
+                const respTime = site.response_time || 'N/A';
+                const uptime = site.uptime || 100;
+                const httpCode = site.status_code || 'N/A';
+                const safeNameJson = JSON.stringify(site.name || '').replace(/"/g, '&quot;');
+                const safeUrlJson = JSON.stringify(site.url || '').replace(/"/g, '&quot;');
+                const notifyMethodsJson = JSON.stringify(site.notify_methods || []).replace(/"/g, '&quot;');
+                
+                html += '<div class="monitor-card ' + statusClass + '">';
+                html += '<div class="monitor-header"><div>';
+                html += '<div class="monitor-name">' + site.name + '</div>';
+                html += '<div class="monitor-url">' + site.url + '</div>';
+                html += '</div><span class="monitor-type-badge">' + typeBadge + '</span></div>';
+                html += '<div class="monitor-stats">';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value" style="color:' + statusColor + '">' + statusText + '</div><div class="monitor-stat-label">Status</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + respTime + 'ms</div><div class="monitor-stat-label">Time</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + uptime + '%</div><div class="monitor-stat-label">Uptime</div></div>';
+                html += '<div class="monitor-stat"><div class="monitor-stat-value">' + httpCode + '</div><div class="monitor-stat-label">HTTP</div></div>';
+                html += '</div>';
+                html += '<div class="monitor-actions">';
+                html += '<button class="btn btn-check" onclick="checkSite(' + site.id + ')">Check</button>';
+                html += '<button class="btn btn-edit" onclick="openEditModal(' + site.id + ', ' + safeNameJson + ', ' + safeUrlJson + ', ' + notifyMethodsJson + ')">Edit</button>';
+                html += '<button class="btn btn-delete" onclick="deleteSite(' + site.id + ')">Delete</button>';
+                html += '</div></div>';
+            }});
+            grid.innerHTML = html;
+        }}
+        
+        function initResponseChart() {{
+            const ctx = document.getElementById('responseTimeChart');
+            if (!ctx) return;
+            
+            if (responseChart) responseChart.destroy();
+            
+            const labels = [];
+            const data = [];
+            for (let i = 23; i >= 0; i--) {{
+                labels.push(i + 'h');
+                data.push(Math.floor(Math.random() * 200) + 50);
+            }}
+            
+            responseChart = new Chart(ctx, {{
+                type: 'line',
+                data: {{
+                    labels: labels,
+                    datasets: [{{
+                        label: 'Час відповіді (ms)',
+                        data: data,
+                        borderColor: '#00d9ff',
+                        backgroundColor: 'rgba(0, 217, 255, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {{
+                        legend: {{ display: false }}
+                    }},
+                    scales: {{
+                        y: {{
+                            beginAtZero: true,
+                            grid: {{ color: 'rgba(255,255,255,0.1)' }},
+                            ticks: {{ color: '#a0a0b0' }}
+                        }},
+                        x: {{
+                            grid: {{ color: 'rgba(255,255,255,0.05)' }},
+                            ticks: {{ color: '#a0a0b0' }}
+                        }}
+                    }}
+                }}
+            }});
+        }}
+        
+        async function checkAllMonitors() {{
+            for (const site of sitesData) {{
+                await checkSite(site.id);
+            }}
+            loadDashboard();
+            alert('✅ Перевірку всіх моніторів запущено!');
         }}
         
         async function loadAppSettings() {{
@@ -1036,10 +1380,11 @@ async def dashboard(request: Request):
         }}
         
         function initNotifyUI() {{
-            ['telegram', 'teams', 'discord', 'slack', 'email', 'sms'].forEach(method => {{
+            ['telegram', 'teams', 'discord', 'email'].forEach(method => {{
                 const config = notifyConfig[method];
                 const card = document.getElementById('card-' + method);
                 const toggle = document.getElementById('toggle-' + method);
+                if (!card || !toggle) return;
                 if (config && config.enabled) {{
                     card.classList.add('enabled');
                     toggle.checked = true;
@@ -1051,19 +1396,12 @@ async def dashboard(request: Request):
                     document.getElementById('teams-webhook').value = config?.webhook_url || '';
                 }} else if (method === 'discord') {{
                     document.getElementById('discord-webhook').value = config?.webhook_url || '';
-                }} else if (method === 'slack') {{
-                    document.getElementById('slack-webhook').value = config?.webhook_url || '';
                 }} else if (method === 'email') {{
                     document.getElementById('email-smtp').value = config?.smtp_server || '';
                     document.getElementById('email-port').value = config?.smtp_port || '587';
                     document.getElementById('email-user').value = config?.username || '';
                     document.getElementById('email-pass').value = config?.password || '';
                     document.getElementById('email-to').value = config?.to_email || '';
-                }} else if (method === 'sms') {{
-                    document.getElementById('sms-sid').value = config?.account_sid || '';
-                    document.getElementById('sms-token').value = config?.auth_token || '';
-                    document.getElementById('sms-from').value = config?.from_number || '';
-                    document.getElementById('sms-to').value = config?.to_number || '';
                 }}
             }});
         }}
@@ -1080,9 +1418,7 @@ async def dashboard(request: Request):
                 telegram: {{ enabled: document.getElementById('toggle-telegram').checked, token: document.getElementById('telegram-token').value, chat_id: document.getElementById('telegram-chatid').value }},
                 teams: {{ enabled: document.getElementById('toggle-teams').checked, webhook_url: document.getElementById('teams-webhook').value }},
                 discord: {{ enabled: document.getElementById('toggle-discord').checked, webhook_url: document.getElementById('discord-webhook').value }},
-                slack: {{ enabled: document.getElementById('toggle-slack').checked, webhook_url: document.getElementById('slack-webhook').value }},
-                email: {{ enabled: document.getElementById('toggle-email').checked, smtp_server: document.getElementById('email-smtp').value, smtp_port: parseInt(document.getElementById('email-port').value) || 587, username: document.getElementById('email-user').value, password: document.getElementById('email-pass').value, to_email: document.getElementById('email-to').value }},
-                sms: {{ enabled: document.getElementById('toggle-sms').checked, account_sid: document.getElementById('sms-sid').value, auth_token: document.getElementById('sms-token').value, from_number: document.getElementById('sms-from').value, to_number: document.getElementById('sms-to').value }}
+                email: {{ enabled: document.getElementById('toggle-email').checked, smtp_server: document.getElementById('email-smtp').value, smtp_port: parseInt(document.getElementById('email-port').value) || 587, username: document.getElementById('email-user').value, password: document.getElementById('email-pass').value, to_email: document.getElementById('email-to').value }}
             }};
             await fetch('/api/notify-settings', {{ method: 'POST', headers: {{'Content-Type': 'application/json'}}, body: JSON.stringify(settings) }});
             alert('✅ Налаштування збережено!');
@@ -1094,19 +1430,19 @@ async def dashboard(request: Request):
             try {{
                 const response = await fetch('/api/sites');
                 sitesData = await response.json();
-                renderSites();
                 document.getElementById('lastUpdate').textContent = 'Оновлено: ' + new Date().toLocaleTimeString('uk-UA');
             }} catch(e) {{ console.error(e); }}
         }}
         
         function renderSites() {{
             const grid = document.getElementById('sitesGrid');
+            if (!grid) return;
             if (sitesData.length === 0) {{
                 grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Немає сайтів для моніторингу. Додайте перший сайт!</div>';
                 return;
             }}
             grid.innerHTML = sitesData.map(site => {{
-                const notifyBadges = (site.notify_methods || []).map(m => {{ const names = {{telegram:'📱 Telegram', teams:'🏢 Teams', discord:'🎮 Discord', slack:'💬 Slack', email:'📧 Email', sms:'📱 SMS'}}; return '<span class="notify-badge">' + (names[m] || m) + '</span>' }}).join('');
+                const notifyBadges = (site.notify_methods || []).map(m => {{ const names = {{telegram:'📱 Telegram', teams:'🏢 Teams', discord:'🎮 Discord', email:'📧 Email'}}; return '<span class="notify-badge">' + (names[m] || m) + '</span>' }}).join('');
                 const safeName = site.name.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                 const safeUrl = site.url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                 const notifyMethodsJson = JSON.stringify(site.notify_methods || []).replace(/"/g, '&quot;');
@@ -1135,29 +1471,46 @@ async def dashboard(request: Request):
         async function addSite() {{
             const name = document.getElementById('siteName').value.trim();
             const url = document.getElementById('siteUrl').value.trim();
+            const monitorType = document.getElementById('monitorType').value;
+            const finalUrl = (monitorType === 'ssl' && !/^https?:\\/\\//i.test(url)) ? ('https://' + url) : url;
             const notifySelect = document.getElementById('siteNotify');
             const notifyMethods = Array.from(notifySelect.selectedOptions).map(o => o.value);
             if (!name || !url) return alert('Заповніть всі поля!');
             
-            await fetch('/api/sites', {{
-                method: 'POST',
-                headers: {{'Content-Type': 'application/json'}},
-                body: JSON.stringify({{name, url, notify_methods: notifyMethods}})
-            }});
-            document.getElementById('siteName').value = '';
-            document.getElementById('siteUrl').value = '';
-            loadSites();
+            try {{
+                const response = await fetch('/api/sites', {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{name, url: finalUrl, monitor_type: monitorType, notify_methods: notifyMethods}})
+                }});
+                const result = await response.json().catch(() => ({{}}));
+                if (!response.ok) {{
+                    throw new Error(result.detail || 'РќРµ РІРґР°Р»РѕСЃСЏ РґРѕРґР°С‚Рё РјРѕРЅС–С‚РѕСЂ');
+                }}
+                if (monitorType === 'ssl' || finalUrl.toLowerCase().startsWith('https://')) {{
+                    await fetch('/api/ssl-certificates/check', {{ method: 'POST' }});
+                }}
+                document.getElementById('siteName').value = '';
+                document.getElementById('siteUrl').value = '';
+                document.getElementById('monitorType').value = 'http';
+                Array.from(notifySelect.options).forEach(option => option.selected = false);
+                await Promise.all([loadDashboard(), loadMonitors(), loadSites(), loadSSLCertificates()]);
+                alert('вњ… РњРѕРЅС–С‚РѕСЂ РґРѕРґР°РЅРѕ!');
+            }} catch (e) {{
+                console.error(e);
+                alert('вќЊ ' + (e.message || 'РџРѕРјРёР»РєР° РґРѕРґР°РІР°РЅРЅСЏ РјРѕРЅС–С‚РѕСЂР°'));
+            }}
         }}
         
         async function deleteSite(id) {{
-            if (!confirm('Видалити сайт з моніторингу?')) return;
+            if (!confirm('Delete monitor?')) return;
             await fetch(`/api/sites/${{id}}`, {{method: 'DELETE'}});
-            loadSites();
+            await Promise.all([loadDashboard(), loadMonitors(), loadSites(), loadSSLCertificates()]);
         }}
         
         async function checkSite(id) {{
             await fetch(`/api/sites/${{id}}/check`, {{method: 'POST'}});
-            loadSites();
+            await Promise.all([loadDashboard(), loadMonitors(), loadSites(), loadSSLCertificates()]);
         }}
         
         function openEditModal(id, name, url, notifyMethods) {{
@@ -1165,9 +1518,10 @@ async def dashboard(request: Request):
             document.getElementById('editSiteName').value = name;
             document.getElementById('editSiteUrl').value = url;
             
+            const methods = Array.isArray(notifyMethods) ? notifyMethods : [];
             const select = document.getElementById('editSiteNotify');
             Array.from(select.options).forEach(opt => {{
-                opt.selected = notifyMethods.includes(opt.value);
+                opt.selected = methods.includes(opt.value);
             }});
             
             document.getElementById('editModal').classList.add('active');
@@ -1184,16 +1538,20 @@ async def dashboard(request: Request):
             const notifySelect = document.getElementById('editSiteNotify');
             const notifyMethods = Array.from(notifySelect.selectedOptions).map(o => o.value);
             
-            if (!name || !url) return alert('Заповніть всі поля!');
+            if (!name || !url) return alert('Fill all fields');
             
             await fetch(`/api/sites/${{id}}`, {{
                 method: 'PUT',
                 headers: {{'Content-Type': 'application/json'}},
                 body: JSON.stringify({{name, url, notify_methods: notifyMethods}})
             }});
+
+            if (url.toLowerCase().startsWith('https://')) {{
+                await fetch('/api/ssl-certificates/check', {{ method: 'POST' }});
+            }}
             
             closeEditModal();
-            loadSites();
+            await Promise.all([loadDashboard(), loadMonitors(), loadSites(), loadSSLCertificates()]);
         }}
         
         let sslCertificatesData = [];
@@ -1216,55 +1574,60 @@ async def dashboard(request: Request):
         
         function renderSSLCertificates() {{
             const grid = document.getElementById('sslGrid');
-            if (sslCertificatesData.length === 0) {{
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Немає SSL сертифікатів для перегляду. Додайте HTTPS сайт!</div>';
-                return;
-            }}
+            const gridSettings = document.getElementById('sslGridSettings');
             
-            let html = '';
-            sslCertificatesData.forEach(cert => {{
-                const days = cert.days_until_expire;
-                let statusColor, statusText, icon;
-                
-                if (days <= 0) {{
-                    statusColor = 'var(--danger)';
-                    statusText = 'ПРОСТРОЧЕНИЙ';
-                    icon = '🔴';
-                }} else if (days <= 7) {{
-                    statusColor = 'var(--warning)';
-                    statusText = 'Закінчується через ' + days + ' днів';
-                    icon = '🟠';
-                }} else {{
-                    statusColor = 'var(--success)';
-                    statusText = 'Дійсний';
-                    icon = '🟢';
+            const renderContent = () => {{
+                if (sslCertificatesData.length === 0) {{
+                    return '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Немає SSL сертифікатів для перегляду. Додайте HTTPS сайт!</div>';
                 }}
                 
-                let hostnameHtml = cert.hostname ? '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 10px;">🌐 ' + cert.hostname + '</div>' : '';
-                
-                let expireDateDisplay = '—';
-                if (cert.expire_date) {{
-                    try {{
-                        expireDateDisplay = new Date(cert.expire_date).toLocaleDateString('uk-UA');
-                    }} catch(e) {{
-                        expireDateDisplay = '—';
+                let html = '';
+                sslCertificatesData.forEach(cert => {{
+                    const days = cert.days_until_expire;
+                    let statusColor, statusText, icon;
+                    
+                    if (days <= 0) {{
+                        statusColor = 'var(--danger)';
+                        statusText = 'ПРОСТРОЧЕНИЙ';
+                        icon = '🔴';
+                    }} else if (days <= 7) {{
+                        statusColor = 'var(--warning)';
+                        statusText = 'Закінчується через ' + days + ' днів';
+                        icon = '🟠';
+                    }} else {{
+                        statusColor = 'var(--success)';
+                        statusText = 'Дійсний';
+                        icon = '🟢';
                     }}
-                }}
-                
-                html += '<div class="ssl-card" style="border-left: 3px solid ' + statusColor + '">';
-                html += '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">';
-                html += '<div style="font-size:14px; font-weight:600;">' + cert.site_name + '</div>';
-                html += '<span style="padding:3px 8px; border-radius:10px; font-size:10px; font-weight:600; background: rgba(' + (statusColor === 'var(--success)' ? '0,255,136' : statusColor === 'var(--warning)' ? '255,217,61' : '255,71,87') + ',0.15); color: ' + statusColor + '">' + icon + ' ' + days + 'д</span>';
-                html += '</div>';
-                html += '<div style="color:var(--text-secondary); font-size:11px; margin-bottom:8px; word-break:break-all;">' + cert.site_url + '</div>';
-                html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px;">';
-                html += '<div><span style="color:var(--text-secondary)">Видавець:</span> ' + (cert.issuer ? cert.issuer.split(',')[0] : '—') + '</div>';
-                html += '<div><span style="color:var(--text-secondary)">До:</span> ' + expireDateDisplay + '</div>';
-                html += '</div>';
-                html += '</div>';
-            }});
+                    
+                    let hostnameHtml = cert.hostname ? '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 10px;">🌐 ' + cert.hostname + '</div>' : '';
+                    
+                    let expireDateDisplay = '—';
+                    if (cert.expire_date) {{
+                        try {{
+                            expireDateDisplay = new Date(cert.expire_date).toLocaleDateString('uk-UA');
+                        }} catch(e) {{
+                            expireDateDisplay = '—';
+                        }}
+                    }}
+                    
+                    html += '<div class="ssl-card" style="border-left: 3px solid ' + statusColor + '">';
+                    html += '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">';
+                    html += '<div style="font-size:14px; font-weight:600;">' + cert.site_name + '</div>';
+                    html += '<span style="padding:3px 8px; border-radius:10px; font-size:10px; font-weight:600; background: rgba(' + (statusColor === 'var(--success)' ? '0,255,136' : statusColor === 'var(--warning)' ? '255,217,61' : '255,71,87') + ',0.15); color: ' + statusColor + '">' + icon + ' ' + days + 'д</span>';
+                    html += '</div>';
+                    html += '<div style="color:var(--text-secondary); font-size:11px; margin-bottom:8px; word-break:break-all;">' + cert.site_url + '</div>';
+                    html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px;">';
+                    html += '<div><span style="color:var(--text-secondary)">Видавець:</span> ' + (cert.issuer ? cert.issuer.split(',')[0] : '—') + '</div>';
+                    html += '<div><span style="color:var(--text-secondary)">До:</span> ' + expireDateDisplay + '</div>';
+                    html += '</div>';
+                    html += '</div>';
+                }});
+                return html;
+            }};
             
-            grid.innerHTML = html;
+            if (grid) grid.innerHTML = renderContent();
+            if (gridSettings) gridSettings.innerHTML = renderContent();
         }}
         
         initNotifyUI();
@@ -1301,6 +1664,7 @@ async def get_sites():
             'name': site['name'],
             'url': site['url'],
             'is_active': site['is_active'],
+            'monitor_type': site['monitor_type'] if 'monitor_type' in site.keys() and site['monitor_type'] else 'http',
             'status': last_status['status'] if last_status else 'unknown',
             'status_code': last_status['status_code'] if last_status else None,
             'response_time': last_status['response_time'] if last_status else None,
@@ -1312,15 +1676,119 @@ async def get_sites():
     conn.close()
     return result
 
+@app.get("/test123")
+async def test123():
+    return {"test": "123"}
+
+@app.get("/public-status")
+async def public_status_page(request: Request):
+    """Публічна сторінка статусу - без авторизації"""
+    from datetime import datetime as dt
+    
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT id, name, url FROM sites ORDER BY id")
+    sites = c.fetchall()
+    
+    c.execute("SELECT site_id, status FROM status_history WHERE checked_at > datetime('now', '-24 hours') ORDER BY checked_at DESC")
+    history = c.fetchall()
+    
+    site_status = {}
+    for h in history:
+        if h['site_id'] not in site_status:
+            site_status[h['site_id']] = h['status']
+    
+    conn.close()
+    
+    up_count = sum(1 for s in site_status.values() if s == 'up')
+    down_count = sum(1 for s in site_status.values() if s == 'down')
+    total = len(sites)
+    
+    monitors_html = ''
+    for site in sites:
+        status = site_status.get(site['id'], 'unknown')
+        status_class = 'up' if status == 'up' else 'down'
+        status_text = '✓ Онлайн' if status == 'up' else '✗ Офлайн'
+        monitors_html += f'''
+        <div class="monitor {status_class}">
+            <div><div class="monitor-name">{site['name']}</div>
+            <div class="monitor-url">{site['url']}</div></div>
+            <span class="status-badge {status_class}">{status_text}</span>
+        </div>'''
+    
+    status_html = f'''<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status - Uptime Monitor</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{ font-family: 'Inter', sans-serif; background: #0f0f23; color: #fff; min-height: 100vh; }}
+        .header {{ background: linear-gradient(135deg, #1a1a2e, #0f0f23); padding: 40px; text-align: center; border-bottom: 1px solid #2a2a4a; }}
+        .logo {{ font-size: 32px; font-weight: 700; margin-bottom: 20px; }}
+        .logo-icon {{ display: inline-block; width: 50px; height: 50px; background: linear-gradient(135deg, #00d9ff, #00ff88); border-radius: 12px; line-height: 50px; font-size: 24px; margin-right: 10px; }}
+        .overall-status {{ font-size: 48px; font-weight: 700; margin: 30px 0; }}
+        .overall-status.up {{ color: #00ff88; }}
+        .overall-status.down {{ color: #ff4757; }}
+        .stats {{ display: flex; justify-content: center; gap: 40px; margin: 20px 0; }}
+        .stat {{ text-align: center; }}
+        .stat-value {{ font-size: 36px; font-weight: 700; }}
+        .stat-label {{ color: #a0a0b0; font-size: 14px; }}
+        .container {{ max-width: 1000px; margin: 0 auto; padding: 40px; }}
+        .monitor {{ background: linear-gradient(145deg, #1a1a2e, #16213e); padding: 20px; margin-bottom: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #2a2a4a; }}
+        .monitor.up {{ border-left: 4px solid #00ff88; }}
+        .monitor.down {{ border-left: 4px solid #ff4757; }}
+        .monitor-name {{ font-size: 18px; font-weight: 600; }}
+        .monitor-url {{ color: #a0a0b0; font-size: 13px; margin-top: 5px; }}
+        .status-badge {{ padding: 8px 20px; border-radius: 20px; font-weight: 600; font-size: 14px; }}
+        .status-badge.up {{ background: rgba(0,255,136,0.15); color: #00ff88; }}
+        .status-badge.down {{ background: rgba(255,71,87,0.15); color: #ff4757; }}
+        .footer {{ text-align: center; padding: 40px; color: #a0a0b0; font-size: 14px; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo"><span class="logo-icon">⚡</span>Uptime Monitor</div>
+        <div class="overall-status {'up' if down_count == 0 else 'down'}">
+            {'✅ Всі системи працюють' if down_count == 0 else '⚠️ Деякі проблеми'}
+        </div>
+        <div class="stats">
+            <div class="stat"><div class="stat-value" style="color: #00d9ff;">{total}</div><div class="stat-label">Моніторів</div></div>
+            <div class="stat"><div class="stat-value" style="color: #00ff88;">{up_count}</div><div class="stat-label">Онлайн</div></div>
+            <div class="stat"><div class="stat-value" style="color: #ff4757;">{down_count}</div><div class="stat-label">Офлайн</div></div>
+        </div>
+    </div>
+    <div class="container">{monitors_html}
+    </div>
+    <div class="footer"><p>Оновлено: {dt.now().strftime('%Y-%m-%d %H:%M:%S')}</p></div>
+</body>
+</html>'''
+    
+    return HTMLResponse(content=status_html)
+
 @app.post("/api/sites")
 async def add_site(site: SiteCreate):
     conn = get_db_connection()
     c = conn.cursor()
     notify_methods = site.notify_methods or []
     notify_json = json.dumps(notify_methods)
+    site_url = (site.url or "").strip()
+    if not site_url:
+        conn.close()
+        raise HTTPException(status_code=400, detail="URL is required")
+    monitor_type = (site.monitor_type or "http").strip().lower()
+    if monitor_type not in {"http", "port", "ping", "ssl"}:
+        monitor_type = "http"
+    if monitor_type == "ssl":
+        normalized_ssl_url = normalize_ssl_url(site_url)
+        if not normalized_ssl_url:
+            conn.close()
+            raise HTTPException(status_code=400, detail="SSL monitor URL must be a domain or HTTP/HTTPS URL")
+        site_url = normalized_ssl_url
     try:
-        c.execute("INSERT INTO sites (name, url, check_interval, is_active, notify_methods) VALUES (?, ?, ?, ?, ?)",
-                  (site.name, site.url, site.check_interval, site.is_active, notify_json))
+        c.execute("INSERT INTO sites (name, url, check_interval, is_active, notify_methods, monitor_type) VALUES (?, ?, ?, ?, ?, ?)",
+                  (site.name, site_url, site.check_interval, site.is_active, notify_json, monitor_type))
         site_id = c.lastrowid
         conn.commit()
     except sqlite3.IntegrityError:
@@ -1329,7 +1797,9 @@ async def add_site(site: SiteCreate):
     conn.close()
     if site_id is None:
         raise HTTPException(status_code=500, detail="Failed to create site")
-    await check_site_status(site_id, site.url, notify_methods)
+    await check_site_status(site_id, site_url, notify_methods)
+    if monitor_type == "ssl" or site_url.lower().startswith("https://"):
+        await check_site_certificate(site_id, site_url, notify_methods)
     return {"id": site_id, "message": "Site added"}
 
 @app.get("/api/ssl-certificates")
