@@ -23,13 +23,13 @@
 
 ```bash
 # 1. Створити бекап
-sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
 
 # 2. Перевірити статус
-sudo /opt/uptime-monitor/scripts/backup-system.sh --status
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --status
 
 # 3. Відновити
-sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto
 ```
 
 ---
@@ -63,13 +63,13 @@ sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
 ### Базовий бекап
 
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
 ```
 
 ### Бекап з коментарем
 
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh \
     --dest /backup/uptime-monitor/ \
     --type on-change \
     --comment "Перед зміною SSL"
@@ -78,7 +78,7 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh \
 ### Бекап з перевіркою
 
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh \
     --dest /backup/uptime-monitor/ \
     --verify
 ```
@@ -86,7 +86,7 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh \
 ### Статус бекапів
 
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh --status
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --status
 ```
 
 Виведе:
@@ -103,12 +103,12 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh --status
 
 ```bash
 # Тільки щоденні
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install \
     --daily "0 2 * * *" \
     --dest /backup/uptime-monitor/
 
 # Повний розклад
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install \
     --daily "0 2 * * *" \
     --weekly "0 3 * * 0" \
     --monthly "0 4 1 * *" \
@@ -118,19 +118,19 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
 ### Перевірка розкладу
 
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --status
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --status
 ```
 
 ### Тестування
 
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --test
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --test
 ```
 
 ### Видалення розкладу
 
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --remove
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --remove
 ```
 
 ---
@@ -153,7 +153,7 @@ showmount -e 192.168.1.10
 ### 3. Монтування
 
 ```bash
-sudo /opt/uptime-monitor/scripts/mount-backup.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh \
     --type nfs \
     --server 192.168.1.10 \
     --path /exports/backups \
@@ -164,7 +164,7 @@ sudo /opt/uptime-monitor/scripts/mount-backup.sh \
 ### 4. Тестування
 
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh \
     --dest /mnt/nfs-backup/uptime-monitor/ \
     --type on-change \
     --comment "NFS test"
@@ -173,7 +173,7 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh \
 ### 5. Автоматичні бекапи на NFS
 
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install \
     --daily "0 2 * * *" \
     --dest /mnt/nfs-backup/uptime-monitor/
 ```
@@ -181,7 +181,7 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
 ### Розмонтування
 
 ```bash
-sudo /opt/uptime-monitor/scripts/mount-backup.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh \
     --unmount \
     --mount-point /mnt/nfs-backup
 ```
@@ -212,7 +212,7 @@ sudo chmod 600 /root/.backup-creds/smb-credentials
 ### 3. Монтування
 
 ```bash
-sudo /opt/uptime-monitor/scripts/mount-backup.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh \
     --type smb \
     --server 192.168.1.11 \
     --share backups \
@@ -224,7 +224,7 @@ sudo /opt/uptime-monitor/scripts/mount-backup.sh \
 ### 4. Тестування
 
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh \
     --dest /mnt/smb-backup/uptime-monitor/ \
     --type on-change \
     --comment "Samba test"
@@ -233,7 +233,7 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh \
 ### 5. Автоматичні бекапи на Samba
 
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install \
     --daily "0 2 * * *" \
     --dest /mnt/smb-backup/uptime-monitor/
 ```
@@ -241,7 +241,7 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
 ### Розмонтування
 
 ```bash
-sudo /opt/uptime-monitor/scripts/mount-backup.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh \
     --unmount \
     --mount-point /mnt/smb-backup
 ```
@@ -253,19 +253,19 @@ sudo /opt/uptime-monitor/scripts/mount-backup.sh \
 ### Список бекапів
 
 ```bash
-sudo /opt/uptime-monitor/scripts/restore-system.sh --list
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --list
 ```
 
 ### Відновлення з останнього
 
 ```bash
-sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto
 ```
 
 ### Відновлення з конкретного
 
 ```bash
-sudo /opt/uptime-monitor/scripts/restore-system.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh \
     --from /backup/uptime-monitor/daily/backup-20260218-020000.tar.gz
 ```
 
@@ -273,19 +273,19 @@ sudo /opt/uptime-monitor/scripts/restore-system.sh \
 
 ```bash
 # Тільки база даних
-sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --only database
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto --only database
 
 # Тільки конфігурація
-sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --only config
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto --only config
 
 # Тільки SSL
-sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --only ssl
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto --only ssl
 ```
 
 ### Тестовий запуск
 
 ```bash
-sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --dry-run
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto --dry-run
 ```
 
 ### Після відновлення
@@ -301,19 +301,19 @@ sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --dry-run
 ### Перевірка перед видаленням
 
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-rotation.sh --dry-run
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-rotation.sh --dry-run
 ```
 
 ### Виконання ротації
 
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-rotation.sh
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-rotation.sh
 ```
 
 ### Залишити тільки N бекапів
 
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-rotation.sh --keep 5
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-rotation.sh --keep 5
 ```
 
 ### Ручне видалення
@@ -333,20 +333,20 @@ sudo find /backup/uptime-monitor/daily -name "backup-*.tar.gz" -mtime +7 -delete
 ### Перевірка конкретного бекапу
 
 ```bash
-sudo /opt/uptime-monitor/scripts/verify-backup.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/verify-backup.sh \
     /backup/uptime-monitor/daily/backup-20260218-020000.tar.gz
 ```
 
 ### Перевірка всіх бекапів
 
 ```bash
-sudo /opt/uptime-monitor/scripts/verify-backup.sh --all
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/verify-backup.sh --all
 ```
 
 ### Статистика
 
 ```bash
-sudo /opt/uptime-monitor/scripts/verify-backup.sh --list
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/verify-backup.sh --list
 ```
 
 ---
@@ -427,8 +427,8 @@ sudo mount -t nfs 192.168.1.10:/exports/backups /mnt/nfs-backup
 df -h
 
 # Очистити старі бекапи
-sudo /opt/uptime-monitor/scripts/backup-rotation.sh --keep 3
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-rotation.sh --keep 3
 
 # Перенести на NFS
-sudo /opt/uptime-monitor/scripts/mount-backup.sh ...
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh ...
 ```

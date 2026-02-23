@@ -16,12 +16,12 @@ curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/i
 
 ### 3. Create First Backup ⚠️ IMPORTANT
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
 ```
 
 ### 4. Setup Automatic Backups
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 ```
 
 ### 5. Change Default Password
@@ -75,19 +75,19 @@ Complete backup and restore solution:
 ### Backup Commands
 ```bash
 # Create backup now
-sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
 
 # Check backup status
-sudo /opt/uptime-monitor/scripts/backup-system.sh --status
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --status
 
 # List all backups
-sudo /opt/uptime-monitor/scripts/restore-system.sh --list
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --list
 
 # Restore from latest backup
-sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto
 
 # Restore specific backup
-sudo /opt/uptime-monitor/scripts/restore-system.sh --from /backup/uptime-monitor/daily/backup-20260218-020000.tar.gz
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --from /backup/uptime-monitor/daily/backup-20260218-020000.tar.gz
 ```
 
 ### Service Management
@@ -113,10 +113,10 @@ sudo journalctl -u uptime-monitor -n 50
 sudo nano /etc/uptime-monitor/config.json
 
 # Rollback to previous configuration
-sudo /opt/uptime-monitor/scripts/config-rollback.sh --previous
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/config-rollback.sh --previous
 
 # List configuration backups
-sudo /opt/uptime-monitor/scripts/config-rollback.sh --list
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/config-rollback.sh --list
 
 # Restart after changes
 sudo systemctl restart uptime-monitor
@@ -125,19 +125,19 @@ sudo systemctl restart uptime-monitor
 ### Backup Management
 ```bash
 # Schedule automatic backups
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 
 # Check backup schedule status
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --status
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --status
 
 # Verify all backups
-sudo /opt/uptime-monitor/scripts/verify-backup.sh --all
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/verify-backup.sh --all
 
 # Mount NFS for backups
-sudo /opt/uptime-monitor/scripts/mount-backup.sh --type nfs --server 192.168.1.10 --path /exports/backups --mount-point /mnt/nfs-backup --persist
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh --type nfs --server 192.168.1.10 --path /exports/backups --mount-point /mnt/nfs-backup --persist
 
 # Mount Samba for backups
-sudo /opt/uptime-monitor/scripts/mount-backup.sh --type smb --server 192.168.1.11 --share backups --mount-point /mnt/smb-backup --persist
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh --type smb --server 192.168.1.11 --share backups --mount-point /mnt/smb-backup --persist
 ```
 
 ---
@@ -149,7 +149,7 @@ If you have an older version installed:
 ### 1. Backup Current Installation
 ```bash
 # Create backup before upgrade
-sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type on-change --comment "Pre-upgrade backup"
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type on-change --comment "Pre-upgrade backup"
 ```
 
 ### 2. Update Code
@@ -166,18 +166,18 @@ sudo systemctl restart uptime-monitor
 ### 4. Verify Backup System
 ```bash
 # Check backup system status
-sudo /opt/uptime-monitor/scripts/backup-system.sh --status
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --status
 
 # Create test backup
-sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type on-change --comment "Post-upgrade test"
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type on-change --comment "Post-upgrade test"
 
 # Verify backup
-sudo /opt/uptime-monitor/scripts/verify-backup.sh --all
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/verify-backup.sh --all
 ```
 
 ### 5. Setup Automatic Backups (if not already configured)
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 ```
 
 ---
@@ -433,7 +433,7 @@ sudo chown -R root:root /backup/uptime-monitor/
 sudo chmod 755 /backup/uptime-monitor/
 
 # Retry backup
-sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
 ```
 
 **NFS mount fails:**
@@ -453,7 +453,7 @@ sudo mount -t nfs 192.168.1.10:/exports/backups /mnt/nfs-backup
 mount | grep nfs
 
 # If successful, use the mount-backup script
-sudo /opt/uptime-monitor/scripts/mount-backup.sh --type nfs --server 192.168.1.10 --path /exports/backups --mount-point /mnt/nfs-backup --persist
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh --type nfs --server 192.168.1.10 --path /exports/backups --mount-point /mnt/nfs-backup --persist
 ```
 
 **Samba (SMB) mount fails:**
@@ -476,13 +476,13 @@ sudo mkdir -p /mnt/smb-backup
 sudo mount -t cifs //192.168.1.11/backups /mnt/smb-backup -o credentials=/root/.backup-creds/smb-credentials
 
 # Use the mount-backup script
-sudo /opt/uptime-monitor/scripts/mount-backup.sh --type smb --server 192.168.1.11 --share backups --mount-point /mnt/smb-backup --credentials /root/.backup-creds/smb-credentials --persist
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh --type smb --server 192.168.1.11 --share backups --mount-point /mnt/smb-backup --credentials /root/.backup-creds/smb-credentials --persist
 ```
 
 **Restore fails or service won't start after restore:**
 ```bash
 # Check backup integrity
-sudo /opt/uptime-monitor/scripts/verify-backup.sh /path/to/backup.tar.gz
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/verify-backup.sh /path/to/backup.tar.gz
 
 # Check service status
 sudo systemctl status uptime-monitor
@@ -514,11 +514,11 @@ sudo cat /etc/cron.d/uptime-monitor-backup
 sudo grep CRON /var/log/syslog | tail -20
 
 # Test backup manually
-sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type daily
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type daily
 
 # Reinstall schedule
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --remove
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --remove
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 ```
 
 **Backup too large / disk space issues:**
@@ -527,14 +527,14 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/upt
 sudo du -sh /backup/uptime-monitor/*
 
 # Clean old backups manually
-sudo /opt/uptime-monitor/scripts/backup-rotation.sh --keep 3
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-rotation.sh --keep 3
 
 # Check available space
 df -h /backup
 
 # Move backups to external storage
-sudo /opt/uptime-monitor/scripts/mount-backup.sh --type nfs --server <IP> --path /exports/backups --mount-point /mnt/nfs-backup --persist
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /mnt/nfs-backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh --type nfs --server <IP> --path /exports/backups --mount-point /mnt/nfs-backup --persist
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install --dest /mnt/nfs-backup/uptime-monitor/
 ```
 
 ## Configuration
@@ -616,22 +616,22 @@ Automatic backups are created before each configuration change.
 
 **List available backups:**
 ```bash
-sudo /opt/uptime-monitor/scripts/config-rollback.sh --list
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/config-rollback.sh --list
 ```
 
 **Rollback to previous configuration:**
 ```bash
-sudo /opt/uptime-monitor/scripts/config-rollback.sh --previous
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/config-rollback.sh --previous
 ```
 
 **Rollback to specific backup:**
 ```bash
-sudo /opt/uptime-monitor/scripts/config-rollback.sh --to config.20260218-120000.json
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/config-rollback.sh --to config.20260218-120000.json
 ```
 
 **View differences:**
 ```bash
-sudo /opt/uptime-monitor/scripts/config-rollback.sh --diff config.latest.json
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/config-rollback.sh --diff config.latest.json
 ```
 
 ## Backup System
@@ -642,22 +642,22 @@ Uptime Monitor includes a comprehensive backup system that supports local storag
 
 **Create your first backup:**
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type daily
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type daily
 ```
 
 **Check backup status:**
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh --status
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --status
 ```
 
 **List available backups:**
 ```bash
-sudo /opt/uptime-monitor/scripts/restore-system.sh --list
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --list
 ```
 
 **Restore from latest backup:**
 ```bash
-sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto
 ```
 
 ### What Gets Backed Up
@@ -682,12 +682,12 @@ sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
 
 **Create immediate backup:**
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
 ```
 
 **Create backup with comment:**
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh \
     --dest /backup/uptime-monitor/ \
     --type on-change \
     --comment "Before major config change"
@@ -695,21 +695,21 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh \
 
 **Verify backup integrity:**
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh --verify --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --verify --dest /backup/uptime-monitor/
 ```
 
 ### Scheduled Backups (Automatic)
 
 **Install daily backups:**
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install \
     --daily "0 2 * * *" \
     --dest /backup/uptime-monitor/
 ```
 
 **Install with full schedule:**
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install \
     --daily "0 2 * * *" \
     --weekly "0 3 * * 0" \
     --monthly "0 4 1 * *" \
@@ -718,17 +718,17 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
 
 **Check schedule status:**
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --status
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --status
 ```
 
 **Remove all schedules:**
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --remove
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --remove
 ```
 
 **Test backup system:**
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --test
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --test
 ```
 
 ### NFS Backup Setup
@@ -741,7 +741,7 @@ sudo apt-get install -y nfs-common
 
 **2. Mount NFS share:**
 ```bash
-sudo /opt/uptime-monitor/scripts/mount-backup.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh \
     --type nfs \
     --server 192.168.1.10 \
     --path /exports/backups \
@@ -751,14 +751,14 @@ sudo /opt/uptime-monitor/scripts/mount-backup.sh \
 
 **3. Create backup to NFS:**
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh \
     --dest /mnt/nfs-backup/uptime-monitor/ \
     --type daily
 ```
 
 **4. Schedule automatic NFS backups:**
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install \
     --daily "0 2 * * *" \
     --dest /mnt/nfs-backup/uptime-monitor/
 ```
@@ -796,7 +796,7 @@ sudo chmod 600 /root/.backup-creds/smb-credentials
 
 **3. Mount Samba share:**
 ```bash
-sudo /opt/uptime-monitor/scripts/mount-backup.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh \
     --type smb \
     --server 192.168.1.11 \
     --share backups \
@@ -807,7 +807,7 @@ sudo /opt/uptime-monitor/scripts/mount-backup.sh \
 
 **4. Create backup to Samba:**
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh \
     --dest /mnt/smb-backup/uptime-monitor/ \
     --type daily
 ```
@@ -831,7 +831,7 @@ You can use multiple backup destinations simultaneously:
 
 ```bash
 # Install schedule for both
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install \
     --daily "0 2 * * *" \
     --dest /backup/uptime-monitor/ \
     --enable-nfs
@@ -845,33 +845,33 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
 
 **List available backups:**
 ```bash
-sudo /opt/uptime-monitor/scripts/restore-system.sh --list
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --list
 ```
 
 **Restore from latest backup:**
 ```bash
-sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto
 ```
 
 **Restore from specific backup:**
 ```bash
-sudo /opt/uptime-monitor/scripts/restore-system.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh \
     --from /backup/uptime-monitor/daily/backup-20260218-020000.tar.gz
 ```
 
 **Restore only database:**
 ```bash
-sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --only database
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto --only database
 ```
 
 **Restore only configuration:**
 ```bash
-sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --only config
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto --only config
 ```
 
 **Dry run (see what would be restored):**
 ```bash
-sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --dry-run
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto --dry-run
 ```
 
 ### Backup Rotation
@@ -880,31 +880,31 @@ Automatic rotation runs after each backup. To run manually:
 
 ```bash
 # Check what would be deleted (dry run)
-sudo /opt/uptime-monitor/scripts/backup-rotation.sh --dry-run
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-rotation.sh --dry-run
 
 # Run rotation
-sudo /opt/uptime-monitor/scripts/backup-rotation.sh
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-rotation.sh
 
 # Keep only last 5 backups of each type
-sudo /opt/uptime-monitor/scripts/backup-rotation.sh --keep 5
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-rotation.sh --keep 5
 ```
 
 ### Verify Backups
 
 **Verify specific backup:**
 ```bash
-sudo /opt/uptime-monitor/scripts/verify-backup.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/verify-backup.sh \
     /backup/uptime-monitor/daily/backup-20260218-020000.tar.gz
 ```
 
 **Verify all backups:**
 ```bash
-sudo /opt/uptime-monitor/scripts/verify-backup.sh --all
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/verify-backup.sh --all
 ```
 
 **Show backup statistics:**
 ```bash
-sudo /opt/uptime-monitor/scripts/verify-backup.sh --list
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/verify-backup.sh --list
 ```
 
 ### Backup Configuration
@@ -931,14 +931,14 @@ Edit `/etc/uptime-monitor/config.json`:
 
 **Unmount NFS:**
 ```bash
-sudo /opt/uptime-monitor/scripts/mount-backup.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh \
     --unmount \
     --mount-point /mnt/nfs-backup
 ```
 
 **Unmount Samba:**
 ```bash
-sudo /opt/uptime-monitor/scripts/mount-backup.sh \
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh \
     --unmount \
     --mount-point /mnt/smb-backup
 ```

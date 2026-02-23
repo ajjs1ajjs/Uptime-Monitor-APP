@@ -110,7 +110,7 @@ sudo chown -R root:root /backup/uptime-monitor/
 sudo chmod 755 /backup/uptime-monitor/
 
 # Перевірити ще раз
-sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
 ```
 
 ### Немає місця на диску
@@ -129,10 +129,10 @@ df -h
 sudo du -sh /backup/uptime-monitor/*
 
 # Видалити старі бекапи
-sudo /opt/uptime-monitor/scripts/backup-rotation.sh --keep 3
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-rotation.sh --keep 3
 
 # Або перенести на зовнішній диск/NFS
-sudo /opt/uptime-monitor/scripts/mount-backup.sh --type nfs ...
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh --type nfs ...
 ```
 
 ### Автоматичні бекапи не запускаються
@@ -152,14 +152,14 @@ sudo cat /etc/cron.d/uptime-monitor-backup
 sudo grep CRON /var/log/syslog | tail -20
 
 # Перевірити чи встановлено
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --status
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --status
 
 # Перевстановити
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --remove
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --remove
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 
 # Тест
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --test
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --test
 ```
 
 ---
@@ -286,8 +286,8 @@ Error: Backup verification failed
 tar -tzf /path/to/backup.tar.gz > /dev/null
 
 # Спробувати відновити з іншого бекапу
-sudo /opt/uptime-monitor/scripts/restore-system.sh --list
-sudo /opt/uptime-monitor/scripts/restore-system.sh --from /backup/uptime-monitor/daily/backup-OLDER.tar.gz
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --list
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --from /backup/uptime-monitor/daily/backup-OLDER.tar.gz
 ```
 
 ### Служба не запускається після відновлення
@@ -377,7 +377,7 @@ Error: Invalid JSON
 python3 -m json.tool /etc/uptime-monitor/config.json
 
 # Якщо помилка - відкат до попередньої версії
-sudo /opt/uptime-monitor/scripts/config-rollback.sh --previous
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/config-rollback.sh --previous
 
 # Або виправити вручну
 sudo nano /etc/uptime-monitor/config.json

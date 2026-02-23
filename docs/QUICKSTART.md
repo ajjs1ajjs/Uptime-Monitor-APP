@@ -17,13 +17,13 @@ sudo systemctl status uptime-monitor
 ## 3. Створення першого бекапу ⚠️ ОБОВ'ЯЗКОВО
 
 ```bash
-sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
 ```
 
 ## 4. Налаштування автоматичних бекапів
 
 ```bash
-sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 ```
 
 ## 5. Доступ до веб-інтерфейсу
