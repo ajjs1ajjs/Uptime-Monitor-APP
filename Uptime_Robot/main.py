@@ -857,6 +857,12 @@ async def dashboard(request: Request):
         .monitor-type-btn.active {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,217,255,0.3); }}
         
         .container {{ max-width: 1400px; margin: 0 auto; padding: 0 40px 40px; }}
+        #tab-dashboard .container {{
+            max-width: none !important;
+            margin: 0 !important;
+            width: 100% !important;
+            padding: 0 12px 40px !important;
+        }}
         
         .panel {{ background: linear-gradient(145deg, rgba(30,42,74,0.5), rgba(22,33,62,0.7)); padding: 25px; border-radius: 20px; margin-bottom: 30px; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05); backdrop-filter: blur(10px); }}
         .panel:hover {{ transform: translateY(-2px); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }}
