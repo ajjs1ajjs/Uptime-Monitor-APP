@@ -1370,10 +1370,11 @@ async def dashboard(request: Request):
         }}
         
         function initNotifyUI() {{
-            ['telegram', 'teams', 'discord', 'slack', 'email', 'sms'].forEach(method => {{
+            ['telegram', 'teams', 'discord', 'email'].forEach(method => {{
                 const config = notifyConfig[method];
                 const card = document.getElementById('card-' + method);
                 const toggle = document.getElementById('toggle-' + method);
+                if (!card || !toggle) return;
                 if (config && config.enabled) {{
                     card.classList.add('enabled');
                     toggle.checked = true;
@@ -1385,19 +1386,12 @@ async def dashboard(request: Request):
                     document.getElementById('teams-webhook').value = config?.webhook_url || '';
                 }} else if (method === 'discord') {{
                     document.getElementById('discord-webhook').value = config?.webhook_url || '';
-                }} else if (method === 'slack') {{
-                    document.getElementById('slack-webhook').value = config?.webhook_url || '';
                 }} else if (method === 'email') {{
                     document.getElementById('email-smtp').value = config?.smtp_server || '';
                     document.getElementById('email-port').value = config?.smtp_port || '587';
                     document.getElementById('email-user').value = config?.username || '';
                     document.getElementById('email-pass').value = config?.password || '';
                     document.getElementById('email-to').value = config?.to_email || '';
-                }} else if (method === 'sms') {{
-                    document.getElementById('sms-sid').value = config?.account_sid || '';
-                    document.getElementById('sms-token').value = config?.auth_token || '';
-                    document.getElementById('sms-from').value = config?.from_number || '';
-                    document.getElementById('sms-to').value = config?.to_number || '';
                 }}
             }});
         }}
@@ -1414,9 +1408,7 @@ async def dashboard(request: Request):
                 telegram: {{ enabled: document.getElementById('toggle-telegram').checked, token: document.getElementById('telegram-token').value, chat_id: document.getElementById('telegram-chatid').value }},
                 teams: {{ enabled: document.getElementById('toggle-teams').checked, webhook_url: document.getElementById('teams-webhook').value }},
                 discord: {{ enabled: document.getElementById('toggle-discord').checked, webhook_url: document.getElementById('discord-webhook').value }},
-                slack: {{ enabled: document.getElementById('toggle-slack').checked, webhook_url: document.getElementById('slack-webhook').value }},
-                email: {{ enabled: document.getElementById('toggle-email').checked, smtp_server: document.getElementById('email-smtp').value, smtp_port: parseInt(document.getElementById('email-port').value) || 587, username: document.getElementById('email-user').value, password: document.getElementById('email-pass').value, to_email: document.getElementById('email-to').value }},
-                sms: {{ enabled: document.getElementById('toggle-sms').checked, account_sid: document.getElementById('sms-sid').value, auth_token: document.getElementById('sms-token').value, from_number: document.getElementById('sms-from').value, to_number: document.getElementById('sms-to').value }}
+                email: {{ enabled: document.getElementById('toggle-email').checked, smtp_server: document.getElementById('email-smtp').value, smtp_port: parseInt(document.getElementById('email-port').value) || 587, username: document.getElementById('email-user').value, password: document.getElementById('email-pass').value, to_email: document.getElementById('email-to').value }}
             }};
             await fetch('/api/notify-settings', {{ method: 'POST', headers: {{'Content-Type': 'application/json'}}, body: JSON.stringify(settings) }});
             alert('✅ Налаштування збережено!');
