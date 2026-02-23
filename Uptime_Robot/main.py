@@ -728,10 +728,11 @@ async def dashboard(request: Request):
         
         .header {{ background: linear-gradient(135deg, var(--bg-secondary) 0%, #1f1f3a 100%); padding: 20px 40px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }}
         .logo {{ font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 10px; }}
-        .logo-icon {{ width: 40px; height: 40px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }}
+        .logo-icon {{ width: 40px; height: 40px; background: linear-gradient(135deg, var(--accent), var(--accent-hover)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 15px rgba(0,217,255,0.3); }}
         
         .stats-bar {{ display: flex; gap: 20px; margin: 30px 40px; }}
-        .stat-card {{ background: var(--bg-card); padding: 20px 30px; border-radius: 15px; flex: 1; border: 1px solid var(--border); }}
+        .stat-card {{ background: linear-gradient(145deg, #1e2a4a, #16213e); padding: 20px 30px; border-radius: 20px; flex: 1; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 5px 15px rgba(0,0,0,0.2); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }}
+        .stat-card:hover {{ transform: translateY(-5px) scale(1.02); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.3); }}
         .stat-value {{ font-size: 32px; font-weight: 700; }}
         .stat-label {{ color: var(--text-secondary); font-size: 14px; margin-top: 5px; }}
         .stat-card.total .stat-value {{ color: var(--accent); }}
@@ -740,7 +741,8 @@ async def dashboard(request: Request):
         
         .container {{ max-width: 1400px; margin: 0 auto; padding: 0 40px 40px; }}
         
-        .panel {{ background: var(--bg-card); padding: 25px; border-radius: 15px; margin-bottom: 30px; border: 1px solid var(--border); }}
+        .panel {{ background: linear-gradient(145deg, #1e2a4a, #16213e); padding: 25px; border-radius: 20px; margin-bottom: 30px; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 5px 15px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05); transition: all 0.4s ease; }}
+        .panel:hover {{ transform: translateY(-2px); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.3); }}
         .panel-title {{ font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }}
         
         .server-info {{ background: var(--bg-card); padding: 20px; border-radius: 15px; margin-bottom: 30px; border: 1px solid var(--accent); text-align: center; }}
@@ -772,11 +774,12 @@ async def dashboard(request: Request):
         
         .sites-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }}
         .ssl-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }}
-        .site-card {{ background: var(--bg-card); padding: 18px; border-radius: 12px; border: 1px solid var(--border); transition: all 0.3s; }}
-        .ssl-card {{ background: var(--bg-card); padding: 15px; border-radius: 10px; border: 1px solid var(--border); transition: all 0.3s; font-size: 13px; }}
-        .site-card:hover {{ transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 10px 30px rgba(0,217,255,0.1); }}
-        .site-card.up {{ border-left: 4px solid var(--success); }}
-        .site-card.down {{ border-left: 4px solid var(--danger); }}
+        .site-card {{ background: linear-gradient(145deg, #1e2a4a, #16213e); padding: 18px; border-radius: 15px; border: 1px solid var(--border); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 5px 15px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05); }}
+-card:hover {{ transform: translateY(-5px) scale(1.02); border        .site-color: var(--accent); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.3), 0 0 30px rgba(0,217,255,0.15); }}
+        .ssl-card {{ background: linear-gradient(145deg, #1e2a4a, #16213e); padding: 15px; border-radius: 12px; border: 1px solid var(--border); transition: all 0.3s ease; box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 5px 15px rgba(0,0,0,0.2); }}
+        .ssl-card:hover {{ transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.3), 0 0 20px rgba(0,217,255,0.1); }}
+        .site-card.up {{ border-left: 5px solid var(--success); box-shadow: 0 10px 40px rgba(0,0,0,0.4), -5px 0 20px rgba(0,255,136,0.1); }}
+        .site-card.down {{ border-left: 5px solid var(--danger); box-shadow: 0 10px 40px rgba(0,0,0,0.4), -5px 0 20px rgba(255,71,87,0.1); }}
         
         .site-header {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }}
         .site-name {{ font-size: 18px; font-weight: 600; }}
@@ -795,13 +798,13 @@ async def dashboard(request: Request):
         .notify-badge {{ padding: 4px 10px; background: var(--bg-secondary); border-radius: 5px; font-size: 11px; color: var(--text-secondary); }}
         
         .site-actions {{ display: flex; gap: 10px; }}
-        .btn {{ flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 13px; transition: all 0.2s; }}
-        .btn-check {{ background: var(--accent); color: #000; }}
-        .btn-check:hover {{ background: var(--accent-hover); }}
-        .btn-edit {{ background: rgba(255,217,61,0.2); color: var(--warning); }}
-        .btn-edit:hover {{ background: var(--warning); color: #000; }}
-        .btn-delete {{ background: rgba(255,71,87,0.2); color: var(--danger); }}
-        .btn-delete:hover {{ background: var(--danger); color: #fff; }}
+        .btn {{ flex: 1; padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-weight: 500; font-size: 13px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }}
+        .btn-check {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; box-shadow: 0 4px 15px rgba(0,217,255,0.3); }}
+        .btn-check:hover {{ background: linear-gradient(135deg, var(--accent-hover), var(--accent)); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,217,255,0.5); }}
+        .btn-edit {{ background: linear-gradient(135deg, rgba(255,217,61,0.2), rgba(255,217,61,0.1)); color: var(--warning); box-shadow: 0 4px 15px rgba(255,217,61,0.2); }}
+        .btn-edit:hover {{ background: linear-gradient(135deg, var(--warning), #e6c200); color: #000; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,217,61,0.5); }}
+        .btn-delete {{ background: linear-gradient(135deg, rgba(255,71,87,0.2), rgba(255,71,87,0.1)); color: var(--danger); box-shadow: 0 4px 15px rgba(255,71,87,0.2); }}
+        .btn-delete:hover {{ background: linear-gradient(135deg, var(--danger), #cc3a47); color: #fff; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,71,87,0.5); }}
         
         .refresh-info {{ text-align: center; margin-top: 30px; color: var(--text-secondary); }}
         
@@ -816,16 +819,31 @@ async def dashboard(request: Request):
         .modal-actions button {{ flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }}
         
         .tabs {{ display: flex; gap: 10px; margin: 0 40px; }}
-        .tab-btn {{ padding: 12px 30px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--text-secondary); transition: all 0.3s; }}
-        .tab-btn:hover {{ border-color: var(--accent); color: var(--text-primary); }}
-        .tab-btn.active {{ background: var(--accent); color: #000; border-color: var(--accent); }}
+        .tab-btn {{ padding: 12px 30px; background: linear-gradient(145deg, #1a1a2e, #0f0f23); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-weight: 600; color: var(--text-secondary); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative; overflow: hidden; }}
+        .tab-btn::before {{ content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); transition: 0.5s; }}
+        .tab-btn:hover::before {{ left: 100%; }}
+        .tab-btn:hover {{ border-color: var(--accent); color: var(--text-primary); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,217,255,0.2); }}
+        .tab-btn.active {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,217,255,0.4), inset 0 1px 0 rgba(255,255,255,0.2); transform: translateY(-2px); }}
         
         .tab-content {{ display: none; }}
         .tab-content.active {{ display: block; }}
         
-        .address-config {{ background: var(--bg-secondary); padding: 15px; border-radius: 10px; margin-bottom: 20px; }}
-        .address-config input {{ flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-primary); color: var(--text-primary); font-size: 14px; }}
-        .address-config input:focus {{ outline: none; border-color: var(--accent); }}
+        .address-config {{ background: linear-gradient(145deg, #1a1a2e, #0f0f23); padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); }}
+        .address-config input {{ flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: linear-gradient(145deg, #0f0f23, #1a1a2e); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); transition: all 0.3s ease; }}
+        .address-config input:focus {{ outline: none; border-color: var(--accent); box-shadow: inset 0 2px 5px rgba(0,0,0,0.2), 0 0 15px rgba(0,217,255,0.3); }}
+        
+        .tab-content {{ display: none; animation: fadeSlideIn 0.4s ease; }}
+        .tab-content.active {{ display: block; animation: fadeSlideIn 0.4s ease; }}
+        
+        .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(5px); }}
+        .modal.active {{ display: flex; animation: fadeIn 0.3s ease; }}
+        .modal-content {{ background: linear-gradient(145deg, #1e2a4a, #16213e); padding: 30px; border-radius: 20px; max-width: 500px; width: 90%; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 50px rgba(0,0,0,0.5); animation: scaleIn 0.3s ease; }}
+        
+        @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
+        @keyframes fadeSlideIn {{ from {{ opacity: 0; transform: translateY(20px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+        @keyframes scaleIn {{ from {{ opacity: 0; transform: scale(0.9); }} to {{ opacity: 1; transform: scale(1); }} }}
+        @keyframes slideDown {{ from {{ opacity: 0; transform: translateY(-10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+        @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.7; }} }}
     </style>
 </head>
 <body>
@@ -840,13 +858,10 @@ async def dashboard(request: Request):
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('monitoring')">📊 Моніторинг</button>
         <button class="tab-btn" onclick="switchTab('settings')">⚙️ Налаштування</button>
+        <button class="tab-btn" onclick="switchTab('ssl')">🔒 SSL</button>
     </div>
     
     <div class="container">
-        <div class="server-info">
-            <div class="label">Доступ за адресою:</div>
-            <div class="value">{display_address}</div>
-        </div>
         
         <div id="tab-monitoring" class="tab-content active">
         
@@ -854,14 +869,6 @@ async def dashboard(request: Request):
             <div class="stat-card total"><div class="stat-value">{total_sites}</div><div class="stat-label">Всього сайтів</div></div>
             <div class="stat-card up"><div class="stat-value">{up_sites}</div><div class="stat-label">Працюють</div></div>
             <div class="stat-card down"><div class="stat-value">{down_sites}</div><div class="stat-label">Недоступні</div></div>
-        </div>
-        
-        <div class="panel">
-            <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
-                <span>🔒 SSL Сертифікати</span>
-                <button class="btn btn-check" onclick="checkSSLCertificates()" style="padding:8px 20px;">🔄 Перевірити зараз</button>
-            </div>
-            <div class="ssl-grid" id="sslGrid"></div>
         </div>
         
         <div class="panel">
@@ -881,6 +888,11 @@ async def dashboard(request: Request):
                     <button onclick="saveDisplayAddress()">💾 Зберегти</button>
                 </div>
             </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-title">🔒 SSL Сертифікати</div>
+            <div class="ssl-grid" id="sslGridSettings"></div>
         </div>
         
         <div class="panel">
@@ -974,6 +986,16 @@ async def dashboard(request: Request):
             </div>
             <div style="margin-top: 10px; color: var(--text-secondary); font-size: 12px;">Виберіть способи сповіщень (Ctrl+Click для вибору кількох)</div>
         </div>
+        </div>
+        
+        <div id="tab-ssl" class="tab-content">
+            <div class="panel">
+                <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>🔒 SSL Сертифікати</span>
+                    <button class="btn btn-check" onclick="checkSSLCertificates()" style="padding:8px 20px;">🔄 Перевірити зараз</button>
+                </div>
+                <div class="ssl-grid" id="sslGrid"></div>
+            </div>
         </div>
     </div>
     
@@ -1216,55 +1238,60 @@ async def dashboard(request: Request):
         
         function renderSSLCertificates() {{
             const grid = document.getElementById('sslGrid');
-            if (sslCertificatesData.length === 0) {{
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Немає SSL сертифікатів для перегляду. Додайте HTTPS сайт!</div>';
-                return;
-            }}
+            const gridSettings = document.getElementById('sslGridSettings');
             
-            let html = '';
-            sslCertificatesData.forEach(cert => {{
-                const days = cert.days_until_expire;
-                let statusColor, statusText, icon;
-                
-                if (days <= 0) {{
-                    statusColor = 'var(--danger)';
-                    statusText = 'ПРОСТРОЧЕНИЙ';
-                    icon = '🔴';
-                }} else if (days <= 7) {{
-                    statusColor = 'var(--warning)';
-                    statusText = 'Закінчується через ' + days + ' днів';
-                    icon = '🟠';
-                }} else {{
-                    statusColor = 'var(--success)';
-                    statusText = 'Дійсний';
-                    icon = '🟢';
+            const renderContent = () => {{
+                if (sslCertificatesData.length === 0) {{
+                    return '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Немає SSL сертифікатів для перегляду. Додайте HTTPS сайт!</div>';
                 }}
                 
-                let hostnameHtml = cert.hostname ? '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 10px;">🌐 ' + cert.hostname + '</div>' : '';
-                
-                let expireDateDisplay = '—';
-                if (cert.expire_date) {{
-                    try {{
-                        expireDateDisplay = new Date(cert.expire_date).toLocaleDateString('uk-UA');
-                    }} catch(e) {{
-                        expireDateDisplay = '—';
+                let html = '';
+                sslCertificatesData.forEach(cert => {{
+                    const days = cert.days_until_expire;
+                    let statusColor, statusText, icon;
+                    
+                    if (days <= 0) {{
+                        statusColor = 'var(--danger)';
+                        statusText = 'ПРОСТРОЧЕНИЙ';
+                        icon = '🔴';
+                    }} else if (days <= 7) {{
+                        statusColor = 'var(--warning)';
+                        statusText = 'Закінчується через ' + days + ' днів';
+                        icon = '🟠';
+                    }} else {{
+                        statusColor = 'var(--success)';
+                        statusText = 'Дійсний';
+                        icon = '🟢';
                     }}
-                }}
-                
-                html += '<div class="ssl-card" style="border-left: 3px solid ' + statusColor + '">';
-                html += '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">';
-                html += '<div style="font-size:14px; font-weight:600;">' + cert.site_name + '</div>';
-                html += '<span style="padding:3px 8px; border-radius:10px; font-size:10px; font-weight:600; background: rgba(' + (statusColor === 'var(--success)' ? '0,255,136' : statusColor === 'var(--warning)' ? '255,217,61' : '255,71,87') + ',0.15); color: ' + statusColor + '">' + icon + ' ' + days + 'д</span>';
-                html += '</div>';
-                html += '<div style="color:var(--text-secondary); font-size:11px; margin-bottom:8px; word-break:break-all;">' + cert.site_url + '</div>';
-                html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px;">';
-                html += '<div><span style="color:var(--text-secondary)">Видавець:</span> ' + (cert.issuer ? cert.issuer.split(',')[0] : '—') + '</div>';
-                html += '<div><span style="color:var(--text-secondary)">До:</span> ' + expireDateDisplay + '</div>';
-                html += '</div>';
-                html += '</div>';
-            }});
+                    
+                    let hostnameHtml = cert.hostname ? '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 10px;">🌐 ' + cert.hostname + '</div>' : '';
+                    
+                    let expireDateDisplay = '—';
+                    if (cert.expire_date) {{
+                        try {{
+                            expireDateDisplay = new Date(cert.expire_date).toLocaleDateString('uk-UA');
+                        }} catch(e) {{
+                            expireDateDisplay = '—';
+                        }}
+                    }}
+                    
+                    html += '<div class="ssl-card" style="border-left: 3px solid ' + statusColor + '">';
+                    html += '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">';
+                    html += '<div style="font-size:14px; font-weight:600;">' + cert.site_name + '</div>';
+                    html += '<span style="padding:3px 8px; border-radius:10px; font-size:10px; font-weight:600; background: rgba(' + (statusColor === 'var(--success)' ? '0,255,136' : statusColor === 'var(--warning)' ? '255,217,61' : '255,71,87') + ',0.15); color: ' + statusColor + '">' + icon + ' ' + days + 'д</span>';
+                    html += '</div>';
+                    html += '<div style="color:var(--text-secondary); font-size:11px; margin-bottom:8px; word-break:break-all;">' + cert.site_url + '</div>';
+                    html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px;">';
+                    html += '<div><span style="color:var(--text-secondary)">Видавець:</span> ' + (cert.issuer ? cert.issuer.split(',')[0] : '—') + '</div>';
+                    html += '<div><span style="color:var(--text-secondary)">До:</span> ' + expireDateDisplay + '</div>';
+                    html += '</div>';
+                    html += '</div>';
+                }});
+                return html;
+            }};
             
-            grid.innerHTML = html;
+            if (grid) grid.innerHTML = renderContent();
+            if (gridSettings) gridSettings.innerHTML = renderContent();
         }}
         
         initNotifyUI();
