@@ -25,7 +25,7 @@ Uptime Monitor - це open-source рішення для моніторингу �
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
 
 # Створення бекапу
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 
 # Доступ
 http://$(hostname -I | awk '{print $1}'):8080

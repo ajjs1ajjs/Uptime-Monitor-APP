@@ -74,10 +74,23 @@ verify_backup() {
         return 1
     fi
     
-    # Check for essential files
-    local has_metadata=$(tar -tzf "$backup_file" | grep -c "metadata.json" || echo "0")
-    local has_database=$(tar -tzf "$backup_file" | grep -c "database/sites.db" || echo "0")
-    local has_config=$(tar -tzf "$backup_file" | grep -c "config/config.json" || echo "0")
+    # Check for essential files. Avoid grep -c with "|| echo 0" because
+    # that can produce "0\n0" and break numeric comparisons.
+    local has_metadata=0
+    local has_database=0
+    local has_config=0
+
+    if tar -tzf "$backup_file" | grep -q "metadata.json"; then
+        has_metadata=1
+    fi
+
+    if tar -tzf "$backup_file" | grep -q "database/sites.db"; then
+        has_database=1
+    fi
+
+    if tar -tzf "$backup_file" | grep -q "config/config.json"; then
+        has_config=1
+    fi
     
     if [ "$has_metadata" -eq 0 ]; then
         [ "$quiet" != "true" ] && echo -e "${YELLOW}WARNING${NC} - Missing metadata"
