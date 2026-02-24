@@ -37,7 +37,7 @@ def init_auth_tables(db_path):
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         is_admin BOOLEAN DEFAULT 0,
-        must_change_password BOOLEAN DEFAULT 1,
+        must_change_password BOOLEAN DEFAULT 0,
         created_at TEXT,
         last_login TEXT
     )''')
@@ -268,6 +268,17 @@ LOGIN_HTML = '''<!DOCTYPE html>
             text-align: center;
             border: 1px solid rgba(0, 217, 255, 0.3);
         }}
+        .forgot-link {{
+            display: block;
+            text-align: center;
+            margin-top: 15px;
+            color: #00d9ff;
+            text-decoration: none;
+            font-size: 14px;
+        }}
+        .forgot-link:hover {{
+            text-decoration: underline;
+        }}
     </style>
 </head>
 <body>
@@ -289,6 +300,82 @@ LOGIN_HTML = '''<!DOCTYPE html>
             </div>
             <button type="submit">Login</button>
         </form>
+        <a href="/forgot-password" class="forgot-link">Забули пароль?</a>
+    </div>
+</body>
+</html>'''
+
+# Forgot password page HTML
+FORGOT_PASSWORD_HTML = '''<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uptime Monitor - Скидання пароля</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{ 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }}
+        .container {{
+            background: #16213e;
+            padding: 40px;
+            border-radius: 15px;
+            border: 1px solid #2a2a4a;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 400px;
+        }}
+        h1 {{ color: #fff; font-size: 24px; text-align: center; margin-bottom: 10px; }}
+        .subtitle {{ color: #a0a0b0; text-align: center; margin-bottom: 30px; font-size: 14px; }}
+        .form-group {{ margin-bottom: 20px; }}
+        label {{ display: block; margin-bottom: 8px; color: #a0a0b0; font-weight: 500; }}
+        input[type="text"], input[type="password"] {{
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #2a2a4a;
+            background: #0f0f23;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 14px;
+        }}
+        input:focus {{ border-color: #00d9ff; outline: none; }}
+        button {{
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00d9ff 0%, #00a8cc 100%);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }}
+        button:hover {{ transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0, 217, 255, 0.4); }}
+        .error {{ background: rgba(255, 71, 87, 0.15); color: #ff4757; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; border: 1px solid rgba(255, 71, 87, 0.3); }}
+        .success {{ background: rgba(0, 255, 136, 0.15); color: #00ff88; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; border: 1px solid rgba(0, 255, 136, 0.3); text-align: center; }}
+        .back-link {{ display: block; text-align: center; margin-top: 15px; color: #00d9ff; text-decoration: none; font-size: 14px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Скидання пароля</h1>
+        <p class="subtitle">Введіть username для скидання пароля</p>
+        {error_message}
+        {success_message}
+        <form method="POST" action="/forgot-password">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required autofocus>
+            </div>
+            <button type="submit">Скинути пароль</button>
+        </form>
+        <a href="/login" class="back-link">Назад до входу</a>
     </div>
 </body>
 </html>'''

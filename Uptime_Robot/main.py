@@ -2070,6 +2070,40 @@ async def logout(request: Request):
     response.delete_cookie('session_id')
     return response
 
+@app.get("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_page(request: Request, error: str = None, success: str = None):
+    """Сторінка скидання пароля"""
+    error_html = f'<div class="error">{error}</div>' if error else ''
+    success_html = f'<div class="success">{success}</div>' if success else ''
+    return auth_module.FORGOT_PASSWORD_HTML.format(error_message=error_html, success_message=success_html)
+
+@app.post("/forgot-password")
+async def forgot_password(request: Request, username: str = Form(...)):
+    """Обробка скидання пароля - скидає до admin"""
+    import secrets
+    
+    # Знаходимо користувача
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT id FROM users WHERE username = ?", (username,))
+    user = c.fetchone()
+    
+    if not user:
+        conn.close()
+        return RedirectResponse(url='/forgot-password?error=Користувач не знайдений', status_code=302)
+    
+    # Генеруємо новий пароль
+    new_password = secrets.token_urlsafe(8)
+    password_hash = auth_module.hash_password(new_password)
+    
+    # Оновлюємо пароль (з вимогою зміни)
+    c.execute("UPDATE users SET password_hash = ?, must_change_password = 1 WHERE username = ?",
+             (password_hash, username))
+    conn.commit()
+    conn.close()
+    
+    return RedirectResponse(url=f'/forgot-password?success=Пароль скинуто. Новий пароль: {new_password}', status_code=302)
+
 @app.get("/change-password", response_class=HTMLResponse)
 async def change_password_page(request: Request, error: str = None):
     """Сторінка зміни пароля"""
