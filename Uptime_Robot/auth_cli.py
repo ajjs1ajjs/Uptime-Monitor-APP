@@ -38,7 +38,7 @@ def init_auth(db_path):
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         is_admin BOOLEAN DEFAULT 0,
-        must_change_password BOOLEAN DEFAULT 1,
+        must_change_password BOOLEAN DEFAULT 0,
         created_at TEXT,
         last_login TEXT
     )''')
@@ -54,7 +54,7 @@ def init_auth(db_path):
     c.execute("SELECT id FROM users WHERE username = 'admin'")
     if not c.fetchone():
         password_hash = hash_password('admin')
-        c.execute("INSERT INTO users (username, password_hash, is_admin, must_change_password, created_at) VALUES (?, ?, 1, 1, datetime('now'))",
+        c.execute("INSERT INTO users (username, password_hash, is_admin, must_change_password, created_at) VALUES (?, ?, 1, 0, datetime('now'))",
                  ('admin', password_hash))
         print("✓ Created default user: admin / admin")
     else:

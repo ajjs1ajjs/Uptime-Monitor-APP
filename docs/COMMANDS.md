@@ -298,38 +298,47 @@ sudo userdel uptime-monitor
 ## 🔐 Password Reset (Скидання пароля)
 
 ### Автоматично (при запуску)
-Таблиці `users` і `sessions` створюються автоматично при першому запуску сервісу.
-Default user: `admin` / `admin`
+Таблиці `users` і `sessions` створюються автоматично при першому запуску.
+Default: `admin` / `admin` (без вимоги зміни)
 
-### CLI команда (рекомендовано)
+### Скидання пароля (Linux)
 
 ```bash
-# Перейти в директорію проекту
 cd /opt/uptime-monitor
 
-# Ініціалізувати базу (створить таблиці + дефолтного користувача)
-python3 auth_cli.py init
+# Скинути пароль (з вимогою зміни при вході)
+sudo python3 Uptime_Robot/auth_cli.py reset-password --user admin --password НОВИЙ_ПАРОЛЬ
 
-# Скинути пароль
-python3 auth_cli.py reset-password --user admin --password newpassword
+# АБО скинути БЕЗ вимоги зміни
+sudo python3 Uptime_Robot/auth_cli.py reset-password --user admin --password НОВИЙ_ПАРОЛЬ --no-force-change
 
-# Список користувачів
-python3 auth_cli.py list-users
+# Перезапустити сервіс
+sudo systemctl restart uptime-monitor
 ```
 
-### Windows
+### Скидання пароля (Windows)
+
 ```bat
 cd D:\Project\Uptime_Robot
-python auth_cli.py init
-python auth_cli.py reset-password --user admin --password newpassword
+python auth_cli.py reset-password --user admin --password НОВИЙ_ПАРОЛЬ --no-force-change
 ```
+
+### Список користувачів
+
+```bash
+sudo python3 /opt/uptime-monitor/Uptime_Robot/auth_cli.py list-users
+```
+
+### Шлях до бази даних
+- Linux: `/opt/uptime-monitor/sites.db` або `/var/lib/uptime-monitor/sites.db`
+- Windows: `%USERPROFILE%\UptimeMonitor\data\sites.db`
 
 ## 📍 Шляхи до файлів
 
 | Файл | Шлях |
 |------|------|
 | Конфігурація | `/etc/uptime-monitor/config.json` |
-| База даних | `/var/lib/uptime-monitor/sites.db` |
+| База даних | `/opt/uptime-monitor/sites.db` |
 | SSL сертифікати | `/etc/uptime-monitor/ssl/` |
 | Логи | `/var/log/uptime-monitor/` |
 | Скрипти | `/opt/uptime-monitor/Uptime_Robot/scripts/` |
