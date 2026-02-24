@@ -133,18 +133,20 @@ mkdir -p "$INSTALL_DIR" "$CONFIG_DIR" "$DATA_DIR" "$LOG_DIR"
 
 # Download from source archive
 echo -e "${BLUE}Downloading version $VERSION from GitHub...${NC}"
-cd /tmp
+TMP_WORKDIR=$(mktemp -d /tmp/uptime-monitor-install.XXXXXX)
+ARCHIVE_PATH="$TMP_WORKDIR/uptime-monitor.tar.gz"
+trap 'rm -rf "$TMP_WORKDIR"' EXIT
 
-if ! curl -fsSL "$DOWNLOAD_URL" -o uptime-monitor.tar.gz 2>/dev/null; then
+if ! curl -fsSL "$DOWNLOAD_URL" -o "$ARCHIVE_PATH" 2>/dev/null; then
     echo -e "${RED}Error: Failed to download from GitHub${NC}"
     exit 1
 fi
 
 echo -e "${BLUE}Extracting...${NC}"
-tar -xzf uptime-monitor.tar.gz
+tar -xzf "$ARCHIVE_PATH" -C "$TMP_WORKDIR"
 
-# Find extracted directory
-EXTRACT_DIR=$(find . -maxdepth 1 -type d -name "Uptime-Monitor*" | head -1)
+# Find extracted directory (from current download only)
+EXTRACT_DIR=$(find "$TMP_WORKDIR" -mindepth 1 -maxdepth 1 -type d -name "Uptime-Monitor*" | head -1)
 
 if [ -z "$EXTRACT_DIR" ]; then
     echo -e "${RED}Error: Could not find extracted files${NC}"
@@ -386,7 +388,6 @@ else
     exit 1
 fi
 
-# Cleanup
-rm -rf /tmp/uptime-monitor.tar.gz "$EXTRACT_DIR"
+# Cleanup handled by trap
 
 echo -e "${GREEN}Done!${NC}"
