@@ -24,7 +24,7 @@
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
 
 # 2. Створити бекап
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 
 # 3. Відкрити в браузері
 # http://$(hostname -I | awk '{print $1}'):8080
@@ -55,10 +55,10 @@ sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/up
 sudo systemctl start|stop|restart|status uptime-monitor
 
 # Бекап
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 
 # Відновлення
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto
+sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
 
 # Перегляд логів
 sudo journalctl -u uptime-monitor -f
@@ -85,7 +85,7 @@ sudo journalctl -u uptime-monitor -f
 
 2. **Відновіть з бекапу:**
    ```bash
-   sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto
+   sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
    ```
 
 3. **Перевірте [TROUBLESHOOTING.md](TROUBLESHOOTING.md)**

@@ -75,13 +75,13 @@ After installation, immediately set up backups:
 
 ```bash
 # 1. Create first backup
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 
 # 2. Schedule automatic backups
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 
 # 3. Verify backup system
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --status
+sudo /opt/uptime-monitor/scripts/backup-system.sh --status
 ```
 
 ## Default Credentials
@@ -307,22 +307,22 @@ rd /s /q "C:\Program Files\UptimeMonitor"
 **Команди:**
 ```bash
 # Створити резервну копію
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 
 # Перевірити статус
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/backup-system.sh --status
+sudo /opt/uptime-monitor/scripts/backup-system.sh --status
 
 # Відновити з останньої копії
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/restore-system.sh --auto
+sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
 
 # Запланувати автоматичні копії
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 
 # NFS монтування
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh --type nfs --server 192.168.1.10 --path /exports/backups --mount-point /mnt/nfs-backup --persist
+sudo /opt/uptime-monitor/scripts/mount-backup.sh --type nfs --server 192.168.1.10 --path /exports/backups --mount-point /mnt/nfs-backup --persist
 
 # Samba монтування
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh --type smb --server 192.168.1.11 --share backups --mount-point /mnt/smb-backup --persist
+sudo /opt/uptime-monitor/scripts/mount-backup.sh --type smb --server 192.168.1.11 --share backups --mount-point /mnt/smb-backup --persist
 ```
 
 **Що зберігається:**
@@ -372,10 +372,10 @@ sudo /opt/uptime-monitor/Uptime_Robot/scripts/mount-backup.sh --type smb --serve
 sudo nano /etc/uptime-monitor/config.json
 
 # Відкат до попередньої версії
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/config-rollback.sh --previous
+sudo /opt/uptime-monitor/scripts/config-rollback.sh --previous
 
 # Список версій
-sudo /opt/uptime-monitor/Uptime_Robot/scripts/config-rollback.sh --list
+sudo /opt/uptime-monitor/scripts/config-rollback.sh --list
 
 # Перезапуск після змін
 sudo systemctl restart uptime-monitor
