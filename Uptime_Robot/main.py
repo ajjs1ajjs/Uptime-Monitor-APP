@@ -825,54 +825,57 @@ async def dashboard(request: Request):
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {{
-            --bg-primary: #0f0f23;
-            --bg-secondary: #1a1a2e;
-            --bg-card: #16213e;
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16162a;
+            --bg-card: #0f0f1a;
             --accent: #00d9ff;
             --accent-hover: #00a8cc;
-            --success: #00ff88;
-            --danger: #ff4757;
-            --warning: #ffd93d;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
             --text-primary: #ffffff;
-            --text-secondary: #a0a0b0;
-            --border: #2a2a4a;
-            --bg-gradient: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
         }}
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{ font-family: 'Inter', sans-serif; background: var(--bg-gradient); color: var(--text-primary); min-height: 100vh; }}
         
-        .header {{ background: linear-gradient(180deg, rgba(26,26,46,0.95) 0%, rgba(15,15,35,0.95) 100%); padding: 20px 40px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(10px); }}
-        .logo {{ font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 12px; }}
-        .logo-icon {{ width: 44px; height: 44px; background: linear-gradient(135deg, var(--accent), #00ff88); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 4px 20px rgba(0,217,255,0.4), 0 0 30px rgba(0,255,136,0.2); }}
+        .header {{ background: rgba(15, 23, 42, 0.95); padding: 16px 32px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 100; }}
+        .logo {{ font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 12px; }}
+        .logo-icon {{ width: 40px; height: 40px; background: linear-gradient(135deg, var(--accent), #06b6d4); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3); }}
         
-        .hero-stats {{ display: flex; gap: 30px; margin: 40px; background: linear-gradient(145deg, rgba(30,42,74,0.6), rgba(22,33,62,0.8)); padding: 30px 40px; border-radius: 24px; border: 1px solid rgba(0,217,255,0.1); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }}
-        .hero-stat {{ text-align: center; flex: 1; position: relative; }}
-        .hero-stat:not(:last-child)::after {{ content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 60%; width: 1px; background: linear-gradient(180deg, transparent, var(--border), transparent); }}
-        .hero-stat-value {{ font-size: 48px; font-weight: 700; background: linear-gradient(135deg, var(--accent), #00ff88); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
-        .hero-stat-label {{ color: var(--text-secondary); font-size: 14px; margin-top: 8px; text-transform: uppercase; letter-spacing: 1px; }}
+        .hero-stats {{ display: flex; gap: 24px; margin: 32px; background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9)); padding: 28px 36px; border-radius: 20px; border: 1px solid rgba(148, 163, 184, 0.1); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }}
+        .hero-stat {{ text-align: center; flex: 1; position: relative; padding: 0 20px; }}
+        .hero-stat:not(:last-child)::after {{ content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 50%; width: 1px; background: var(--border); }}
+        .hero-stat-value {{ font-size: 42px; font-weight: 700; color: var(--accent); text-shadow: 0 0 30px rgba(0, 217, 255, 0.3); }}
+        .hero-stat-value.success {{ color: var(--success); text-shadow: 0 0 30px rgba(16, 185, 129, 0.3); }}
+        .hero-stat-value.danger {{ color: var(--danger); text-shadow: 0 0 30px rgba(239, 68, 68, 0.3); }}
+        .hero-stat-value.warning {{ color: var(--warning); text-shadow: 0 0 30px rgba(245, 158, 11, 0.3); }}
+        .hero-stat-label {{ color: var(--text-secondary); font-size: 13px; margin-top: 8px; text-transform: uppercase; letter-spacing: 1px; }}
         
-        .monitoring-types {{ display: flex; gap: 15px; margin: 0 40px 30px; flex-wrap: wrap; }}
-        .monitor-type-btn {{ padding: 12px 24px; background: linear-gradient(145deg, rgba(26,26,46,0.8), rgba(22,33,62,0.9)); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-weight: 600; color: var(--text-secondary); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; }}
-        .monitor-type-btn:hover {{ border-color: var(--accent); color: var(--text-primary); transform: translateY(-2px); }}
-        .monitor-type-btn.active {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,217,255,0.3); }}
+        .monitoring-types {{ display: flex; gap: 12px; margin: 0 32px 24px; flex-wrap: wrap; }}
+        .monitor-type-btn {{ padding: 10px 20px; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; font-weight: 500; color: var(--text-secondary); transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; font-size: 13px; }}
+        .monitor-type-btn:hover {{ border-color: var(--accent); color: var(--text-primary); background: rgba(0, 217, 255, 0.1); }}
+        .monitor-type-btn.active {{ background: linear-gradient(135deg, var(--accent), #06b6d4); color: #000; border-color: var(--accent); font-weight: 600; }}
         
-        .container {{ max-width: 1400px; margin: 0 auto; padding: 0 40px 40px; }}
+        .container {{ max-width: 1400px; margin: 0 auto; padding: 0 32px 32px; }}
         #tab-dashboard .container {{
             max-width: none !important;
             margin: 0 !important;
             width: 100% !important;
-            padding: 0 12px 40px !important;
+            padding: 0 12px 32px !important;
         }}
         
-        .panel {{ background: linear-gradient(145deg, rgba(30,42,74,0.5), rgba(22,33,62,0.7)); padding: 25px; border-radius: 20px; margin-bottom: 30px; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05); backdrop-filter: blur(10px); }}
-        .panel:hover {{ transform: translateY(-2px); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }}
-        .panel-title {{ font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }}
+        .panel {{ background: linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%); padding: 24px; border-radius: 16px; margin-bottom: 24px; border: 1px solid rgba(148, 163, 184, 0.1); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3); transition: all 0.3s ease; }}
+        .panel:hover {{ border-color: rgba(0, 217, 255, 0.3); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); }}
+        .panel-title {{ font-size: 16px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 10 var(--text-primary); }}
         
-        .chart-container {{ position: relative; height: 300px; margin: 20px 0; }}
+        .chart-container {{ position: relative; height: 280px; margin: 16px 0; }}
         
-        .monitor-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }}
-        .monitor-card {{ background: linear-gradient(145deg, rgba(30,42,74,0.6), rgba(22,33,62,0.8)); padding: 24px; border-radius: 20px; border: 1px solid var(--border); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 40px rgba(0,0,0,0.3); position: relative; overflow: hidden; }}
-        .monitor-card::before {{ content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), #00ff88); opacity: 0; transition: opacity 0.3s; }}
+        .monitor-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }}
+        .monitor-card {{ background: linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%); padding: 20px; border-radius: 16px; border: 1px solid rgba(148, 163, 184, 0.1); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3); position: relative; overflow: hidden; }}
+        .monitor-card::before {{ content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), #06b6d4); opacity: 0; transition: opacity 0.3s; }}
         .monitor-card:hover {{ transform: translateY(-5px) scale(1.02); box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(0,217,255,0.1); }}
         .monitor-card:hover::before {{ opacity: 1; }}
         .monitor-card.up {{ border-left: 4px solid var(--success); }}
@@ -884,56 +887,48 @@ async def dashboard(request: Request):
         .monitor-url {{ color: var(--text-secondary); font-size: 13px; word-break: break-all; margin-top: 5px; }}
         .monitor-type-badge {{ padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; background: rgba(0,217,255,0.15); color: var(--accent); }}
         
-        .monitor-stats {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; padding: 15px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }}
+        .monitor-stats {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; padding: 12px 0; border-top: 1px solid rgba(148, 163, 184, 0.1); border-bottom: 1px solid rgba(148, 163, 184, 0.1); }}
         .monitor-stat {{ text-align: center; }}
-        .monitor-stat-value {{ font-size: 18px; font-weight: 700; }}
-        .monitor-stat-label {{ font-size: 11px; color: var(--text-secondary); margin-top: 3px; }}
+        .monitor-stat-value {{ font-size: 16px; font-weight: 600; }}
+        .monitor-stat-label {{ font-size: 11px; color: var(--text-secondary); margin-top: 4px; }}
         
-        .monitor-actions {{ display: flex; gap: 10px; }}
-        .btn {{ flex: 1; padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }}
-        .btn-check {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; box-shadow: 0 4px 15px rgba(0,217,255,0.3); }}
-        .btn-check:hover {{ transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,217,255,0.5); }}
-        .btn-edit {{ background: linear-gradient(135deg, rgba(255,217,61,0.2), rgba(255,217,61,0.1)); color: var(--warning); }}
-        .btn-edit:hover {{ background: linear-gradient(135deg, var(--warning), #e6c200); color: #000; }}
-        .btn-delete {{ background: linear-gradient(135deg, rgba(255,71,87,0.2), rgba(255,71,87,0.1)); color: var(--danger); }}
-        .btn-delete:hover {{ background: linear-gradient(135deg, var(--danger), #cc3a47); color: #fff; }}
+        .monitor-actions {{ display: flex; gap: 8px; margin-top: 16px; }}
+        .btn {{ flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 12px; transition: all 0.2s ease; }}
+        .btn-check {{ background: linear-gradient(135deg, var(--accent), #06b6d4); color: #000; }}
+        .btn-check:hover {{ transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 217, 255, 0.4); }}
+        .btn-edit {{ background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }}
+        .btn-edit:hover {{ background: rgba(245, 158, 11, 0.25); }}
+        .btn-delete {{ background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }}
+        .btn-delete:hover {{ background: rgba(239, 68, 68, 0.25); }}
         
-        .site-actions {{ display: flex; gap: 10px; }}
-        .btn {{ flex: 1; padding: 10px; border: none; border-radius: 10px; cursor: pointer; font-weight: 500; font-size: 13px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }}
-        .btn-check {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; box-shadow: 0 4px 15px rgba(0,217,255,0.3); }}
-        .btn-check:hover {{ background: linear-gradient(135deg, var(--accent-hover), var(--accent)); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,217,255,0.5); }}
-        .btn-edit {{ background: linear-gradient(135deg, rgba(255,217,61,0.2), rgba(255,217,61,0.1)); color: var(--warning); box-shadow: 0 4px 15px rgba(255,217,61,0.2); }}
-        .btn-edit:hover {{ background: linear-gradient(135deg, var(--warning), #e6c200); color: #000; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,217,61,0.5); }}
-        .btn-delete {{ background: linear-gradient(135deg, rgba(255,71,87,0.2), rgba(255,71,87,0.1)); color: var(--danger); box-shadow: 0 4px 15px rgba(255,71,87,0.2); }}
-        .btn-delete:hover {{ background: linear-gradient(135deg, var(--danger), #cc3a47); color: #fff; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,71,87,0.5); }}
+        .site-actions {{ display: flex; gap: 8px; }}
         
-        .refresh-info {{ text-align: center; margin-top: 30px; color: var(--text-secondary); }}
+        .refresh-info {{ text-align: center; margin-top: 24px; color: var(--text-secondary); font-size: 13px; }}
         
-        .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }}
+        .modal {{ display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px); }}
         .modal.active {{ display: flex; }}
-        .modal-content {{ background: var(--bg-card); padding: 30px; border-radius: 15px; max-width: 500px; width: 90%; border: 1px solid var(--border); }}
-        .modal-title {{ font-size: 20px; font-weight: 600; margin-bottom: 20px; }}
-        .modal-field {{ margin-bottom: 15px; }}
-        .modal-field label {{ display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 13px; }}
-        .modal-field input, .modal-field select {{ width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); }}
-        .modal-actions {{ display: flex; gap: 10px; margin-top: 20px; }}
-        .modal-actions button {{ flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }}
+        .modal-content {{ background: linear-gradient(180deg, #1e293b, #0f172a); padding: 28px; border-radius: 16px; max-width: 480px; width: 90%; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }}
+        .modal-title {{ font-size: 18px; font-weight: 600; margin-bottom: 20px; }}
+        .modal-field {{ margin-bottom: 16px; }}
+        .modal-field label {{ display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: 13px; }}
+        .modal-field input, .modal-field select {{ width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px; transition: border-color 0.2s; }}
+        .modal-field input:focus, .modal-field select:focus {{ outline: none; border-color: var(--accent); }}
+        .modal-actions {{ display: flex; gap: 12px; margin-top: 24px; }}
+        .modal-actions button {{ flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px; transition: all 0.2s; }}
         
-        .tabs {{ display: flex; gap: 10px; margin: 0 40px; }}
-        .tab-btn {{ padding: 12px 30px; background: linear-gradient(145deg, #1a1a2e, #0f0f23); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-weight: 600; color: var(--text-secondary); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative; overflow: hidden; }}
-        .tab-btn::before {{ content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); transition: 0.5s; }}
-        .tab-btn:hover::before {{ left: 100%; }}
-        .tab-btn:hover {{ border-color: var(--accent); color: var(--text-primary); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,217,255,0.2); }}
-        .tab-btn.active {{ background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #000; border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,217,255,0.4), inset 0 1px 0 rgba(255,255,255,0.2); transform: translateY(-2px); }}
+        .tabs {{ display: flex; gap: 8px; margin: 0 32px; padding: 4px; background: rgba(15, 23, 42, 0.6); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.1); width: fit-content; }}
+        .tab-btn {{ padding: 10px 24px; background: transparent; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; color: var(--text-secondary); transition: all 0.2s ease; font-size: 14px; }}
+        .tab-btn:hover {{ color: var(--text-primary); background: rgba(255, 255, 255, 0.05); }}
+        .tab-btn.active {{ background: linear-gradient(135deg, var(--accent), #06b6d4); color: #000; font-weight: 600; }}
         
         .tab-content {{ display: none; }}
-        .tab-content.active {{ display: block; }}
+        .tab-content.active {{ display: block; animation: fadeIn 0.3s ease; }}
         
-        .address-config {{ background: linear-gradient(145deg, #1a1a2e, #0f0f23); padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); }}
-        .address-config input {{ flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: linear-gradient(145deg, #0f0f23, #1a1a2e); color: var(--text-primary); font-size: 14px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); transition: all 0.3s ease; }}
-        .address-config input:focus {{ outline: none; border-color: var(--accent); box-shadow: inset 0 2px 5px rgba(0,0,0,0.2), 0 0 15px rgba(0,217,255,0.3); }}
+        .address-config {{ background: rgba(15, 23, 42, 0.6); padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(148, 163, 184, 0.1); }}
+        .address-config input {{ flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px; }}
+        .address-config input:focus {{ outline: none; border-color: var(--accent); }}
         
-        .tab-content {{ display: none; animation: fadeSlideIn 0.4s ease; }}
+        .tab-content {{ display: none; animation: fadeIn 0.3s ease; }}
         .tab-content.active {{ display: block; animation: fadeSlideIn 0.4s ease; }}
         
         .modal {{ display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px); }}
@@ -942,42 +937,50 @@ async def dashboard(request: Request):
         
         @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
         @keyframes fadeSlideIn {{ from {{ opacity: 0; transform: translateY(20px); }} to {{ opacity: 1; transform: translateY(0); }} }}
-        @keyframes scaleIn {{ from {{ opacity: 0; transform: scale(0.9); }} to {{ opacity: 1; transform: scale(1); }} }}
-        @keyframes slideDown {{ from {{ opacity: 0; transform: translateY(-10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
-        @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.7; }} }}
+        @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
         
-        .notify-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }}
-        .notify-card {{ background: linear-gradient(145deg, rgba(30,42,74,0.6), rgba(22,33,62,0.8)); padding: 24px; border-radius: 20px; border: 1px solid var(--border); transition: all 0.3s ease; }}
-        .notify-card:hover {{ transform: translateY(-3px); box-shadow: 0 15px 40px rgba(0,0,0,0.4); border-color: var(--accent); }}
-        .notify-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }}
-        .notify-name {{ font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }}
-        .toggle {{ position: relative; display: inline-block; width: 50px; height: 26px; }}
+        .notify-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }}
+        .notify-card {{ background: linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%); padding: 20px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.1); transition: all 0.2s ease; }}
+        .notify-card:hover {{ border-color: rgba(0, 217, 255, 0.3); }}
+        .notify-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }}
+        .notify-name {{ font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }}
+        .toggle {{ position: relative; display: inline-block; width: 44px; height: 24px; }}
         .toggle input {{ opacity: 0; width: 0; height: 0; }}
-        .toggle-slider {{ position: absolute; cursor: pointer; inset: 0; background: var(--bg-secondary); border-radius: 26px; transition: 0.3s; border: 1px solid var(--border); }}
-        .toggle-slider::before {{ content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: var(--text-secondary); border-radius: 50%; transition: 0.3s; }}
+        .toggle-slider {{ position: absolute; cursor: pointer; inset: 0; background: rgba(30, 41, 59, 0.8); border-radius: 24px; transition: 0.2s; border: 1px solid var(--border); }}
+        .toggle-slider::before {{ content: ''; position: absolute; height: 18px; width: 18px; left: 2px; bottom: 2px; background: var(--text-secondary); border-radius: 50%; transition: 0.2s; }}
         .toggle input:checked + .toggle-slider {{ background: var(--accent); border-color: var(--accent); }}
-        .toggle input:checked + .toggle-slider::before {{ transform: translateX(24px); background: #000; }}
+        .toggle input:checked + .toggle-slider::before {{ transform: translateX(20px); background: #000; }}
         .notify-fields {{ display: flex; flex-direction: column; gap: 10px; }}
-        .notify-fields input {{ width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; transition: border-color 0.3s; }}
+        .notify-fields input {{ width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 13px; transition: border-color 0.2s; }}
         .notify-fields input:focus {{ outline: none; border-color: var(--accent); }}
         
-        .form-row {{ display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }}
-        .form-row input, .form-row select {{ flex: 1; min-width: 200px; padding: 14px; border-radius: 12px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); font-size: 14px; }}
+        .form-row {{ display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }}
+        .form-row input, .form-row select {{ flex: 1; min-width: 180px; padding: 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.8); color: var(--text-primary); border: 1px solid var(--border); font-size: 14px; transition: border-color 0.2s; }}
         .form-row input:focus, .form-row select:focus {{ outline: none; border-color: var(--accent); }}
         
-        .address-config {{ padding: 20px; background: var(--bg-secondary); border-radius: 15px; }}
-        .address-config input {{ flex: 1; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); }}
+        .address-config {{ padding: 16px; background: rgba(15, 23, 42, 0.6); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.1); }}
+        .address-config input {{ flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px; }}
         
-        .ssl-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }}
+        .ssl-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }}
+        
+        .header-btn {{ padding: 8px 16px; background: rgba(0, 217, 255, 0.15); color: var(--accent); text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 500; transition: all 0.2s; border: 1px solid transparent; }}
+        .header-btn:hover {{ background: rgba(0, 217, 255, 0.25); border-color: var(--accent); }}
+        .header-btn.danger {{ background: rgba(239, 68, 68, 0.15); color: var(--danger); }}
+        .header-btn.danger:hover {{ background: rgba(239, 68, 68, 0.25); border-color: var(--danger); }}
+        
+        .status-dot {{ width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }}
+        .status-dot.up {{ background: var(--success); box-shadow: 0 0 8px var(--success); }}
+        .status-dot.down {{ background: var(--danger); box-shadow: 0 0 8px var(--danger); }}
+        .status-dot.paused {{ background: var(--warning); }}
     </style>
 </head>
 <body>
     <div class="header">
         <div class="logo"><div class="logo-icon">⚡</div><span>Uptime Monitor</span></div>
-        <div style="display: flex; align-items: center; gap: 20px;">
-            <div id="lastUpdate" style="color: var(--text-secondary); font-size: 14px;"></div>
-            <a href="/status" target="_blank" style="padding: 8px 16px; background: rgba(0,217,255,0.2); color: var(--accent); text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 500;">📄 Status Page</a>
-            <a href="/logout" style="padding: 8px 16px; background: rgba(255,71,87,0.2); color: var(--danger); text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 500;">🚪 Вийти</a>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div id="lastUpdate" style="color: var(--text-secondary); font-size: 13px;"></div>
+            <a href="/status" target="_blank" class="header-btn">📄 Status</a>
+            <a href="/logout" class="header-btn danger">🚪 Вийти</a>
         </div>
     </div>
     
