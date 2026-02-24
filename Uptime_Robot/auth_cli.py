@@ -64,13 +64,14 @@ def init_auth(db_path):
     conn.close()
     print(f"✓ Database initialized at {db_path}")
 
-def reset_password(db_path, username, password):
+def reset_password(db_path, username, password, force_change=True):
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     
     password_hash = hash_password(password)
-    c.execute("UPDATE users SET password_hash = ?, must_change_password = 1 WHERE username = ?",
-             (password_hash, username))
+    must_change = 1 if force_change else 0
+    c.execute("UPDATE users SET password_hash = ?, must_change_password = ? WHERE username = ?",
+             (password_hash, must_change, username))
     
     if c.rowcount == 0:
         print(f"✗ User '{username}' not found")
@@ -110,6 +111,7 @@ if __name__ == "__main__":
     reset_parser = subparsers.add_parser("reset-password", help="Reset user password")
     reset_parser.add_argument("--user", default="admin", help="Username")
     reset_parser.add_argument("--password", default="admin", help="New password")
+    reset_parser.add_argument("--no-force-change", action="store_true", help="Don't force password change on next login")
     
     subparsers.add_parser("list-users", help="List all users")
     
@@ -120,7 +122,7 @@ if __name__ == "__main__":
     if args.command == "init":
         init_auth(db_path)
     elif args.command == "reset-password":
-        reset_password(db_path, args.user, args.password)
+        reset_password(db_path, args.user, args.password, not args.no_force_change)
     elif args.command == "list-users":
         list_users(db_path)
     else:
