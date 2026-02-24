@@ -295,6 +295,35 @@ sudo userdel uptime-monitor
 
 ---
 
+## 🔐 Password Reset (Скидання пароля)
+
+### Автоматично (при запуску)
+Таблиці `users` і `sessions` створюються автоматично при першому запуску сервісу.
+Default user: `admin` / `admin`
+
+### CLI команда (рекомендовано)
+
+```bash
+# Перейти в директорію проекту
+cd /opt/uptime-monitor
+
+# Ініціалізувати базу (створить таблиці + дефолтного користувача)
+python3 auth_cli.py init
+
+# Скинути пароль
+python3 auth_cli.py reset-password --user admin --password newpassword
+
+# Список користувачів
+python3 auth_cli.py list-users
+```
+
+### Windows
+```bat
+cd D:\Project\Uptime_Robot
+python auth_cli.py init
+python auth_cli.py reset-password --user admin --password newpassword
+```
+
 ## 📍 Шляхи до файлів
 
 | Файл | Шлях |
