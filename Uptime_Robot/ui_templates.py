@@ -544,12 +544,20 @@ DASHBOARD_JS = """
             
             try {
                 const response = await fetch('/api/sites');
-                const sites = await response.json();
+                let sites = await response.json();
                 
                 if (sites.length === 0) {
                     container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 40px;">Немає моніторів</div>';
                     return;
                 }
+                
+                // Sort: DOWN first (priority), then slow/unknown, then UP
+                sites.sort((a, b) => {
+                    const statusOrder = { 'down': 0, 'slow': 1, 'paused': 2, 'unknown': 3, 'up': 4 };
+                    const orderA = statusOrder[a.status] ?? 5;
+                    const orderB = statusOrder[b.status] ?? 5;
+                    return orderA - orderB;
+                });
                 
                 // Get current hour for "today" markers
                 const now = new Date();
@@ -667,7 +675,15 @@ DASHBOARD_JS = """
             const grid = document.getElementById('dashboardMonitors');
             if (!grid) return;
             
-            const filtered = currentFilter === 'all' ? sitesData : sitesData.filter(s => s.monitor_type === currentFilter);
+            let filtered = currentFilter === 'all' ? sitesData : sitesData.filter(s => s.monitor_type === currentFilter);
+            
+            // Sort: DOWN first, then slow/paused, then UP
+            filtered.sort((a, b) => {
+                const statusOrder = { 'down': 0, 'slow': 1, 'paused': 2, 'unknown': 3, 'up': 4 };
+                const orderA = statusOrder[a.status] ?? 5;
+                const orderB = statusOrder[b.status] ?? 5;
+                return orderA - orderB;
+            });
             
             if (filtered.length === 0) {
                 grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">Моніторів не знайдено.</div>';
