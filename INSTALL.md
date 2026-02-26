@@ -150,12 +150,23 @@ If you have an older version installed:
 ```bash
 # Create backup before upgrade
 sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type on-change --comment "Pre-upgrade backup"
+
+# Or manual backup - IMPORTANT: sites.db contains ALL your monitors and settings!
+sudo cp /opt/uptime-monitor/sites.db /backup/sites.db.backup
 ```
 
 ### 2. Update Code
 ```bash
 cd /opt/uptime-monitor
 sudo git pull
+
+# Download new module files if needed (for versions after Feb 2026)
+sudo wget -O config_manager.py https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/config_manager.py
+sudo wget -O ui_templates.py https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/ui_templates.py
+
+# Fix permissions if needed
+sudo touch /opt/uptime-monitor/uptime_monitor.log
+sudo chown uptime-monitor:uptime-monitor /opt/uptime-monitor/uptime_monitor.log
 ```
 
 ### 3. Restart Service
