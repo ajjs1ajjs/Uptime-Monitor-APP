@@ -128,7 +128,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         .monitor-stat-label {{ font-size: 11px; color: var(--text-secondary); margin-top: 4px; }}
         
         .monitor-actions {{ display: flex; gap: 8px; margin-top: 16px; }}
-        .btn {{ flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 12px; transition: all 0.2s ease; }}
+        .btn {{ flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 12px; transition: all 0.2s ease; position: relative; z-index: 10; }}
         .btn-check {{ background: linear-gradient(135deg, var(--accent), #06b6d4); color: #000; }}
         .btn-edit {{ background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }}
         .btn-delete {{ background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }}

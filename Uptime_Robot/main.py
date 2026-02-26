@@ -148,7 +148,15 @@ async def dashboard(request: Request, user: dict = Depends(get_current_user)):
         c = conn.cursor()
         c.execute("SELECT COUNT(*) FROM sites")
         total_sites = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM sites WHERE status = 'up'")
+        c.execute("""
+            SELECT COUNT(*) FROM sites s 
+            WHERE EXISTS (
+                SELECT 1 FROM status_history sh 
+                WHERE sh.site_id = s.id 
+                AND sh.status = 'up' 
+                AND sh.checked_at > datetime('now', '-1 hour')
+            )
+        """)
         up_sites = c.fetchone()[0]
         down_sites = total_sites - up_sites
 
@@ -597,7 +605,7 @@ async def get_incidents(user: dict = Depends(get_current_user)):
         raise HTTPException(401)
     with get_db_connection() as conn:
         c = conn.cursor()
-        # Get all status changes in last 7 days with more details
+        # Get incidents (status changes to down/slow in last 7 days)
         c.execute("""
             SELECT 
                 sh.id, 
@@ -608,37 +616,17 @@ async def get_incidents(user: dict = Depends(get_current_user)):
                 sh.status_code, 
                 sh.response_time, 
                 sh.error_message, 
-                sh.checked_at,
-                LAG(sh.status) OVER (PARTITION BY sh.site_id ORDER BY sh.checked_at) as prev_status
+                sh.checked_at
             FROM status_history sh
             JOIN sites s ON sh.site_id = s.id
-            WHERE sh.checked_at >= datetime('now', '-7 days')
+            WHERE sh.status IN ('down', 'slow')
+            AND sh.checked_at >= datetime('now', '-7 days')
             ORDER BY sh.checked_at DESC
-            LIMIT 100
+            LIMIT 50
         """)
         results = c.fetchall()
 
-        # Group consecutive same-status records
-        incidents = []
-        for r in results:
-            # Only include status changes (not normal "up" states after another "up")
-            if r["prev_status"] != r["status"] or r["status"] in ["down", "slow"]:
-                incidents.append(
-                    {
-                        "id": r["id"],
-                        "site_id": r["site_id"],
-                        "site_name": r["site_name"],
-                        "site_url": r["site_url"],
-                        "status": r["status"],
-                        "status_code": r["status_code"],
-                        "response_time": r["response_time"],
-                        "error_message": r["error_message"],
-                        "checked_at": r["checked_at"],
-                        "prev_status": r["prev_status"],
-                    }
-                )
-
-        # Get duration info - find when each incident started
+        # Get first and last occurrence for each status
         c.execute("""
             SELECT 
                 sh.site_id,
@@ -652,17 +640,31 @@ async def get_incidents(user: dict = Depends(get_current_user)):
         """)
         down_times = {f"{r['site_id']}_{r['status']}": dict(r) for r in c.fetchall()}
 
-        # Add duration to incidents
-        for inc in incidents:
+        incidents = []
+        for r in results:
+            inc = {
+                "id": r["id"],
+                "site_id": r["site_id"],
+                "site_name": r["site_name"],
+                "site_url": r["site_url"],
+                "status": r["status"],
+                "status_code": r["status_code"],
+                "response_time": r["response_time"],
+                "error_message": r["error_message"],
+                "checked_at": r["checked_at"],
+                "prev_status": None,
+            }
+
+            # Add duration
             key = f"{inc['site_id']}_{inc['status']}"
             if key in down_times:
                 dt = down_times[key]
                 started = dt["started_at"]
                 ended = dt["ended_at"] if dt["ended_at"] else None
                 if started and ended:
-                    from datetime import datetime
-
                     try:
+                        from datetime import datetime
+
                         start = datetime.fromisoformat(started.replace("Z", "+00:00"))
                         end = datetime.fromisoformat(ended.replace("Z", "+00:00"))
                         duration = end - start
@@ -677,8 +679,12 @@ async def get_incidents(user: dict = Depends(get_current_user)):
                         inc["duration"] = None
                 else:
                     inc["duration"] = "в процесі"
+            else:
+                inc["duration"] = None
 
-        return incidents[:50]
+            incidents.append(inc)
+
+        return incidents
 
 
 @app.post("/api/notify-settings")
