@@ -1,209 +1,222 @@
 """Модуль для моніторингу сайтів"""
 import asyncio
 import aiohttp
-from datetime import datetime
-from typing import Dict, Any, Optional
+import json
+import socket
+import os
+from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional
 from logger import logger
-from models import add_status_history, update_site, get_site_stats
-from ssl_checker import check_ssl_certificate, should_notify_certificate, format_certificate_alert
+from database import get_db_connection
+from ssl_checker import check_ssl_certificate, format_certificate_alert
 
+# Глобальні змінні для відстеження стану
+LAST_STATUS = {}  # site_id -> status
+LAST_DOWN_ALERT = {}  # site_id -> datetime
 
-class SiteMonitor:
-    """Моніторинг сайтів"""
+def normalize_ssl_url(url: str) -> Optional[str]:
+    """Нормалізує URL для перевірки SSL (додає https:// якщо потрібно)"""
+    if not url:
+        return None
+    url = url.strip()
+    if not url.lower().startswith(("http://", "https://")):
+        return f"https://{url}"
+    return url
+
+async def check_site_status(site_id: int, url: str, notify_methods: List[str], notify_settings: Dict[str, Any]):
+    """Перевіряє статус сайту та відправляє сповіщення"""
+    global LAST_STATUS, LAST_DOWN_ALERT
+    from notifications import send_notification
     
-    def __init__(self, db_path: str, notification_service):
-        self.db_path = db_path
-        self.notification_service = notification_service
-        self.last_status: Dict[int, str] = {}
-    
-    async def check_site(self, site: Dict[str, Any]) -> Dict[str, Any]:
-        """Перевіряє статус сайту"""
-        url = site['url']
-        site_id = site['id']
-        start_time = datetime.now()
-        
-        status = "down"
-        status_code = None
-        response_time = None
-        error_message = None
-        
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        }
-        
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    url, 
-                    timeout=aiohttp.ClientTimeout(total=15), 
-                    headers=headers, 
-                    allow_redirects=True
-                ) as response:
-                    status_code = response.status
-                    response_time = (datetime.now() - start_time).total_seconds() * 1000
-                    status = "up" if status_code < 500 else "down"
-        except aiohttp.ClientConnectorError:
-            error_message = "Connection failed"
-        except asyncio.TimeoutError:
-            error_message = "Timeout"
-        except Exception as e:
-            error_message = str(e)[:100]
-        
-        # Зберігаємо історію
-        add_status_history(
-            self.db_path,
-            site_id,
-            status,
-            status_code,
-            response_time,
-            error_message
+    start_time = datetime.now()
+    status = "down"
+    status_code = None
+    response_time = None
+    error_message = None
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+
+    try:
+        # У майбутньому тут можна додати логіку для різних типів моніторів (port, ping)
+        # Наразі реалізовано HTTP/HTTPS
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                url,
+                timeout=aiohttp.ClientTimeout(total=15),
+                headers=headers,
+                ssl=False,
+                allow_redirects=True,
+            ) as response:
+                status_code = response.status
+                response_time = (datetime.now() - start_time).total_seconds() * 1000
+                status = "up" if status_code < 500 else "down"
+    except aiohttp.ClientConnectorError:
+        error_message = "Connection failed"
+    except asyncio.TimeoutError:
+        error_message = "Timeout"
+    except Exception as e:
+        error_message = str(e)[:100]
+
+    checked_at = datetime.now()
+    checked_at_iso = checked_at.isoformat()
+
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT name FROM sites WHERE id = ?", (site_id,))
+        row = c.fetchone()
+        site_name = row["name"] if row else url
+
+        c.execute(
+            """INSERT INTO status_history (site_id, status, status_code, response_time, error_message, checked_at)
+                     VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                site_id,
+                status,
+                status_code,
+                round(response_time, 2) if response_time else None,
+                error_message,
+                checked_at_iso,
+            ),
         )
-        
-        result = {
-            'site_id': site_id,
-            'status': status,
-            'status_code': status_code,
-            'response_time': response_time,
-            'error_message': error_message
-        }
-        
-        # Перевіряємо чи потрібно відправляти сповіщення
-        await self._handle_status_change(site, result)
-        
-        return result
-    
-    async def _handle_status_change(self, site: Dict[str, Any], result: Dict[str, Any]):
-        """Обробляє зміну статусу та відправляє сповіщення"""
-        site_id = site['id']
-        current_status = result['status']
-        previous_status = self.last_status.get(site_id)
-        
-        # Оновлюємо last_status
-        self.last_status[site_id] = current_status
-        
-        # Відправляємо сповіщення тільки якщо статус змінився на down
-        if current_status == "down" and previous_status == "up":
-            await self._send_down_notification(site, result)
-        
-        # Відправляємо сповіщення про відновлення
-        if current_status == "up" and previous_status == "down":
-            await self._send_recovery_notification(site, result)
-    
-    async def _send_down_notification(self, site: Dict[str, Any], result: Dict[str, Any]):
-        """Відправляє сповіщення про падіння сайту"""
-        notify_methods = self._parse_notify_methods(site.get('notify_methods', '[]'))
-        
-        if not notify_methods:
-            return
-        
-        # Перевіряємо cooldown
-        last_notification = site.get('last_notification')
-        if last_notification:
-            last_notif_time = datetime.fromisoformat(last_notification)
-            if (datetime.now() - last_notif_time).total_seconds() < 300:  # 5 хвилин
-                return
-        
-        message = (
-            f"🔴 {site['name']}\n"
-            f"🌐 {site['url']}\n"
-            f"Status: {result.get('status_code') or 'N/A'}\n"
-            f"Error: {result.get('error_message') or 'None'}\n"
-            f"Time: {datetime.now().isoformat()}"
+        c.execute(
+            "UPDATE sites SET status = ?, status_code = ?, response_time = ? WHERE id = ?",
+            (status, status_code, round(response_time, 2) if response_time else None, site_id),
         )
-        
-        await self.notification_service.send_notification(message, notify_methods)
-        
-        # Оновлюємо час останнього сповіщення
-        update_site(self.db_path, site['id'], last_notification=datetime.now().isoformat())
+        conn.commit()
+
+    prev_status = LAST_STATUS.get(site_id)
+
+    # Логіка сповіщень
+    if status == "down" and notify_methods:
+        should_alert = False
+        alert_type = ""
+
+        if prev_status == "up" or prev_status is None:
+            should_alert = True
+            alert_type = "NEW"
+        else:
+            last_alert = LAST_DOWN_ALERT.get(site_id)
+            # Повторне сповіщення раз на 30 хвилин (як у main.py)
+            if last_alert is None or (checked_at - last_alert).total_seconds() >= 1800:
+                should_alert = True
+                alert_type = "REPEAT"
+
+        if should_alert:
+            if alert_type == "NEW":
+                msg = f"🔴 {site_name}\n🌐 {url}\nStatus: {status_code or 'N/A'}\nError: {error_message or 'None'}\nTime: {checked_at_iso}"
+            else:
+                msg = f"🔴 {site_name} - STILL DOWN\n🌐 {url}\nStatus: {status_code or 'N/A'}\nError: {error_message or 'None'}\nTime: {checked_at_iso}\n⏱️ Схоже, проблема триває..."
+
+            await send_notification(msg, notify_methods, notify_settings)
+            LAST_DOWN_ALERT[site_id] = checked_at
+
+    # Сповіщення про відновлення
+    if status == "up" and prev_status == "down" and notify_methods:
+        msg = f"🟢 {site_name} - RECOVERED\n🌐 {url}\nStatus: {status_code}\nResponse Time: {round(response_time, 2) if response_time else 0}ms\nTime: {checked_at_iso}"
+        await send_notification(msg, notify_methods, notify_settings)
+        if site_id in LAST_DOWN_ALERT:
+            del LAST_DOWN_ALERT[site_id]
+
+    LAST_STATUS[site_id] = status
+    return status, status_code, response_time, error_message
+
+async def check_site_certificate(site_id: int, url: str, notify_methods: List[str], notify_settings: Dict[str, Any]):
+    """Перевіряє SSL сертифікат сайту"""
+    from notifications import send_notification
     
-    async def _send_recovery_notification(self, site: Dict[str, Any], result: Dict[str, Any]):
-        """Відправляє сповіщення про відновлення сайту"""
-        notify_methods = self._parse_notify_methods(site.get('notify_methods', '[]'))
-        
-        if not notify_methods:
+    # Тільки для HTTPS
+    if not url.lower().startswith("https://"):
+        # Спробуємо нормалізувати
+        if "." in url and "://" not in url:
+            url = "https://" + url
+        else:
             return
-        
-        message = (
-            f"🟢 {site['name']} - RECOVERED\n"
-            f"🌐 {site['url']}\n"
-            f"Status: {result.get('status_code')}\n"
-            f"Response Time: {result.get('response_time', 0):.0f}ms\n"
-            f"Time: {datetime.now().isoformat()}"
+
+    cert_info = await check_ssl_certificate(url)
+    if not cert_info:
+        return
+
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT name FROM sites WHERE id = ?", (site_id,))
+        row = c.fetchone()
+        site_name = row["name"] if row else url
+
+        c.execute(
+            """INSERT OR REPLACE INTO ssl_certificates 
+            (site_id, hostname, issuer, subject, start_date, expire_date, days_until_expire, is_valid, last_checked)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                site_id,
+                cert_info["hostname"],
+                cert_info["issuer"],
+                cert_info["subject"],
+                cert_info["start_date"],
+                cert_info["expire_date"],
+                cert_info["days_until_expire"],
+                cert_info["is_valid"],
+                cert_info["checked_at"],
+            ),
         )
-        
-        await self.notification_service.send_notification(message, notify_methods)
-    
-    def _parse_notify_methods(self, methods_str: str) -> list:
-        """Парсить методи сповіщень з JSON"""
-        try:
-            import json
-            return json.loads(methods_str) if methods_str else []
-        except:
-            return []
-    
-    async def check_all_sites(self, sites: list):
-        """Перевіряє всі сайти"""
-        if not sites:
-            return
-        
-        tasks = [self.check_site(site) for site in sites]
-        await asyncio.gather(*tasks, return_exceptions=True)
+        conn.commit()
 
-
-class SSLMonitor:
-    """Моніторинг SSL сертифікатів"""
-    
-    def __init__(self, db_path: str, notification_service):
-        self.db_path = db_path
-        self.notification_service = notification_service
-    
-    async def check_certificate(self, site: Dict[str, Any]):
-        """Перевіряє SSL сертифікат сайту"""
-        url = site['url']
-        site_id = site['id']
+    # Сповіщення про закінчення терміну дії (за 14 днів)
+    days = cert_info["days_until_expire"]
+    if days <= 14 and notify_methods:
+        c.execute("SELECT last_notified FROM ssl_certificates WHERE site_id = ?", (site_id,))
+        row = c.fetchone()
         
-        # Перевіряємо тільки HTTPS
-        if not url.startswith('https://'):
-            return
+        should_notify = True
+        if row and row["last_notified"]:
+            last_notif = datetime.fromisoformat(row["last_notified"])
+            if (datetime.now() - last_notif).total_seconds() < 86400:  # Раз на добу
+                should_notify = False
         
-        try:
-            cert_info = check_ssl_certificate(url)
+        if should_notify:
+            msg = format_certificate_alert(cert_info, site_name, url)
+            await send_notification(msg, notify_methods, notify_settings)
             
-            if cert_info:
-                # Зберігаємо інформацію про сертифікат
-                from models import save_ssl_certificate
-                save_ssl_certificate(self.db_path, site_id, cert_info)
-                
-                # Перевіряємо чи потрібно відправити сповіщення
-                if should_notify_certificate(cert_info):
-                    await self._send_cert_notification(site, cert_info)
-        except Exception as e:
-            logger.error(f"SSL check error for {url}: {e}")
-    
-    async def _send_cert_notification(self, site: Dict[str, Any], cert_info: Dict[str, Any]):
-        """Відправляє сповіщення про SSL сертифікат"""
-        notify_methods = self._parse_notify_methods(site.get('notify_methods', '[]'))
-        
-        if not notify_methods:
-            return
-        
-        message = format_certificate_alert(site['name'], site['url'], cert_info)
-        await self.notification_service.send_notification(message, notify_methods)
-    
-    def _parse_notify_methods(self, methods_str: str) -> list:
-        """Парсить методи сповіщень з JSON"""
+            c.execute("UPDATE ssl_certificates SET last_notified = ? WHERE site_id = ?",
+                     (datetime.now().isoformat(), site_id))
+            conn.commit()
+
+async def check_all_certificates(notify_settings: Dict[str, Any]):
+    """Перевіряє всі SSL сертифікати"""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, url, notify_methods FROM sites WHERE is_active = 1 AND (url LIKE 'https://%' OR monitor_type = 'ssl')")
+        sites = c.fetchall()
+
+    for site in sites:
+        notify_methods = json.loads(site["notify_methods"]) if site["notify_methods"] else []
+        await check_site_certificate(site["id"], site["url"], notify_methods, notify_settings)
+        await asyncio.sleep(1)
+
+async def monitor_loop(notify_settings: Dict[str, Any], check_interval: int = 60):
+    """Основний цикл моніторингу"""
+    last_cert_check = datetime.now() - timedelta(hours=25)
+
+    while True:
         try:
-            import json
-            return json.loads(methods_str) if methods_str else []
-        except:
-            return []
-    
-    async def check_all_certificates(self, sites: list):
-        """Перевіряє SSL сертифікати всіх сайтів"""
-        https_sites = [site for site in sites if site['url'].startswith('https://')]
-        
-        if not https_sites:
-            return
-        
-        tasks = [self.check_certificate(site) for site in https_sites]
-        await asyncio.gather(*tasks, return_exceptions=True)
+            # Перевірка доступності сайтів
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT id, url, notify_methods FROM sites WHERE is_active = 1")
+                sites = c.fetchall()
+
+            for site in sites:
+                notify_methods = json.loads(site["notify_methods"]) if site["notify_methods"] else []
+                # Передаємо notify_settings у check_site_status
+                await check_site_status(site["id"], site["url"], notify_methods, notify_settings)
+
+            # Перевірка SSL сертифікатів раз на добу
+            if (datetime.now() - last_cert_check).total_seconds() >= 86400:
+                logger.info("Checking SSL certificates in background...")
+                await check_all_certificates(notify_settings)
+                last_cert_check = datetime.now()
+        except Exception as e:
+            logger.error(f"Error in monitor_loop: {e}")
+
+        await asyncio.sleep(check_interval)

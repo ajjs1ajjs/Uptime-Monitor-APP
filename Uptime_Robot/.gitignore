@@ -76,7 +76,15 @@ htmlcov/
 .gitignore
 .gitattributes
 
-# Project specific
 port.txt
 sites.db
 uptime_monitor.log
+
+# Debug / temp scripts
+debug_db.py
+reset_admin.py
+
+# Config files with secrets
+config.json
+config.*.json
+ssl/

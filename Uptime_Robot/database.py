@@ -7,7 +7,15 @@ from typing import Optional
 
 
 def get_db_path() -> str:
-    """Отримує шлях до бази даних"""
+    """Отримує шлях до бази даних з config_manager або з поточної директорії"""
+    try:
+        import config_manager
+        # If init_paths has been called, DB_PATH will be set
+        if config_manager.DB_PATH:
+            return config_manager.DB_PATH
+    except Exception:
+        pass
+    # Fallback: same directory as this file
     if getattr(sys, 'frozen', False):
         app_dir = os.path.dirname(sys.executable)
     else:
@@ -20,6 +28,7 @@ def get_db_connection(db_path: Optional[str] = None):
     """Контекстний менеджер для з'єднання з БД"""
     if db_path is None:
         db_path = get_db_path()
+        
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:

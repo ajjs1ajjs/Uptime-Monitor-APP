@@ -8,55 +8,64 @@ from database import get_db_connection
 
 def init_database(db_path: str):
     """Ініціалізує базу даних"""
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
+    with get_db_connection(db_path) as conn:
+        c = conn.cursor()
     
-    # Таблиця сайтів
-    c.execute('''CREATE TABLE IF NOT EXISTS sites (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        url TEXT NOT NULL UNIQUE,
-        check_interval INTEGER DEFAULT 60,
-        is_active BOOLEAN DEFAULT 1,
-        last_notification TEXT,
-        notify_methods TEXT DEFAULT '[]'
-    )''')
-    
-    # Таблиця історії статусів
-    c.execute('''CREATE TABLE IF NOT EXISTS status_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        site_id INTEGER,
-        status TEXT,
-        status_code INTEGER,
-        response_time REAL,
-        error_message TEXT,
-        checked_at TEXT,
-        FOREIGN KEY (site_id) REFERENCES sites(id)
-    )''')
-    
-    # Таблиця налаштувань сповіщень
-    c.execute('''CREATE TABLE IF NOT EXISTS notify_config (
-        id INTEGER PRIMARY KEY,
-        config TEXT
-    )''')
-    
-    # Таблиця SSL сертифікатів
-    c.execute('''CREATE TABLE IF NOT EXISTS ssl_certificates (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        site_id INTEGER,
-        hostname TEXT,
-        issuer TEXT,
-        subject TEXT,
-        start_date TEXT,
-        expire_date TEXT,
-        days_until_expire INTEGER,
-        is_valid BOOLEAN,
-        last_checked TEXT,
-        FOREIGN KEY (site_id) REFERENCES sites(id)
-    )''')
-    
-    conn.commit()
-    conn.close()
+        # Таблиця сайтів
+        c.execute('''CREATE TABLE IF NOT EXISTS sites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL UNIQUE,
+            check_interval INTEGER DEFAULT 60,
+            is_active BOOLEAN DEFAULT 1,
+            last_notification TEXT,
+            notify_methods TEXT DEFAULT '[]',
+            status TEXT DEFAULT 'unknown',
+            status_code INTEGER,
+            response_time REAL,
+            error_message TEXT,
+            monitor_type TEXT DEFAULT 'http'
+        )''')
+        
+        # Таблиця історії статусів
+        c.execute('''CREATE TABLE IF NOT EXISTS status_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            site_id INTEGER,
+            status TEXT,
+            status_code INTEGER,
+            response_time REAL,
+            error_message TEXT,
+            checked_at TEXT,
+            FOREIGN KEY (site_id) REFERENCES sites(id)
+        )''')
+        
+        # Таблиця налаштувань сповіщень
+        c.execute('''CREATE TABLE IF NOT EXISTS notify_config (
+            id INTEGER PRIMARY KEY,
+            config TEXT
+        )''')
+        
+        # Таблиця SSL сертифікатів
+        c.execute('''CREATE TABLE IF NOT EXISTS ssl_certificates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            site_id INTEGER,
+            hostname TEXT,
+            issuer TEXT,
+            subject TEXT,
+            start_date TEXT,
+            expire_date TEXT,
+            days_until_expire INTEGER,
+            is_valid BOOLEAN,
+            last_checked TEXT,
+            FOREIGN KEY (site_id) REFERENCES sites(id)
+        )''')
+
+        # Таблиця налаштувань додатку
+        c.execute('''CREATE TABLE IF NOT EXISTS app_settings (
+            id INTEGER PRIMARY KEY,
+            display_address TEXT
+        )''')
+        conn.commit()
 
 
 def get_all_sites(db_path: str) -> List[Dict[str, Any]]:
