@@ -1381,8 +1381,8 @@ async def dashboard(request: Request):
                 
                 html += '<div class="monitor-card ' + statusClass + '">';
                 html += '<div class="monitor-header"><div>';
-                html += '<div class="monitor-name">' + site.name + '</div>';
-                html += '<div class="monitor-url">' + site.url + '</div>';
+                html += '<div class="monitor-name">' + (site.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;') + '</div>';
+                html += '<div class="monitor-url">' + (site.url || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;') + '</div>';
                 html += '</div><span class="monitor-type-badge">' + typeBadge + '</span></div>';
                 html += '<div class="monitor-stats">';
                 html += '<div class="monitor-stat"><div class="monitor-stat-value" style="color:' + statusColor + '">' + statusIcon + '</div><div class="monitor-stat-label">Status</div></div>';
@@ -1433,8 +1433,8 @@ async def dashboard(request: Request):
                 
                 html += '<div class="monitor-card ' + statusClass + '">';
                 html += '<div class="monitor-header"><div>';
-                html += '<div class="monitor-name">' + site.name + '</div>';
-                html += '<div class="monitor-url">' + site.url + '</div>';
+                html += '<div class="monitor-name">' + (site.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;') + '</div>';
+                html += '<div class="monitor-url">' + (site.url || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;') + '</div>';
                 html += '</div><span class="monitor-type-badge">' + typeBadge + '</span></div>';
                 html += '<div class="monitor-stats">';
                 html += '<div class="monitor-stat"><div class="monitor-stat-value" style="color:' + statusColor + '">' + statusText + '</div><div class="monitor-stat-label">Status</div></div>';
