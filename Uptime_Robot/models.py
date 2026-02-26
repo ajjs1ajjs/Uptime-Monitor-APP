@@ -1,4 +1,5 @@
 """Модуль для роботи з базою даних"""
+
 import sqlite3
 import json
 from datetime import datetime
@@ -10,9 +11,9 @@ def init_database(db_path: str):
     """Ініціалізує базу даних"""
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
-    
+
         # Таблиця сайтів
-        c.execute('''CREATE TABLE IF NOT EXISTS sites (
+        c.execute("""CREATE TABLE IF NOT EXISTS sites (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             url TEXT NOT NULL UNIQUE,
@@ -25,10 +26,10 @@ def init_database(db_path: str):
             response_time REAL,
             error_message TEXT,
             monitor_type TEXT DEFAULT 'http'
-        )''')
-        
+        )""")
+
         # Таблиця історії статусів
-        c.execute('''CREATE TABLE IF NOT EXISTS status_history (
+        c.execute("""CREATE TABLE IF NOT EXISTS status_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             site_id INTEGER,
             status TEXT,
@@ -37,18 +38,18 @@ def init_database(db_path: str):
             error_message TEXT,
             checked_at TEXT,
             FOREIGN KEY (site_id) REFERENCES sites(id)
-        )''')
-        
+        )""")
+
         # Таблиця налаштувань сповіщень
-        c.execute('''CREATE TABLE IF NOT EXISTS notify_config (
+        c.execute("""CREATE TABLE IF NOT EXISTS notify_config (
             id INTEGER PRIMARY KEY,
             config TEXT
-        )''')
-        
+        )""")
+
         # Таблиця SSL сертифікатів
-        c.execute('''CREATE TABLE IF NOT EXISTS ssl_certificates (
+        c.execute("""CREATE TABLE IF NOT EXISTS ssl_certificates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            site_id INTEGER,
+            site_id INTEGER UNIQUE,
             hostname TEXT,
             issuer TEXT,
             subject TEXT,
@@ -58,13 +59,13 @@ def init_database(db_path: str):
             is_valid BOOLEAN,
             last_checked TEXT,
             FOREIGN KEY (site_id) REFERENCES sites(id)
-        )''')
+        )""")
 
         # Таблиця налаштувань додатку
-        c.execute('''CREATE TABLE IF NOT EXISTS app_settings (
+        c.execute("""CREATE TABLE IF NOT EXISTS app_settings (
             id INTEGER PRIMARY KEY,
             display_address TEXT
-        )''')
+        )""")
         conn.commit()
 
 
@@ -86,14 +87,21 @@ def get_active_sites(db_path: str) -> List[Dict[str, Any]]:
     return sites
 
 
-def add_site(db_path: str, name: str, url: str, check_interval: int = 60, 
-             notify_methods: Optional[List[str]] = None) -> int:
+def add_site(
+    db_path: str,
+    name: str,
+    url: str,
+    check_interval: int = 60,
+    notify_methods: Optional[List[str]] = None,
+) -> int:
     """Додає новий сайт"""
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
-        c.execute("""INSERT INTO sites (name, url, check_interval, notify_methods, is_active) 
+        c.execute(
+            """INSERT INTO sites (name, url, check_interval, notify_methods, is_active) 
                      VALUES (?, ?, ?, ?, 1)""",
-                  (name, url, check_interval, json.dumps(notify_methods or [])))
+            (name, url, check_interval, json.dumps(notify_methods or [])),
+        )
         site_id = c.lastrowid
         conn.commit()
     return site_id
@@ -101,22 +109,29 @@ def add_site(db_path: str, name: str, url: str, check_interval: int = 60,
 
 def update_site(db_path: str, site_id: int, **kwargs):
     """Оновлює сайт"""
-    allowed_columns = {'name', 'url', 'check_interval', 'is_active', 'notify_methods', 'last_notification'}
-    
+    allowed_columns = {
+        "name",
+        "url",
+        "check_interval",
+        "is_active",
+        "notify_methods",
+        "last_notification",
+    }
+
     updates = []
     params = []
     for key, value in kwargs.items():
         if key in allowed_columns:
-            if key == 'notify_methods' and isinstance(value, list):
+            if key == "notify_methods" and isinstance(value, list):
                 value = json.dumps(value)
             updates.append(f"{key} = ?")
             params.append(value)
-    
+
     if not updates:
         return
-    
+
     params.append(site_id)
-    
+
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
         c.execute(f"UPDATE sites SET {', '.join(updates)} WHERE id = ?", params)
@@ -133,19 +148,36 @@ def delete_site(db_path: str, site_id: int):
         conn.commit()
 
 
-def add_status_history(db_path: str, site_id: int, status: str, status_code: Optional[int],
-                       response_time: Optional[float], error_message: Optional[str]):
+def add_status_history(
+    db_path: str,
+    site_id: int,
+    status: str,
+    status_code: Optional[int],
+    response_time: Optional[float],
+    error_message: Optional[str],
+):
     """Додає запис в історію статусів"""
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
-        c.execute("""INSERT INTO status_history 
+        c.execute(
+            """INSERT INTO status_history 
                      (site_id, status, status_code, response_time, error_message, checked_at)
                      VALUES (?, ?, ?, ?, ?, ?)""",
-                  (site_id, status, status_code, response_time, error_message, datetime.now().isoformat()))
-        
+            (
+                site_id,
+                status,
+                status_code,
+                response_time,
+                error_message,
+                datetime.now().isoformat(),
+            ),
+        )
+
         # Очищення старих записів (старші за 30 днів)
-        c.execute("DELETE FROM status_history WHERE checked_at < datetime('now', '-30 days')")
-        
+        c.execute(
+            "DELETE FROM status_history WHERE checked_at < datetime('now', '-30 days')"
+        )
+
         conn.commit()
 
 
@@ -153,23 +185,29 @@ def get_site_stats(db_path: str, site_id: int) -> Dict[str, Any]:
     """Отримує статистику сайту"""
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
-        
+
         # Останній статус
-        c.execute("""SELECT * FROM status_history 
-                     WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1""", (site_id,))
+        c.execute(
+            """SELECT * FROM status_history 
+                     WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1""",
+            (site_id,),
+        )
         last_check = c.fetchone()
-        
+
         # Загальна статистика
-        c.execute("""SELECT 
+        c.execute(
+            """SELECT 
                         COUNT(*) as total,
                         SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) as up_count
-                     FROM status_history WHERE site_id = ?""", (site_id,))
+                     FROM status_history WHERE site_id = ?""",
+            (site_id,),
+        )
         stats = c.fetchone()
-    
+
     return {
-        'last_check': dict(last_check) if last_check else None,
-        'total_checks': stats['total'] if stats else 0,
-        'up_count': stats['up_count'] if stats else 0
+        "last_check": dict(last_check) if last_check else None,
+        "total_checks": stats["total"] if stats else 0,
+        "up_count": stats["up_count"] if stats else 0,
     }
 
 
@@ -177,8 +215,10 @@ def save_notify_settings(db_path: str, settings: Dict[str, Any]):
     """Зберігає налаштування сповіщень"""
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO notify_config (id, config) VALUES (1, ?)",
-                  (json.dumps(settings),))
+        c.execute(
+            "INSERT OR REPLACE INTO notify_config (id, config) VALUES (1, ?)",
+            (json.dumps(settings),),
+        )
         conn.commit()
 
 
@@ -188,9 +228,9 @@ def load_notify_settings(db_path: str) -> Dict[str, Any]:
         c = conn.cursor()
         c.execute("SELECT config FROM notify_config WHERE id = 1")
         row = c.fetchone()
-    
+
     if row:
-        return json.loads(row['config'])
+        return json.loads(row["config"])
     return {}
 
 
@@ -210,26 +250,46 @@ def save_ssl_certificate(db_path: str, site_id: int, cert_data: Dict[str, Any]):
     """Зберігає або оновлює SSL сертифікат"""
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
-        
+
         c.execute("""SELECT id FROM ssl_certificates WHERE site_id = ?""", (site_id,))
         existing = c.fetchone()
-        
+
         if existing:
-            c.execute("""UPDATE ssl_certificates SET
+            c.execute(
+                """UPDATE ssl_certificates SET
                             hostname = ?, issuer = ?, subject = ?,
                             start_date = ?, expire_date = ?, days_until_expire = ?,
                             is_valid = ?, last_checked = ?
                          WHERE site_id = ?""",
-                      (cert_data['hostname'], cert_data['issuer'], cert_data['subject'],
-                       cert_data['start_date'], cert_data['expire_date'], cert_data['days_until_expire'],
-                       cert_data['is_valid'], datetime.now().isoformat(), site_id))
+                (
+                    cert_data["hostname"],
+                    cert_data["issuer"],
+                    cert_data["subject"],
+                    cert_data["start_date"],
+                    cert_data["expire_date"],
+                    cert_data["days_until_expire"],
+                    cert_data["is_valid"],
+                    datetime.now().isoformat(),
+                    site_id,
+                ),
+            )
         else:
-            c.execute("""INSERT INTO ssl_certificates
+            c.execute(
+                """INSERT INTO ssl_certificates
                             (site_id, hostname, issuer, subject, start_date, expire_date,
                              days_until_expire, is_valid, last_checked)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                      (site_id, cert_data['hostname'], cert_data['issuer'], cert_data['subject'],
-                       cert_data['start_date'], cert_data['expire_date'], cert_data['days_until_expire'],
-                       cert_data['is_valid'], datetime.now().isoformat()))
-        
+                (
+                    site_id,
+                    cert_data["hostname"],
+                    cert_data["issuer"],
+                    cert_data["subject"],
+                    cert_data["start_date"],
+                    cert_data["expire_date"],
+                    cert_data["days_until_expire"],
+                    cert_data["is_valid"],
+                    datetime.now().isoformat(),
+                ),
+            )
+
         conn.commit()
