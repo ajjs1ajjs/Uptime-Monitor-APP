@@ -898,16 +898,31 @@ DASHBOARD_JS = """
             let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
             incidentsData.forEach(inc => {
                 const date = new Date(inc.checked_at).toLocaleString('uk-UA');
+                const isDown = inc.status === 'down';
+                const isSlow = inc.status === 'slow';
+                const bgColor = isDown ? 'rgba(239, 68, 68, 0.15)' : isSlow ? 'rgba(234, 179, 8, 0.15)' : 'rgba(34, 197, 94, 0.1)';
+                const borderColor = isDown ? '#ef4444' : isSlow ? '#eab308' : '#22c55e';
+                const statusText = isDown ? '🔴 DOWN' : isSlow ? '🟡 SLOW' : '🟢 UP';
+                const prevText = inc.prev_status ? ` (було: ${inc.prev_status.toUpperCase()})` : '';
+                
                 html += `
-                <div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger); padding: 12px 16px; border-radius: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 600; color: var(--danger);">${inc.site_name}</span>
-                        <span style="font-size: 12px; color: var(--text-secondary);">${date}</span>
+                <div style="background: ${bgColor}; border-left: 4px solid ${borderColor}; padding: 16px; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                <span style="font-weight: 600; font-size: 15px; color: var(--text-primary);">${inc.site_name}</span>
+                                <span style="font-size: 12px; padding: 2px 8px; background: ${borderColor}22; border-radius: 4px; color: ${borderColor};">${statusText}</span>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">${inc.site_url}</div>
+                            ${inc.duration ? `<div style="font-size: 12px; color: ${isDown ? '#ef4444' : '#eab308'}; font-weight: 500; margin-bottom: 4px;">⏱️ Тривалість: ${inc.duration}</div>` : ''}
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 6px;">
+                                <span>🕐 ${date}</span>
+                                ${inc.response_time ? `<span style="margin-left: 12px;">⚡ ${Math.round(inc.response_time)}ms</span>` : ''}
+                                ${inc.status_code ? `<span style="margin-left: 12px;">📄 HTTP ${inc.status_code}</span>` : ''}
+                            </div>
+                        </div>
                     </div>
-                    <div style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
-                        Код: ${inc.status_code} | Час: ${inc.response_time ? Math.round(inc.response_time) + 'ms' : '—'}
-                    </div>
-                    ${inc.error_message ? `<div style="font-size: 12px; color: var(--warning); margin-top: 4px;">${inc.error_message}</div>` : ''}
+                    ${inc.error_message ? `<div style="font-size: 12px; color: #ef4444; margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px; font-family: monospace;">${inc.error_message}</div>` : ''}
                 </div>`;
             });
             html += '</div>';

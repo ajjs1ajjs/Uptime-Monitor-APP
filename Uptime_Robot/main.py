@@ -194,6 +194,17 @@ async def public_status_page(request: Request):
     down_count = sum(1 for s in site_status.values() if s == "down")
     total = len(sites)
 
+    # Sort: DOWN first, then UP
+    def get_sort_order(site_id):
+        status = site_status.get(site_id, "unknown")
+        if status == "down":
+            return 0
+        if status == "slow":
+            return 1
+        return 2
+
+    sites.sort(key=lambda s: get_sort_order(s["id"]))
+
     monitors_html = ""
     for site in sites:
         status = site_status.get(site["id"], "unknown")
@@ -201,20 +212,23 @@ async def public_status_page(request: Request):
             "up" if status == "up" else ("paused" if status == "paused" else "down")
         )
         status_text = (
-            "✓ Онлайн"
+            "✓ UP"
             if status == "up"
-            else ("⏸ Пауза" if status == "paused" else "✗ Офлайн")
+            else ("⏸ PAUSED" if status == "paused" else "✗ DOWN")
         )
         monitors_html += f"""
         <div class="monitor {status_class}">
-            <div><div class="monitor-name">{site["name"]}</div>
-            <div class="monitor-url">{site["url"]}</div></div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: {"#00ff88" if status == "up" else "#ff4757"}; box-shadow: 0 0 8px {"#00ff88" if status == "up" else "#ff4757"};"></div>
+                <div><div class="monitor-name">{site["name"]}</div>
+                <div class="monitor-url">{site["url"]}</div></div>
+            </div>
             <span class="status-badge {status_class}">{status_text}</span>
         </div>"""
 
     overall_status_class = "up" if down_count == 0 else "down"
     overall_status_text = (
-        "✅ Всі системи працюють" if down_count == 0 else "⚠️ Деякі проблеми"
+        "✅ All systems operational" if down_count == 0 else "⚠️ Some issues"
     )
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -583,34 +597,88 @@ async def get_incidents(user: dict = Depends(get_current_user)):
         raise HTTPException(401)
     with get_db_connection() as conn:
         c = conn.cursor()
-        # Show only status changes (incidents and recoveries)
+        # Get all status changes in last 7 days with more details
         c.execute("""
-            SELECT sh.id, sh.site_id, s.name as site_name, sh.status, sh.status_code, sh.response_time, sh.error_message, sh.checked_at
+            SELECT 
+                sh.id, 
+                sh.site_id, 
+                s.name as site_name, 
+                s.url as site_url,
+                sh.status, 
+                sh.status_code, 
+                sh.response_time, 
+                sh.error_message, 
+                sh.checked_at,
+                LAG(sh.status) OVER (PARTITION BY sh.site_id ORDER BY sh.checked_at) as prev_status
             FROM status_history sh
             JOIN sites s ON sh.site_id = s.id
-            WHERE sh.id IN (
-                SELECT MAX(id) FROM status_history 
-                WHERE checked_at >= datetime('now', '-7 days')
-                GROUP BY site_id, status
-                ORDER BY checked_at DESC
-            )
+            WHERE sh.checked_at >= datetime('now', '-7 days')
             ORDER BY sh.checked_at DESC
-            LIMIT 50
+            LIMIT 100
         """)
         results = c.fetchall()
-        return [
-            {
-                "id": r["id"],
-                "site_id": r["site_id"],
-                "site_name": r["site_name"],
-                "status": r["status"],
-                "status_code": r["status_code"],
-                "response_time": r["response_time"],
-                "error_message": r["error_message"],
-                "checked_at": r["checked_at"],
-            }
-            for r in results
-        ]
+
+        # Group consecutive same-status records
+        incidents = []
+        for r in results:
+            # Only include status changes (not normal "up" states after another "up")
+            if r["prev_status"] != r["status"] or r["status"] in ["down", "slow"]:
+                incidents.append(
+                    {
+                        "id": r["id"],
+                        "site_id": r["site_id"],
+                        "site_name": r["site_name"],
+                        "site_url": r["site_url"],
+                        "status": r["status"],
+                        "status_code": r["status_code"],
+                        "response_time": r["response_time"],
+                        "error_message": r["error_message"],
+                        "checked_at": r["checked_at"],
+                        "prev_status": r["prev_status"],
+                    }
+                )
+
+        # Get duration info - find when each incident started
+        c.execute("""
+            SELECT 
+                sh.site_id,
+                sh.status,
+                MIN(sh.checked_at) as started_at,
+                MAX(sh.checked_at) as ended_at
+            FROM status_history sh
+            WHERE sh.checked_at >= datetime('now', '-7 days')
+            GROUP BY sh.site_id, sh.status
+            HAVING sh.status IN ('down', 'slow')
+        """)
+        down_times = {f"{r['site_id']}_{r['status']}": dict(r) for r in c.fetchall()}
+
+        # Add duration to incidents
+        for inc in incidents:
+            key = f"{inc['site_id']}_{inc['status']}"
+            if key in down_times:
+                dt = down_times[key]
+                started = dt["started_at"]
+                ended = dt["ended_at"] if dt["ended_at"] else None
+                if started and ended:
+                    from datetime import datetime
+
+                    try:
+                        start = datetime.fromisoformat(started.replace("Z", "+00:00"))
+                        end = datetime.fromisoformat(ended.replace("Z", "+00:00"))
+                        duration = end - start
+                        hours = duration.total_seconds() // 3600
+                        mins = (duration.total_seconds() % 3600) // 60
+                        inc["duration"] = (
+                            f"{int(hours)}год {int(mins)}хв"
+                            if hours > 0
+                            else f"{int(mins)}хв"
+                        )
+                    except:
+                        inc["duration"] = None
+                else:
+                    inc["duration"] = "в процесі"
+
+        return incidents[:50]
 
 
 @app.post("/api/notify-settings")
