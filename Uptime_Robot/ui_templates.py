@@ -118,7 +118,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         
         .monitor-header {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }}
         .monitor-name {{ font-size: 18px; font-weight: 600; }}
-        .monitor-url {{ color: var(--text-secondary); font-size: 13px; word-break: break-all; margin-top: 5px; }}
+        .monitor-url {{ color: var(--text-secondary); font-size: 13px; word-break: break-all; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }}
         .monitor-type-badge {{ padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; background: rgba(0,255,136,0.15); color: var(--accent); }}
         
         .monitor-stats {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; padding: 12px 0; border-top: 1px solid rgba(148, 163, 184, 0.1); border-bottom: 1px solid rgba(148, 163, 184, 0.1); }}
@@ -545,9 +545,9 @@ DASHBOARD_JS = """
                 html += `
                 <div class="monitor-card ${statusClass}">
                     <div class="monitor-header">
-                        <div>
-                            <div class="monitor-name">${site.name}</div>
-                            <div class="monitor-url">${site.url}</div>
+                        <div style="min-width: 0; flex: 1;">
+                            <div class="monitor-name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${site.name}">${site.name}</div>
+                            <div class="monitor-url" title="${site.url}">${site.url}</div>
                         </div>
                         <span class="monitor-type-badge">${site.monitor_type}</span>
                     </div>
@@ -636,10 +636,10 @@ DASHBOARD_JS = """
                 const days = cert.days_until_expire;
                 const statusColor = days <= 0 ? 'var(--danger)' : days <= 7 ? 'var(--warning)' : 'var(--success)';
                 html += `
-                <div class="ssl-card" style="padding: 15px; background: rgba(30, 41, 59, 0.4); border-radius: 12px; border-left: 4px solid ${statusColor}; border: 1px solid rgba(148, 163, 184, 0.1); margin-bottom: 15px;">
-                    <div style="font-weight: 600;">${cert.site_name}</div>
-                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px;">${cert.hostname}</div>
-                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                <div class="ssl-card" style="padding: 12px; background: rgba(30, 41, 59, 0.4); border-radius: 10px; border-left: 4px solid ${statusColor}; border: 1px solid rgba(148, 163, 184, 0.1); margin-bottom: 10px; overflow: hidden;">
+                    <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${cert.site_name}">${cert.site_name}</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${cert.hostname}">${cert.hostname}</div>
+                    <div style="display: flex; justify-content: space-between; font-size: 12px;">
                         <span>Term: ${days} days</span>
                         <span style="color: ${statusColor}">${days <= 0 ? '❌ Overdue' : '✅ Valid'}</span>
                     </div>
@@ -648,9 +648,113 @@ DASHBOARD_JS = """
             grid.innerHTML = html;
         }
 
-        function loadDashboard() {
+        let responseTimeData = [];
+        let incidentsData = [];
+
+        async function loadDashboard() {
             loadSites();
             loadSSLCertificates();
+            await loadResponseTimeStats();
+            await loadIncidents();
+        }
+
+        async function loadResponseTimeStats() {
+            try {
+                const response = await fetch('/api/stats/response-time');
+                responseTimeData = await response.json();
+                renderResponseTimeChart();
+            } catch(e) { console.error(e); }
+        }
+
+        function renderResponseTimeChart() {
+            const canvas = document.getElementById('responseTimeChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const data = responseTimeData;
+            
+            if (data.length === 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '14px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('Немає даних про час відповіді', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            canvas.width = canvas.parentElement?.clientWidth || 600;
+            canvas.height = 250;
+            
+            const maxTime = Math.max(...data.map(d => d.max_time), 100);
+            const barWidth = (canvas.width - 60) / data.length - 10;
+            const scale = (canvas.height - 60) / maxTime;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            data.forEach((item, i) => {
+                const x = 40 + i * (barWidth + 10);
+                const avgHeight = item.avg_time * scale;
+                const maxHeight = item.max_time * scale;
+                
+                ctx.fillStyle = 'rgba(0, 217, 255, 0.3)';
+                ctx.fillRect(x, canvas.height - 40 - maxHeight, barWidth, maxHeight);
+                
+                ctx.fillStyle = '#00d9ff';
+                ctx.fillRect(x, canvas.height - 40 - avgHeight, barWidth, avgHeight);
+                
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '10px Inter';
+                ctx.textAlign = 'center';
+                const name = item.site_name.length > 10 ? item.site_name.substring(0, 10) + '...' : item.site_name;
+                ctx.fillText(name, x + barWidth / 2, canvas.height - 10);
+                
+                ctx.fillStyle = '#00d9ff';
+                ctx.font = '11px Inter';
+                ctx.fillText(Math.round(item.avg_time) + 'ms', x + barWidth / 2, canvas.height - 45 - avgHeight);
+            });
+        }
+
+        async function loadIncidents() {
+            try {
+                const response = await fetch('/api/incidents');
+                incidentsData = await response.json();
+                renderIncidents();
+                updateIncidentsCount();
+            } catch(e) { console.error(e); }
+        }
+
+        function updateIncidentsCount() {
+            const el = document.querySelector('#tab-dashboard .hero-stat-value[style*="var(--warning)"]');
+            if (el) {
+                el.textContent = incidentsData.length;
+            }
+        }
+
+        function renderIncidents() {
+            const list = document.getElementById('incidentsList');
+            if (!list) return;
+            
+            if (incidentsData.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-secondary);">Немає інцидентів - всі монітори працюють!</div>';
+                return;
+            }
+            
+            let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+            incidentsData.forEach(inc => {
+                const date = new Date(inc.checked_at).toLocaleString('uk-UA');
+                html += `
+                <div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger); padding: 12px 16px; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600; color: var(--danger);">${inc.site_name}</span>
+                        <span style="font-size: 12px; color: var(--text-secondary);">${date}</span>
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                        Код: ${inc.status_code} | Час: ${inc.response_time ? Math.round(inc.response_time) + 'ms' : '—'}
+                    </div>
+                    ${inc.error_message ? `<div style="font-size: 12px; color: var(--warning); margin-top: 4px;">${inc.error_message}</div>` : ''}
+                </div>`;
+            });
+            html += '</div>';
+            list.innerHTML = html;
         }
 
         async function checkAllMonitors() {
@@ -754,21 +858,28 @@ DASHBOARD_JS = """
         }
 """
 
+
 def get_notification_cards_html(config):
     methods = [
         ("telegram", "📱", "Telegram", "Миттєві сповіщення", ["token", "chat_id"]),
         ("teams", "🏢", "MS Teams", "Робочі групи", ["webhook_url"]),
         ("discord", "🎮", "Discord", "Геймерські спільноти", ["webhook_url"]),
         ("slack", "💬", "Slack", "Корпоративний чат", ["webhook_url"]),
-        ("email", "📧", "Email", "Електронна пошта", ["smtp_server", "smtp_port", "username", "password", "to_email"]),
+        (
+            "email",
+            "📧",
+            "Email",
+            "Електронна пошта",
+            ["smtp_server", "smtp_port", "username", "password", "to_email"],
+        ),
     ]
-    
+
     html = ""
     for key, icon, name, desc, fields in methods:
         enabled = config.get(key, {}).get("enabled", False)
         enabled_class = "enabled" if enabled else ""
         checked = "checked" if enabled else ""
-        
+
         card = f"""
         <div class="notify-card {enabled_class}" id="card-{key}">
             <div class="notify-header">
@@ -782,26 +893,38 @@ def get_notification_cards_html(config):
                 </label>
             </div>
             <div class="notify-fields">"""
-        
+
         for field in fields:
             val = config.get(key, {}).get(field, "")
             card += f'<input type="text" id="{key}-{field}" placeholder="{field}" value="{val}">'
-        
+
         card += "</div></div>"
         html += card
     return html
 
-def get_dashboard_html(total_sites, up_sites, down_sites, notify_config_json, notification_cards):
+
+def get_dashboard_html(
+    total_sites, up_sites, down_sites, notify_config_json, notification_cards
+):
     return DASHBOARD_HTML.format(
         total_sites=total_sites,
         up_sites=up_sites,
         down_sites=down_sites,
         notify_config_json=notify_config_json,
         notification_cards=notification_cards,
-        js_functions=DASHBOARD_JS
+        js_functions=DASHBOARD_JS,
     )
 
-def get_public_status_html(overall_status_class, overall_status_text, total, up_count, down_count, monitors_html, timestamp):
+
+def get_public_status_html(
+    overall_status_class,
+    overall_status_text,
+    total,
+    up_count,
+    down_count,
+    monitors_html,
+    timestamp,
+):
     return PUBLIC_STATUS_HTML.format(
         overall_status_class=overall_status_class,
         overall_status_text=overall_status_text,
@@ -809,5 +932,5 @@ def get_public_status_html(overall_status_class, overall_status_text, total, up_
         up_count=up_count,
         down_count=down_count,
         monitors_html=monitors_html,
-        timestamp=timestamp
+        timestamp=timestamp,
     )
