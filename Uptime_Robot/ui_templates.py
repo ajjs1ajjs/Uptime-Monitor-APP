@@ -60,6 +60,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Uptime Monitor - Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏱️</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -208,10 +209,22 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         
         <div class="container">
             <div class="panel">
-                <div class="panel-title">📈 Час відповіді (24 години)</div>
-                <div class="chart-container">
-                    <canvas id="responseTimeChart"></canvas>
+                <div class="panel-title">📊 Monitors Timeline (24h)</div>
+                <div style="display: flex; align-items: flex-end; gap: 10px; margin-bottom: 10px; padding: 0 10px;">
+                    <div style="display: flex; gap: 4px; align-items: center; font-size: 10px;">
+                        <div style="width: 12px; height: 12px; background: #22c55e; border-radius: 2px;"></div>
+                        <span style="color: var(--text-secondary);">UP</span>
+                    </div>
+                    <div style="display: flex; gap: 4px; align-items: center; font-size: 10px;">
+                        <div style="width: 12px; height: 12px; background: #ef4444; border-radius: 2px;"></div>
+                        <span style="color: var(--text-secondary);">DOWN</span>
+                    </div>
+                    <div style="display: flex; gap: 4px; align-items: center; font-size: 10px;">
+                        <div style="width: 12px; height: 12px; background: #6b7280; border-radius: 2px;"></div>
+                        <span style="color: var(--text-secondary);">NO DATA</span>
+                    </div>
                 </div>
+                <div id="uptimeChartContainer" style="padding: 10px; max-height: 500px; overflow-y: auto;"></div>
             </div>
             
             <div class="panel">
@@ -525,6 +538,131 @@ DASHBOARD_JS = """
             document.getElementById('lastUpdate').innerText = 'Останнє оновлення: ' + new Date().toLocaleTimeString();
         }
 
+        async function loadUptimeChart() {
+            const container = document.getElementById('uptimeChartContainer');
+            if (!container) return;
+            
+            try {
+                const response = await fetch('/api/sites');
+                const sites = await response.json();
+                
+                if (sites.length === 0) {
+                    container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 40px;">Немає моніторів</div>';
+                    return;
+                }
+                
+                // Get current hour for "today" markers
+                const now = new Date();
+                const currentHour = now.getHours();
+                const chartWidth = Math.max(600, container.clientWidth - 200);
+                const chartHeight = 40;
+                
+                // Generate hour markers
+                const hourMarkers = [];
+                for (let h = 0; h <= 24; h += 4) {
+                    const x = (h / 24) * chartWidth;
+                    hourMarkers.push(`<div style="position: absolute; left: ${x}px; top: 0; bottom: 0; width: 1px; background: rgba(100,100,100,0.3);"></div>`);
+                    hourMarkers.push(`<div style="position: absolute; left: ${x - 15}px; bottom: -20px; font-size: 10px; color: var(--text-secondary);">${h.toString().padStart(2,'0')}:00</div>`);
+                }
+                
+                // Current time marker
+                const nowX = (currentHour / 24) * chartWidth;
+                
+                let siteCharts = '';
+                
+                for (const site of sites) {
+                    const historyRes = await fetch(`/api/sites/${site.id}/history?limit=200`);
+                    const history = await historyRes.json();
+                    
+                    // Group by hour
+                    const hourlyData = {};
+                    for (let h = 0; h < 24; h++) {
+                        hourlyData[h] = {up: 0, down: 0, slow: 0, total: 0};
+                    }
+                    
+                    history.forEach(h => {
+                        const checkTime = new Date(h.checked_at);
+                        const hour = checkTime.getHours();
+                        if (hourlyData[hour] !== undefined) {
+                            hourlyData[hour].total++;
+                            if (h.status === 'up') hourlyData[hour].up++;
+                            else if (h.status === 'down') hourlyData[hour].down++;
+                            else if (h.status === 'slow') hourlyData[hour].slow++;
+                        }
+                    });
+                    
+                    // Build timeline bars
+                    let timelineBars = '';
+                    let lastStatus = null;
+                    let downTimes = [];
+                    let upSince = null;
+                    
+                    for (let h = 0; h < 24; h++) {
+                        const data = hourlyData[h];
+                        const x = (h / 24) * chartWidth;
+                        const barWidth = (chartWidth / 24) - 2;
+                        
+                        let color = '#6b7280'; // no data
+                        let tooltip = 'Немає даних';
+                        
+                        if (data.total > 0) {
+                            const uptime = (data.up / data.total) * 100;
+                            if (uptime >= 90) {
+                                color = '#22c55e'; // up
+                                tooltip = `UP: ${data.up}/${data.total}`;
+                            } else if (uptime >= 50) {
+                                color = '#eab308'; // slow
+                                tooltip = `SLOW: ${data.slow}/${data.total}`;
+                            } else {
+                                color = '#ef4444'; // down
+                                tooltip = `DOWN: ${data.down}/${data.total}`;
+                            }
+                        }
+                        
+                        timelineBars += `<div style="position: absolute; left: ${x}px; width: ${barWidth}px; height: 100%; background: ${color}; border-radius: 2px; cursor: pointer;" title="${h}:00 - ${tooltip}"></div>`;
+                    }
+                    
+                    const statusColor = site.status === 'up' ? '#22c55e' : site.status === 'slow' ? '#eab308' : '#ef4444';
+                    const uptime = history.length > 0 ? (history.filter(h => h.status === 'up').length / history.length * 100).toFixed(1) : 0;
+                    
+                    siteCharts += `<div style="position: relative; padding: 10px 0; border-bottom: 1px solid var(--border);">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <div style="width: 10px; height: 10px; border-radius: 50%; background: ${statusColor}; box-shadow: 0 0 8px ${statusColor};"></div>
+                            <div style="flex: 1; min-width: 120px;">
+                                <div style="font-size: 13px; font-weight: 500; color: var(--text-primary);">${site.name}</div>
+                            </div>
+                            <div style="min-width: 60px; text-align: right;">
+                                <div style="font-size: 14px; font-weight: bold; color: ${uptime >= 99 ? '#22c55e' : uptime >= 95 ? '#eab308' : '#ef4444'};">${uptime}%</div>
+                            </div>
+                        </div>
+                        <div style="position: relative; height: ${chartHeight}px; background: rgba(30, 41, 59, 0.5); border-radius: 6px; overflow: hidden;">
+                            ${hourMarkers.join('')}
+                            <div style="position: absolute; left: ${nowX}px; top: 0; bottom: 0; width: 2px; background: #00d9ff; z-index: 10; box-shadow: 0 0 8px #00d9ff;"></div>
+                            ${timelineBars}
+                        </div>
+                    </div>`;
+                }
+                
+                // Time axis
+                const timeAxis = [];
+                for (let h = 0; h <= 24; h += 4) {
+                    timeAxis.push(`<div style="flex: 1; text-align: center; font-size: 10px; color: var(--text-secondary);">${h.toString().padStart(2,'0')}:00</div>`);
+                }
+                
+                container.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; padding: 0 10px;">
+                        ${timeAxis.join('')}
+                    </div>
+                    <div style="border-top: 1px solid var(--border); padding-top: 5px;">
+                        ${siteCharts || '<div style="color: var(--text-secondary); padding: 20px; text-align: center;">Немає даних</div>'}
+                    </div>
+                `;
+            } catch(e) { 
+                console.error(e); 
+                container.innerHTML = '<div style="color: var(--text-secondary); padding: 40px;">Помилка завантаження</div>';
+            }
+        }
+
         function renderMonitors() {
             const grid = document.getElementById('dashboardMonitors');
             if (!grid) return;
@@ -561,7 +699,7 @@ DASHBOARD_JS = """
                     </div>
                     <div class="monitor-actions">
                         <button class="btn btn-check" onclick="checkSite(${site.id})">Check</button>
-                        <button class="btn btn-edit" onclick="openEditModal(${site.id}, '${safeName}', '${safeUrl}', ${JSON.stringify(site.notify_methods || [])})">Edit</button>
+                        <button class="btn btn-edit" onclick="openEditModal(${site.id}, '${safeName}', '${encodeURIComponent(safeUrl)}', ${JSON.stringify(site.notify_methods || [])})">Edit</button>
                         <button class="btn btn-delete" onclick="deleteSite(${site.id})">Delete</button>
                     </div>
                 </div>`;
@@ -590,7 +728,7 @@ DASHBOARD_JS = """
             document.getElementById('tab-' + tabId).classList.add('active');
             document.querySelector(`.tab-btn[onclick="switchTab('${tabId}')"]`).classList.add('active');
             
-            if (tabId === 'dashboard') loadSites();
+            if (tabId === 'dashboard') { loadSites(); loadUptimeChart(); }
             if (tabId === 'ssl') loadSSLCertificates();
         }
 
@@ -655,6 +793,7 @@ DASHBOARD_JS = """
 
         async function loadDashboard() {
             loadSites();
+            loadUptimeChart();
             loadSSLCertificates();
             await loadResponseTimeStats();
             await loadIncidents();
@@ -828,7 +967,7 @@ DASHBOARD_JS = """
         function openEditModal(id, name, url, notifyMethods) {
             document.getElementById('editSiteId').value = id;
             document.getElementById('editSiteName').value = name;
-            document.getElementById('editSiteUrl').value = url;
+            document.getElementById('editSiteUrl').value = decodeURIComponent(url);
             const select = document.getElementById('editSiteNotify');
             if (select) Array.from(select.options).forEach(opt => { opt.selected = notifyMethods.includes(opt.value); });
             document.getElementById('editModal').classList.add('active');

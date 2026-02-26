@@ -413,6 +413,26 @@ async def get_sites(user: dict = Depends(get_current_user)):
     return result
 
 
+@app.get("/api/sites/{site_id}/history")
+async def get_site_history(site_id: int, limit: int = 50):
+    """Get status history for a site (for status bars chart)"""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute(
+            "SELECT status, status_code, checked_at FROM status_history WHERE site_id = ? ORDER BY checked_at DESC LIMIT ?",
+            (site_id, limit),
+        )
+        history = c.fetchall()
+    return [
+        {
+            "status": h["status"],
+            "status_code": h["status_code"],
+            "checked_at": h["checked_at"],
+        }
+        for h in history
+    ]
+
+
 @app.post("/api/sites")
 async def add_site(site: SiteCreate, user: dict = Depends(get_current_user)):
     if not user:
