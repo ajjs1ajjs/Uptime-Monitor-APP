@@ -30,11 +30,25 @@ NOTIFY_SETTINGS = {
     "teams": {"enabled": False, "webhook_url": ""},
     "discord": {"enabled": False, "webhook_url": ""},
     "slack": {"enabled": False, "webhook_url": ""},
-    "email": {"enabled": False, "smtp_server": "", "smtp_port": 587, "username": "", "password": "", "to_email": ""},
-    "sms": {"enabled": False, "account_sid": "", "auth_token": "", "from_number": "", "to_number": ""},
+    "email": {
+        "enabled": False,
+        "smtp_server": "",
+        "smtp_port": 587,
+        "username": "",
+        "password": "",
+        "to_email": "",
+    },
+    "sms": {
+        "enabled": False,
+        "account_sid": "",
+        "auth_token": "",
+        "from_number": "",
+        "to_number": "",
+    },
 }
 
 app = FastAPI(title="Uptime Monitor Service")
+
 
 # Database functions
 def get_db_connection():
@@ -42,10 +56,11 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS sites (
+    c.execute("""CREATE TABLE IF NOT EXISTS sites (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         url TEXT NOT NULL UNIQUE,
@@ -53,8 +68,8 @@ def init_db():
         is_active BOOLEAN DEFAULT 1,
         last_notification TEXT,
         notify_methods TEXT DEFAULT '[]'
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS status_history (
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS status_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         site_id INTEGER,
         status TEXT,
@@ -63,12 +78,12 @@ def init_db():
         error_message TEXT,
         checked_at TEXT,
         FOREIGN KEY (site_id) REFERENCES sites(id)
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS notify_config (
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS notify_config (
         id INTEGER PRIMARY KEY,
         config TEXT
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS ssl_certificates (
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS ssl_certificates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         site_id INTEGER,
         hostname TEXT,
@@ -81,11 +96,13 @@ def init_db():
         last_notified TEXT,
         last_checked TEXT,
         FOREIGN KEY (site_id) REFERENCES sites(id)
-    )''')
+    )""")
     conn.commit()
     conn.close()
 
+
 init_db()
+
 
 # Pydantic models
 class Site(BaseModel):
@@ -95,6 +112,7 @@ class Site(BaseModel):
     check_interval: int = 60
     is_active: bool = True
 
+
 class SiteCreate(BaseModel):
     name: str
     url: str
@@ -102,11 +120,13 @@ class SiteCreate(BaseModel):
     is_active: bool = True
     notify_methods: Optional[List[str]] = []
 
+
 class SiteUpdate(BaseModel):
     name: Optional[str] = None
     url: Optional[str] = None
     notify_methods: Optional[List[str]] = None
     is_active: Optional[bool] = None
+
 
 class NotifySettings(BaseModel):
     telegram: Optional[dict] = None
@@ -115,6 +135,7 @@ class NotifySettings(BaseModel):
     slack: Optional[dict] = None
     email: Optional[dict] = None
     sms: Optional[dict] = None
+
 
 # Load notification settings
 def load_notify_settings():
@@ -125,9 +146,11 @@ def load_notify_settings():
     conn.close()
     if row:
         global NOTIFY_SETTINGS
-        NOTIFY_SETTINGS = json.loads(row['config'])
+        NOTIFY_SETTINGS = json.loads(row["config"])
+
 
 load_notify_settings()
+
 
 # Notification functions
 async def send_notification(message: str, methods: List[str]):
@@ -148,6 +171,7 @@ async def send_notification(message: str, methods: List[str]):
     if tasks:
         await asyncio.gather(*tasks, return_exceptions=True)
 
+
 async def send_telegram(message: str):
     settings = NOTIFY_SETTINGS["telegram"]
     if not settings.get("token") or not settings.get("chat_id"):
@@ -155,9 +179,17 @@ async def send_telegram(message: str):
     try:
         url = f"https://api.telegram.org/bot{settings['token']}/sendMessage"
         async with aiohttp.ClientSession() as session:
-            await session.post(url, json={"chat_id": settings['chat_id'], "text": message, "parse_mode": "HTML"})
+            await session.post(
+                url,
+                json={
+                    "chat_id": settings["chat_id"],
+                    "text": message,
+                    "parse_mode": "HTML",
+                },
+            )
     except Exception as e:
         print(f"Telegram error: {e}")
+
 
 async def send_teams(message: str):
     settings = NOTIFY_SETTINGS["teams"]
@@ -166,9 +198,10 @@ async def send_teams(message: str):
     try:
         payload = {"text": message}
         async with aiohttp.ClientSession() as session:
-            await session.post(settings['webhook_url'], json=payload)
+            await session.post(settings["webhook_url"], json=payload)
     except Exception as e:
         print(f"Teams error: {e}")
+
 
 async def send_discord(message: str):
     settings = NOTIFY_SETTINGS["discord"]
@@ -177,9 +210,10 @@ async def send_discord(message: str):
     try:
         payload = {"content": message}
         async with aiohttp.ClientSession() as session:
-            await session.post(settings['webhook_url'], json=payload)
+            await session.post(settings["webhook_url"], json=payload)
     except Exception as e:
         print(f"Discord error: {e}")
+
 
 async def send_slack(message: str):
     settings = NOTIFY_SETTINGS["slack"]
@@ -188,30 +222,48 @@ async def send_slack(message: str):
     try:
         payload = {"text": message}
         async with aiohttp.ClientSession() as session:
-            await session.post(settings['webhook_url'], json=payload)
+            await session.post(settings["webhook_url"], json=payload)
     except Exception as e:
         print(f"Slack error: {e}")
 
+
 async def send_email(message: str):
     settings = NOTIFY_SETTINGS["email"]
-    if not all([settings.get("smtp_server"), settings.get("username"), settings.get("password"), settings.get("to_email")]):
+    if not all(
+        [
+            settings.get("smtp_server"),
+            settings.get("username"),
+            settings.get("password"),
+            settings.get("to_email"),
+        ]
+    ):
         return
     try:
         msg = MIMEText(message, "plain", "utf-8")
         msg["Subject"] = "Uptime Alert"
         msg["From"] = settings["username"]
         msg["To"] = settings["to_email"]
-        
-        with smtplib.SMTP(settings["smtp_server"], settings.get("smtp_port", 587)) as server:
+
+        with smtplib.SMTP(
+            settings["smtp_server"], settings.get("smtp_port", 587)
+        ) as server:
             server.starttls()
             server.login(settings["username"], settings["password"])
             server.send_message(msg)
     except Exception as e:
         print(f"Email error: {e}")
 
+
 async def send_sms(message: str):
     settings = NOTIFY_SETTINGS["sms"]
-    if not all([settings.get("account_sid"), settings.get("auth_token"), settings.get("from_number"), settings.get("to_number")]):
+    if not all(
+        [
+            settings.get("account_sid"),
+            settings.get("auth_token"),
+            settings.get("from_number"),
+            settings.get("to_number"),
+        ]
+    ):
         return
     try:
         url = f"https://api.twilio.com/2010-04-01/Accounts/{settings['account_sid']}/Messages.json"
@@ -219,12 +271,13 @@ async def send_sms(message: str):
         payload = {
             "From": settings["from_number"],
             "To": settings["to_number"],
-            "Body": message[:1600]
+            "Body": message[:1600],
         }
         async with aiohttp.ClientSession() as session:
             await session.post(url, data=payload, auth=auth)
     except Exception as e:
         print(f"SMS error: {e}")
+
 
 # Site checking functions
 async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
@@ -233,12 +286,19 @@ async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
     status_code = None
     response_time = None
     error_message = None
-    
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers=headers, allow_redirects=True) as response:
+            async with session.get(
+                url,
+                timeout=aiohttp.ClientTimeout(total=15),
+                headers=headers,
+                allow_redirects=True,
+            ) as response:
                 status_code = response.status
                 response_time = (datetime.now() - start_time).total_seconds() * 1000
                 status = "up" if status_code < 500 else "down"
@@ -248,94 +308,117 @@ async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
         error_message = "Timeout"
     except Exception as e:
         error_message = str(e)[:100]
-    
+
     checked_at = datetime.now().isoformat()
-    
+
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT name, last_notification FROM sites WHERE id = ?", (site_id,))
     site = c.fetchone()
-    
-    c.execute("""INSERT INTO status_history (site_id, status, status_code, response_time, error_message, checked_at)
+
+    c.execute(
+        """INSERT INTO status_history (site_id, status, status_code, response_time, error_message, checked_at)
                  VALUES (?, ?, ?, ?, ?, ?)""",
-              (site_id, status, status_code, round(response_time, 2) if response_time else None, error_message, checked_at))
-    
+        (
+            site_id,
+            status,
+            status_code,
+            round(response_time, 2) if response_time else None,
+            error_message,
+            checked_at,
+        ),
+    )
+
     # Очищення старих записів (старші за 30 днів)
-    c.execute("DELETE FROM status_history WHERE checked_at < datetime('now', '-30 days')")
-    
+    c.execute(
+        "DELETE FROM status_history WHERE checked_at < datetime('now', '-30 days')"
+    )
+
     conn.commit()
-    
+
     if status == "down" and site and notify_methods:
         now = datetime.now()
         should_notify = True
-        if site['last_notification']:
-            last_notif = datetime.fromisoformat(site['last_notification'])
+        if site["last_notification"]:
+            last_notif = datetime.fromisoformat(site["last_notification"])
             if (now - last_notif).total_seconds() < 300:
                 should_notify = False
-        
+
         if should_notify:
             msg = f"🔴 {site['name']}\n🌐 {url}\nStatus: {status_code or 'N/A'}\nError: {error_message or 'None'}\nTime: {checked_at}"
             await send_notification(msg, notify_methods)
-            
-            c.execute("UPDATE sites SET last_notification = ? WHERE id = ?", (checked_at, site_id))
+
+            c.execute(
+                "UPDATE sites SET last_notification = ? WHERE id = ?",
+                (checked_at, site_id),
+            )
             conn.commit()
-    
+
     conn.close()
     return status, status_code, response_time, error_message
 
+
 async def check_site_certificate(site_id: int, url: str, notify_methods: List[str]):
-    if not url.startswith('https://'):
+    if not url.startswith("https://"):
         return
-    
+
     cert_info = await check_ssl_certificate(url)
     if not cert_info:
         return
-    
+
     conn = get_db_connection()
     c = conn.cursor()
-    
+
     c.execute("SELECT name FROM sites WHERE id = ?", (site_id,))
     site = c.fetchone()
-    site_name = site['name'] if site else url
-    
-    c.execute("""
+    site_name = site["name"] if site else url
+
+    c.execute(
+        """
         INSERT OR REPLACE INTO ssl_certificates 
         (site_id, hostname, issuer, subject, start_date, expire_date, days_until_expire, is_valid, last_checked)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        site_id,
-        cert_info['hostname'],
-        cert_info['issuer'],
-        cert_info['subject'],
-        cert_info['start_date'],
-        cert_info['expire_date'],
-        cert_info['days_until_expire'],
-        cert_info['is_valid'],
-        cert_info['checked_at']
-    ))
+    """,
+        (
+            site_id,
+            cert_info["hostname"],
+            cert_info["issuer"],
+            cert_info["subject"],
+            cert_info["start_date"],
+            cert_info["expire_date"],
+            cert_info["days_until_expire"],
+            cert_info["is_valid"],
+            cert_info["checked_at"],
+        ),
+    )
     conn.commit()
-    
-    days = cert_info['days_until_expire']
-    
+
+    days = cert_info["days_until_expire"]
+
     if days <= 14:
-        c.execute("SELECT last_notified FROM ssl_certificates WHERE site_id = ?", (site_id,))
+        c.execute(
+            "SELECT last_notified FROM ssl_certificates WHERE site_id = ?", (site_id,)
+        )
         row = c.fetchone()
-        
+
         should_notify = True
-        if row and row['last_notified']:
-            last_notif = datetime.fromisoformat(row['last_notified'])
+        if row and row["last_notified"]:
+            last_notif = datetime.fromisoformat(row["last_notified"])
             if (datetime.now() - last_notif).total_seconds() < 86400:
                 should_notify = False
-        
+
         if should_notify and notify_methods:
             msg = format_certificate_alert(cert_info, site_name, url)
             await send_notification(msg, notify_methods)
-            
-            c.execute("UPDATE ssl_certificates SET last_notified = ? WHERE site_id = ?", 
-                     (datetime.now().isoformat(), site_id))
+
+            c.execute(
+                "UPDATE ssl_certificates SET last_notified = ? WHERE site_id = ?",
+                (datetime.now().isoformat(), site_id),
+            )
             conn.commit()
-    
+
     conn.close()
+
 
 # Background monitoring task
 async def monitor_loop():
@@ -346,17 +429,22 @@ async def monitor_loop():
             c.execute("SELECT id, url, notify_methods FROM sites WHERE is_active = 1")
             sites = c.fetchall()
             conn.close()
-            
+
             for site in sites:
-                notify_methods = json.loads(site['notify_methods']) if site['notify_methods'] else []
-                await check_site_status(site['id'], site['url'], notify_methods)
-                if site['url'].startswith('https://'):
-                    await check_site_certificate(site['id'], site['url'], notify_methods)
+                notify_methods = (
+                    json.loads(site["notify_methods"]) if site["notify_methods"] else []
+                )
+                await check_site_status(site["id"], site["url"], notify_methods)
+                if site["url"].startswith("https://"):
+                    await check_site_certificate(
+                        site["id"], site["url"], notify_methods
+                    )
                 await asyncio.sleep(1)
         except Exception as e:
             print(f"Monitor error: {e}")
-        
+
         await asyncio.sleep(CHECK_INTERVAL)
+
 
 # API Endpoints
 @app.get("/", response_class=HTMLResponse)
@@ -365,37 +453,47 @@ async def dashboard():
     c = conn.cursor()
     c.execute("SELECT * FROM sites ORDER BY id")
     sites = c.fetchall()
-    
+
     site_data = []
     for site in sites:
-        c.execute("SELECT * FROM status_history WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1", (site['id'],))
+        c.execute(
+            "SELECT * FROM status_history WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1",
+            (site["id"],),
+        )
         last_status = c.fetchone()
-        
-        c.execute("SELECT COUNT(*) as total, SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) as up_count FROM status_history WHERE site_id = ?", (site['id'],))
+
+        c.execute(
+            "SELECT COUNT(*) as total, SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) as up_count FROM status_history WHERE site_id = ?",
+            (site["id"],),
+        )
         stats = c.fetchone()
-        uptime = (stats['up_count'] / stats['total'] * 100) if stats['total'] > 0 else 0
-        
-        notify_methods = json.loads(site['notify_methods']) if site['notify_methods'] else []
-        
-        site_data.append({
-            'id': site['id'],
-            'name': site['name'],
-            'url': site['url'],
-            'is_active': site['is_active'],
-            'status': last_status['status'] if last_status else 'unknown',
-            'status_code': last_status['status_code'] if last_status else None,
-            'response_time': last_status['response_time'] if last_status else None,
-            'error_message': last_status['error_message'] if last_status else None,
-            'last_checked': last_status['checked_at'] if last_status else None,
-            'uptime': round(uptime, 2),
-            'notify_methods': notify_methods
-        })
+        uptime = (stats["up_count"] / stats["total"] * 100) if stats["total"] > 0 else 0
+
+        notify_methods = (
+            json.loads(site["notify_methods"]) if site["notify_methods"] else []
+        )
+
+        site_data.append(
+            {
+                "id": site["id"],
+                "name": site["name"],
+                "url": site["url"],
+                "is_active": site["is_active"],
+                "status": last_status["status"] if last_status else "unknown",
+                "status_code": last_status["status_code"] if last_status else None,
+                "response_time": last_status["response_time"] if last_status else None,
+                "error_message": last_status["error_message"] if last_status else None,
+                "last_checked": last_status["checked_at"] if last_status else None,
+                "uptime": round(uptime, 2),
+                "notify_methods": notify_methods,
+            }
+        )
     conn.close()
-    
+
     total_sites = len(site_data)
-    up_sites = sum(1 for s in site_data if s['status'] == 'up')
-    down_sites = sum(1 for s in site_data if s['status'] == 'down')
-    
+    up_sites = sum(1 for s in site_data if s["status"] == "up")
+    down_sites = sum(1 for s in site_data if s["status"] == "down")
+
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -403,10 +501,10 @@ async def dashboard():
         s.close()
     except:
         local_ip = "127.0.0.1"
-    
+
     notify_config_json = json.dumps(NOTIFY_SETTINGS)
-    
-    html = f'''<!DOCTYPE html>
+
+    html = f"""<!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
@@ -667,7 +765,7 @@ async def dashboard():
     </div>
     
     <script>
-        const notifyConfig = {notify_config_json};
+        const notifyConfig = {{}};
         
         function initNotifyUI() {{
             ['telegram', 'teams', 'discord', 'slack', 'email', 'sms'].forEach(method => {{
@@ -832,8 +930,9 @@ async def dashboard():
         setInterval(loadSites, 30000);
     </script>
 </body>
-</html>'''
+</html>"""
     return html
+
 
 @app.get("/api/sites")
 async def get_sites():
@@ -841,33 +940,44 @@ async def get_sites():
     c = conn.cursor()
     c.execute("SELECT * FROM sites ORDER BY id")
     sites = c.fetchall()
-    
+
     result = []
     for site in sites:
-        c.execute("SELECT * FROM status_history WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1", (site['id'],))
+        c.execute(
+            "SELECT * FROM status_history WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1",
+            (site["id"],),
+        )
         last_status = c.fetchone()
-        
-        c.execute("SELECT COUNT(*) as total, SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) as up_count FROM status_history WHERE site_id = ?", (site['id'],))
+
+        c.execute(
+            "SELECT COUNT(*) as total, SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) as up_count FROM status_history WHERE site_id = ?",
+            (site["id"],),
+        )
         stats = c.fetchone()
-        uptime = (stats['up_count'] / stats['total'] * 100) if stats['total'] > 0 else 0
-        
-        notify_methods = json.loads(site['notify_methods']) if site['notify_methods'] else []
-        
-        result.append({
-            'id': site['id'],
-            'name': site['name'],
-            'url': site['url'],
-            'is_active': site['is_active'],
-            'status': last_status['status'] if last_status else 'unknown',
-            'status_code': last_status['status_code'] if last_status else None,
-            'response_time': last_status['response_time'] if last_status else None,
-            'error_message': last_status['error_message'] if last_status else None,
-            'last_checked': last_status['checked_at'] if last_status else None,
-            'uptime': round(uptime, 2),
-            'notify_methods': notify_methods
-        })
+        uptime = (stats["up_count"] / stats["total"] * 100) if stats["total"] > 0 else 0
+
+        notify_methods = (
+            json.loads(site["notify_methods"]) if site["notify_methods"] else []
+        )
+
+        result.append(
+            {
+                "id": site["id"],
+                "name": site["name"],
+                "url": site["url"],
+                "is_active": site["is_active"],
+                "status": last_status["status"] if last_status else "unknown",
+                "status_code": last_status["status_code"] if last_status else None,
+                "response_time": last_status["response_time"] if last_status else None,
+                "error_message": last_status["error_message"] if last_status else None,
+                "last_checked": last_status["checked_at"] if last_status else None,
+                "uptime": round(uptime, 2),
+                "notify_methods": notify_methods,
+            }
+        )
     conn.close()
     return result
+
 
 @app.post("/api/sites")
 async def add_site(site: SiteCreate):
@@ -876,8 +986,10 @@ async def add_site(site: SiteCreate):
     notify_methods = site.notify_methods or []
     notify_json = json.dumps(notify_methods)
     try:
-        c.execute("INSERT INTO sites (name, url, check_interval, is_active, notify_methods) VALUES (?, ?, ?, ?, ?)",
-                  (site.name, site.url, site.check_interval, site.is_active, notify_json))
+        c.execute(
+            "INSERT INTO sites (name, url, check_interval, is_active, notify_methods) VALUES (?, ?, ?, ?, ?)",
+            (site.name, site.url, site.check_interval, site.is_active, notify_json),
+        )
         site_id = c.lastrowid
         conn.commit()
     except sqlite3.IntegrityError:
@@ -889,14 +1001,15 @@ async def add_site(site: SiteCreate):
     await check_site_status(site_id, site.url, notify_methods)
     return {"id": site_id, "message": "Site added"}
 
+
 @app.put("/api/sites/{site_id}")
 async def update_site(site_id: int, site_update: SiteUpdate):
     conn = get_db_connection()
     c = conn.cursor()
-    
+
     # Список дозволених колонок для оновлення
-    allowed_columns = {'name', 'url', 'notify_methods', 'is_active'}
-    
+    allowed_columns = {"name", "url", "notify_methods", "is_active"}
+
     updates = []
     params = []
     if site_update.name is not None:
@@ -911,21 +1024,24 @@ async def update_site(site_id: int, site_update: SiteUpdate):
     if site_update.is_active is not None:
         updates.append("is_active = ?")
         params.append(site_update.is_active)
-    
+
     if updates:
         # Перевіряємо що всі колонки дозволені (захист від SQL Injection)
         for update in updates:
-            col_name = update.split('=')[0].strip()
+            col_name = update.split("=")[0].strip()
             if col_name not in allowed_columns:
                 conn.close()
-                raise HTTPException(status_code=400, detail=f"Invalid column: {col_name}")
-        
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid column: {col_name}"
+                )
+
         params.append(site_id)
         c.execute(f"UPDATE sites SET {', '.join(updates)} WHERE id = ?", params)
         conn.commit()
-    
+
     conn.close()
     return {"message": "Site updated"}
+
 
 @app.delete("/api/sites/{site_id}")
 async def delete_site(site_id: int):
@@ -938,6 +1054,7 @@ async def delete_site(site_id: int):
     conn.close()
     return {"message": "Site deleted"}
 
+
 @app.post("/api/sites/{site_id}/check")
 async def check_site_endpoint(site_id: int):
     conn = get_db_connection()
@@ -945,13 +1062,16 @@ async def check_site_endpoint(site_id: int):
     c.execute("SELECT url, notify_methods FROM sites WHERE id = ?", (site_id,))
     site = c.fetchone()
     conn.close()
-    
+
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
-    
-    notify_methods = json.loads(site['notify_methods']) if site['notify_methods'] else []
-    await check_site_status(site_id, site['url'], notify_methods)
+
+    notify_methods = (
+        json.loads(site["notify_methods"]) if site["notify_methods"] else []
+    )
+    await check_site_status(site_id, site["url"], notify_methods)
     return {"message": "Check completed"}
+
 
 @app.post("/api/notify-settings")
 async def save_notify_settings(settings: NotifySettings):
@@ -968,130 +1088,154 @@ async def save_notify_settings(settings: NotifySettings):
         NOTIFY_SETTINGS["email"] = settings.email
     if settings.sms:
         NOTIFY_SETTINGS["sms"] = settings.sms
-    
+
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO notify_config (id, config) VALUES (1, ?)", (json.dumps(NOTIFY_SETTINGS),))
+    c.execute(
+        "INSERT OR REPLACE INTO notify_config (id, config) VALUES (1, ?)",
+        (json.dumps(NOTIFY_SETTINGS),),
+    )
     conn.commit()
     conn.close()
     return {"message": "Settings saved"}
+
 
 # Windows Service Class
 class UptimeMonitorService(win32serviceutil.ServiceFramework):
     _svc_name_ = "UptimeMonitor"
     _svc_display_name_ = "Uptime Monitor Service"
     _svc_description_ = "Website uptime monitoring service with web interface"
-    
+
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
         self.running = False
-    
+
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.stop_event)
         self.running = False
-    
+
     def SvcDoRun(self):
-        servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
-                              servicemanager.PYS_SERVICE_STARTED,
-                              (self._svc_name_, ''))
+        servicemanager.LogMsg(
+            servicemanager.EVENTLOG_INFORMATION_TYPE,
+            servicemanager.PYS_SERVICE_STARTED,
+            (self._svc_name_, ""),
+        )
         self.running = True
         self.main()
-    
+
     def main(self):
         import threading
         import time
-        
+
         def run_async_server():
             """Run the async server in a separate thread"""
             try:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                
+
                 # Start background monitoring
                 asyncio.ensure_future(monitor_loop())
-                
+
                 # Configure and start uvicorn
-                config = uvicorn.Config(app, host="0.0.0.0", port=DEFAULT_PORT, log_level="info")
+                config = uvicorn.Config(
+                    app, host="0.0.0.0", port=DEFAULT_PORT, log_level="info"
+                )
                 server = uvicorn.Server(config)
-                
+
                 loop.run_until_complete(server.serve())
             except Exception as e:
                 servicemanager.LogErrorMsg(f"Server error: {str(e)}")
-        
+
         try:
             # Report that service is starting (give 30 seconds to start)
             self.ReportServiceStatus(win32service.SERVICE_START_PENDING, waitHint=30000)
-            
+
             # Start server in background thread
             server_thread = threading.Thread(target=run_async_server)
             server_thread.daemon = True
             server_thread.start()
-            
+
             # Give the server time to start
             time.sleep(3)
-            
+
             # Report that service is running
             self.ReportServiceStatus(win32service.SERVICE_RUNNING)
-            
+
             # Wait for stop event (check every second)
             while True:
                 rc = win32event.WaitForSingleObject(self.stop_event, 1000)
                 if rc == win32event.WAIT_OBJECT_0:
                     break
-                    
+
         except Exception as e:
             servicemanager.LogErrorMsg(f"UptimeMonitor error: {str(e)}")
             import traceback
+
             servicemanager.LogErrorMsg(traceback.format_exc())
+
 
 def install_service():
     """Install the service"""
     try:
         # Install service - pass the executable path and service class name as string
         # When running as compiled EXE, we need to handle this differently
-        exe_path = sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]
-        
+        exe_path = sys.executable if getattr(sys, "frozen", False) else sys.argv[0]
+
         # For pyinstaller EXE, use the HandleCommandLine method
         # which properly registers the service
-        win32serviceutil.HandleCommandLine(UptimeMonitorService, argv=[exe_path, 'install'])
-        
+        win32serviceutil.HandleCommandLine(
+            UptimeMonitorService, argv=[exe_path, "install"]
+        )
+
         # Set service to auto-start
         try:
             import winreg
+
             key = winreg.OpenKey(
                 winreg.HKEY_LOCAL_MACHINE,
                 f"SYSTEM\CurrentControlSet\Services\{UptimeMonitorService._svc_name_}",
                 0,
-                winreg.KEY_SET_VALUE
+                winreg.KEY_SET_VALUE,
             )
             winreg.SetValueEx(key, "Start", 0, winreg.REG_DWORD, 2)  # 2 = Auto
             winreg.CloseKey(key)
         except:
             pass
-        
-        print(f"✅ Service '{UptimeMonitorService._svc_display_name_}' installed successfully!")
+
+        print(
+            f"✅ Service '{UptimeMonitorService._svc_display_name_}' installed successfully!"
+        )
         print(f"   Name: {UptimeMonitorService._svc_name_}")
         print(f"   Auto-start: Enabled")
-        print(f"\nTo start the service, run: net start {UptimeMonitorService._svc_name_}")
+        print(
+            f"\nTo start the service, run: net start {UptimeMonitorService._svc_name_}"
+        )
         return True
     except Exception as e:
         print(f"❌ Error installing service: {e}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 def remove_service():
     """Remove the service"""
     try:
-        exe_path = sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]
-        win32serviceutil.HandleCommandLine(UptimeMonitorService, argv=[exe_path, 'remove'])
-        print(f"✅ Service '{UptimeMonitorService._svc_display_name_}' removed successfully!")
+        exe_path = sys.executable if getattr(sys, "frozen", False) else sys.argv[0]
+        win32serviceutil.HandleCommandLine(
+            UptimeMonitorService, argv=[exe_path, "remove"]
+        )
+        print(
+            f"✅ Service '{UptimeMonitorService._svc_display_name_}' removed successfully!"
+        )
         return True
     except Exception as e:
         print(f"❌ Error removing service: {e}")
         return False
+
 
 def start_service():
     """Start the service"""
@@ -1104,6 +1248,7 @@ def start_service():
         print(f"❌ Error starting service: {e}")
         return False
 
+
 def stop_service():
     """Stop the service"""
     try:
@@ -1114,6 +1259,7 @@ def stop_service():
         print(f"❌ Error stopping service: {e}")
         return False
 
+
 def run_console():
     """Run in console mode (not as service)"""
     print("=" * 50)
@@ -1123,39 +1269,42 @@ def run_console():
     print(f"Access: http://localhost:{DEFAULT_PORT}")
     print("Press Ctrl+C to stop")
     print("=" * 50)
-    
+
     async def main():
         # Start background monitoring
         asyncio.create_task(monitor_loop())
-        
-        config = uvicorn.Config(app, host="0.0.0.0", port=DEFAULT_PORT, log_level="info")
+
+        config = uvicorn.Config(
+            app, host="0.0.0.0", port=DEFAULT_PORT, log_level="info"
+        )
         server = uvicorn.Server(config)
         await server.serve()
-    
+
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\nShutting down...")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     if len(sys.argv) == 1:
         # No arguments - run as console application
         run_console()
     else:
         # Handle service commands
         cmd = sys.argv[1].lower()
-        if cmd == 'install':
+        if cmd == "install":
             install_service()
-        elif cmd == 'remove':
+        elif cmd == "remove":
             remove_service()
-        elif cmd == 'start':
+        elif cmd == "start":
             start_service()
-        elif cmd == 'stop':
+        elif cmd == "stop":
             stop_service()
-        elif cmd == 'restart':
+        elif cmd == "restart":
             stop_service()
             start_service()
-        elif cmd == 'console':
+        elif cmd == "console":
             run_console()
         else:
             # Let pywin32 handle service commands

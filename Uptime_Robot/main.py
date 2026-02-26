@@ -6,7 +6,7 @@ import ssl as ssl_module
 from datetime import datetime
 
 # Windows-specific imports (only on Windows)
-IS_WINDOWS = sys.platform == 'win32'
+IS_WINDOWS = sys.platform == "win32"
 if IS_WINDOWS:
     import win32service
     import win32serviceutil
@@ -15,7 +15,7 @@ if IS_WINDOWS:
     import servicemanager
 
 # Get the application directory (works for both script and compiled EXE)
-if getattr(sys, 'frozen', False):
+if getattr(sys, "frozen", False):
     # Running as compiled EXE
     APP_DIR = os.path.dirname(sys.executable)
 else:
@@ -23,17 +23,15 @@ else:
     APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Configuration paths
-CONFIG_PATH = os.environ.get('CONFIG_PATH', '/etc/uptime-monitor/config.json')
+CONFIG_PATH = os.environ.get("CONFIG_PATH", "/etc/uptime-monitor/config.json")
 if not os.path.exists(CONFIG_PATH) and IS_WINDOWS:
-    CONFIG_PATH = os.path.join(os.environ.get('USERPROFILE', APP_DIR), 'UptimeMonitor', 'config.json')
+    CONFIG_PATH = os.path.join(
+        os.environ.get("USERPROFILE", APP_DIR), "UptimeMonitor", "config.json"
+    )
 
 # Default configuration
 DEFAULT_CONFIG = {
-    "server": {
-        "port": 8080,
-        "host": "0.0.0.0",
-        "domain": "auto"
-    },
+    "server": {"port": 8080, "host": "0.0.0.0", "domain": "auto"},
     "ssl": {
         "enabled": False,
         "type": "custom",
@@ -41,10 +39,14 @@ DEFAULT_CONFIG = {
         "key_path": "/etc/uptime-monitor/ssl/key.pem",
         "redirect_http": True,
         "hsts": True,
-        "hsts_max_age": 31536000
+        "hsts_max_age": 31536000,
     },
-    "data_dir": "/var/lib/uptime-monitor" if not IS_WINDOWS else os.path.join(os.environ.get('USERPROFILE', ''), 'UptimeMonitor', 'data'),
-    "log_dir": "/var/log/uptime-monitor" if not IS_WINDOWS else os.path.join(os.environ.get('USERPROFILE', ''), 'UptimeMonitor', 'logs'),
+    "data_dir": "/var/lib/uptime-monitor"
+    if not IS_WINDOWS
+    else os.path.join(os.environ.get("USERPROFILE", ""), "UptimeMonitor", "data"),
+    "log_dir": "/var/log/uptime-monitor"
+    if not IS_WINDOWS
+    else os.path.join(os.environ.get("USERPROFILE", ""), "UptimeMonitor", "logs"),
     "check_interval": 60,
     "notifications": {
         "email_enabled": False,
@@ -52,14 +54,19 @@ DEFAULT_CONFIG = {
         "email_smtp_port": 587,
         "email_username": "",
         "email_password": "",
-        "email_to": ""
+        "email_to": "",
     },
     "backup": {
         "enabled": True,
         "max_backups": 10,
-        "backup_dir": "/etc/uptime-monitor/config.backups" if not IS_WINDOWS else os.path.join(os.environ.get('USERPROFILE', ''), 'UptimeMonitor', 'config.backups')
-    }
+        "backup_dir": "/etc/uptime-monitor/config.backups"
+        if not IS_WINDOWS
+        else os.path.join(
+            os.environ.get("USERPROFILE", ""), "UptimeMonitor", "config.backups"
+        ),
+    },
 }
+
 
 def get_server_ip():
     """Get the server IP address"""
@@ -69,10 +76,10 @@ def get_server_ip():
         # Get IP from hostname
         ip = socket.gethostbyname(hostname)
         # If it's localhost, try to get external IP
-        if ip.startswith('127.'):
+        if ip.startswith("127."):
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             try:
-                s.connect(('8.8.8.8', 80))
+                s.connect(("8.8.8.8", 80))
                 ip = s.getsockname()[0]
             except:
                 pass
@@ -80,15 +87,16 @@ def get_server_ip():
                 s.close()
         return ip
     except:
-        return '0.0.0.0'
+        return "0.0.0.0"
+
 
 def load_config():
     """Load configuration from file or create default"""
     global CONFIG
-    
+
     if os.path.exists(CONFIG_PATH):
         try:
-            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 CONFIG = json.load(f)
             # Merge with defaults to ensure all keys exist
             for key, value in DEFAULT_CONFIG.items():
@@ -106,87 +114,97 @@ def load_config():
         # Create default config file
         try:
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
-            with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 json.dump(CONFIG, f, indent=4, ensure_ascii=False)
         except:
             pass
-    
+
     # Handle auto domain
-    if CONFIG['server'].get('domain') == 'auto':
-        CONFIG['server']['domain'] = get_server_ip()
-    
+    if CONFIG["server"].get("domain") == "auto":
+        CONFIG["server"]["domain"] = get_server_ip()
+
     return CONFIG
 
-def log_config_change(old_config, new_config, user='system'):
+
+def log_config_change(old_config, new_config, user="system"):
     """Log configuration changes"""
     try:
-        log_dir = CONFIG.get('log_dir', '/var/log/uptime-monitor')
-        log_file = os.path.join(log_dir, 'config-changes.log')
+        log_dir = CONFIG.get("log_dir", "/var/log/uptime-monitor")
+        log_file = os.path.join(log_dir, "config-changes.log")
         os.makedirs(log_dir, exist_ok=True)
-        
+
         change_entry = {
-            'timestamp': datetime.now().isoformat(),
-            'user': user,
-            'action': 'config_changed',
-            'changes': {
-                'old': old_config,
-                'new': new_config
-            }
+            "timestamp": datetime.now().isoformat(),
+            "user": user,
+            "action": "config_changed",
+            "changes": {"old": old_config, "new": new_config},
         }
-        
-        with open(log_file, 'a', encoding='utf-8') as f:
-            f.write(json.dumps(change_entry, ensure_ascii=False) + '\n')
+
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(change_entry, ensure_ascii=False) + "\n")
     except:
         pass
+
 
 def backup_config():
     """Create backup of current configuration"""
     try:
-        backup_dir = CONFIG.get('backup', {}).get('backup_dir', '/etc/uptime-monitor/config.backups')
+        backup_dir = CONFIG.get("backup", {}).get(
+            "backup_dir", "/etc/uptime-monitor/config.backups"
+        )
         os.makedirs(backup_dir, exist_ok=True)
-        
-        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-        backup_file = os.path.join(backup_dir, f'config.{timestamp}.json')
-        
-        with open(backup_file, 'w', encoding='utf-8') as f:
+
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        backup_file = os.path.join(backup_dir, f"config.{timestamp}.json")
+
+        with open(backup_file, "w", encoding="utf-8") as f:
             json.dump(CONFIG, f, indent=4, ensure_ascii=False)
-        
+
         # Create symlinks
-        latest_link = os.path.join(backup_dir, 'config.latest.json')
-        prev_link = os.path.join(backup_dir, 'config.previous.json')
-        
+        latest_link = os.path.join(backup_dir, "config.latest.json")
+        prev_link = os.path.join(backup_dir, "config.previous.json")
+
         if os.path.exists(latest_link):
             if os.path.exists(prev_link):
                 os.remove(prev_link)
             os.rename(latest_link, prev_link)
-        
+
         if os.path.exists(latest_link):
             os.remove(latest_link)
         os.symlink(backup_file, latest_link)
-        
+
         # Clean old backups
-        max_backups = CONFIG.get('backup', {}).get('max_backups', 10)
-        backups = sorted([f for f in os.listdir(backup_dir) if f.startswith('config.') and f.endswith('.json') and not f.endswith('.latest.json')])
+        max_backups = CONFIG.get("backup", {}).get("max_backups", 10)
+        backups = sorted(
+            [
+                f
+                for f in os.listdir(backup_dir)
+                if f.startswith("config.")
+                and f.endswith(".json")
+                and not f.endswith(".latest.json")
+            ]
+        )
         if len(backups) > max_backups:
             for old_backup in backups[:-max_backups]:
                 os.remove(os.path.join(backup_dir, old_backup))
-                
+
     except:
         pass
 
+
 def setup_ssl():
     """Setup SSL context"""
-    if not CONFIG.get('ssl', {}).get('enabled', False):
+    if not CONFIG.get("ssl", {}).get("enabled", False):
         return None
-    
+
     try:
-        cert_path = CONFIG['ssl'].get('cert_path', '')
-        key_path = CONFIG['ssl'].get('key_path', '')
-        
+        cert_path = CONFIG["ssl"].get("cert_path", "")
+        key_path = CONFIG["ssl"].get("key_path", "")
+
         if not os.path.exists(cert_path) or not os.path.exists(key_path):
             print(f"SSL certificates not found: {cert_path}, {key_path}")
             return None
-        
+
         ssl_context = ssl_module.create_default_context(ssl_module.Purpose.CLIENT_AUTH)
         ssl_context.load_cert_chain(cert_path, key_path)
         return ssl_context
@@ -194,11 +212,12 @@ def setup_ssl():
         print(f"SSL setup error: {e}")
         return None
 
+
 # Load configuration
 CONFIG = load_config()
-port = CONFIG['server'].get('port', 8080)
-host = CONFIG['server'].get('host', '0.0.0.0')
-domain = CONFIG['server'].get('domain', get_server_ip())
+port = CONFIG["server"].get("port", 8080)
+host = CONFIG["server"].get("host", "0.0.0.0")
+domain = CONFIG["server"].get("domain", get_server_ip())
 
 # Allow command line override
 if len(sys.argv) > 1:
@@ -219,25 +238,35 @@ import smtplib
 from email.mime.text import MIMEText
 
 # Імпортуємо SSL чекер
-from ssl_checker import check_ssl_certificate, should_notify_certificate, format_certificate_alert
+from ssl_checker import (
+    check_ssl_certificate,
+    should_notify_certificate,
+    format_certificate_alert,
+)
 
 # Імпортуємо модуль авторизації
 import auth_module
 
 app = FastAPI(title="Uptime Monitor")
 
+
 # Middleware for HTTPS redirect and HSTS
 @app.middleware("http")
 async def https_redirect_middleware(request: Request, call_next):
     """Redirect HTTP to HTTPS if SSL is enabled"""
     response = await call_next(request)
-    
+
     # Add HSTS header if enabled
-    if CONFIG.get('ssl', {}).get('enabled', False) and CONFIG.get('ssl', {}).get('hsts', True):
-        max_age = CONFIG['ssl'].get('hsts_max_age', 31536000)
-        response.headers['Strict-Transport-Security'] = f'max-age={max_age}; includeSubDomains'
-    
+    if CONFIG.get("ssl", {}).get("enabled", False) and CONFIG.get("ssl", {}).get(
+        "hsts", True
+    ):
+        max_age = CONFIG["ssl"].get("hsts_max_age", 31536000)
+        response.headers["Strict-Transport-Security"] = (
+            f"max-age={max_age}; includeSubDomains"
+        )
+
     return response
+
 
 DB_PATH = os.path.join(APP_DIR, "sites.db")
 
@@ -250,12 +279,26 @@ NOTIFY_SETTINGS = {
     "teams": {"enabled": False, "webhook_url": ""},
     "discord": {"enabled": False, "webhook_url": ""},
     "slack": {"enabled": False, "webhook_url": ""},
-    "email": {"enabled": False, "smtp_server": "", "smtp_port": 587, "username": "", "password": "", "to_email": ""},
-    "sms": {"enabled": False, "account_sid": "", "auth_token": "", "from_number": "", "to_number": ""},
+    "email": {
+        "enabled": False,
+        "smtp_server": "",
+        "smtp_port": 587,
+        "username": "",
+        "password": "",
+        "to_email": "",
+    },
+    "sms": {
+        "enabled": False,
+        "account_sid": "",
+        "auth_token": "",
+        "from_number": "",
+        "to_number": "",
+    },
 }
 
 DISPLAY_ADDRESS = ""
 LAST_STATUS = {}
+
 
 class Site(BaseModel):
     id: Optional[int] = None
@@ -263,6 +306,7 @@ class Site(BaseModel):
     url: str
     check_interval: int = 60
     is_active: bool = True
+
 
 class SiteCreate(BaseModel):
     name: str
@@ -272,11 +316,13 @@ class SiteCreate(BaseModel):
     notify_methods: Optional[List[str]] = []
     monitor_type: str = "http"
 
+
 class SiteUpdate(BaseModel):
     name: Optional[str] = None
     url: Optional[str] = None
     notify_methods: Optional[List[str]] = None
     is_active: Optional[bool] = None
+
 
 class NotifySettings(BaseModel):
     telegram: Optional[dict] = None
@@ -286,15 +332,16 @@ class NotifySettings(BaseModel):
     email: Optional[dict] = None
     sms: Optional[dict] = None
 
+
 def init_db():
     # Ensure database directory exists
     db_dir = os.path.dirname(DB_PATH)
     if db_dir and not os.path.exists(db_dir):
         os.makedirs(db_dir, exist_ok=True)
-    
+
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS sites (
+    c.execute("""CREATE TABLE IF NOT EXISTS sites (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         url TEXT NOT NULL UNIQUE,
@@ -303,8 +350,8 @@ def init_db():
         last_notification TEXT,
         notify_methods TEXT DEFAULT '[]',
         monitor_type TEXT DEFAULT 'http'
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS status_history (
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS status_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         site_id INTEGER,
         status TEXT,
@@ -313,17 +360,17 @@ def init_db():
         error_message TEXT,
         checked_at TEXT,
         FOREIGN KEY (site_id) REFERENCES sites(id)
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS notify_config (
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS notify_config (
         id INTEGER PRIMARY KEY,
         config TEXT
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS app_settings (
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS app_settings (
         id INTEGER PRIMARY KEY,
         display_address TEXT DEFAULT ''
-    )''')
+    )""")
     # Таблиця для SSL сертифікатів
-    c.execute('''CREATE TABLE IF NOT EXISTS ssl_certificates (
+    c.execute("""CREATE TABLE IF NOT EXISTS ssl_certificates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         site_id INTEGER UNIQUE,
         hostname TEXT,
@@ -336,23 +383,28 @@ def init_db():
         last_notified TEXT,
         last_checked TEXT,
         FOREIGN KEY (site_id) REFERENCES sites(id)
-    )''')
+    )""")
     # Backward-compatible migration for old databases.
     c.execute("PRAGMA table_info(sites)")
     site_columns = {row[1] for row in c.fetchall()}
-    if 'monitor_type' not in site_columns:
+    if "monitor_type" not in site_columns:
         c.execute("ALTER TABLE sites ADD COLUMN monitor_type TEXT DEFAULT 'http'")
-    c.execute("UPDATE sites SET monitor_type = 'http' WHERE monitor_type IS NULL OR monitor_type = ''")
+    c.execute(
+        "UPDATE sites SET monitor_type = 'http' WHERE monitor_type IS NULL OR monitor_type = ''"
+    )
 
     conn.commit()
     conn.close()
 
+
 init_db()
+
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
 
 def load_notify_settings():
     conn = get_db_connection()
@@ -361,21 +413,26 @@ def load_notify_settings():
     row = c.fetchone()
     if row:
         global NOTIFY_SETTINGS
-        NOTIFY_SETTINGS = json.loads(row['config'])
-    
+        NOTIFY_SETTINGS = json.loads(row["config"])
+
     c.execute("SELECT display_address FROM app_settings WHERE id = 1")
     row = c.fetchone()
     if row:
         global DISPLAY_ADDRESS
-        DISPLAY_ADDRESS = row['display_address'] or ""
+        DISPLAY_ADDRESS = row["display_address"] or ""
     conn.close()
+
 
 def save_notify_settings_to_db():
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO notify_config (id, config) VALUES (1, ?)", (json.dumps(NOTIFY_SETTINGS),))
+    c.execute(
+        "INSERT OR REPLACE INTO notify_config (id, config) VALUES (1, ?)",
+        (json.dumps(NOTIFY_SETTINGS),),
+    )
     conn.commit()
     conn.close()
+
 
 async def send_notification(message: str, methods: List[str]):
     tasks = []
@@ -395,6 +452,7 @@ async def send_notification(message: str, methods: List[str]):
     if tasks:
         await asyncio.gather(*tasks, return_exceptions=True)
 
+
 async def send_telegram(message: str):
     settings = NOTIFY_SETTINGS["telegram"]
     if not settings.get("token") or not settings.get("chat_id"):
@@ -402,9 +460,17 @@ async def send_telegram(message: str):
     try:
         url = f"https://api.telegram.org/bot{settings['token']}/sendMessage"
         async with aiohttp.ClientSession() as session:
-            await session.post(url, json={"chat_id": settings['chat_id'], "text": message, "parse_mode": "HTML"})
+            await session.post(
+                url,
+                json={
+                    "chat_id": settings["chat_id"],
+                    "text": message,
+                    "parse_mode": "HTML",
+                },
+            )
     except Exception as e:
         print(f"Telegram error: {e}")
+
 
 async def send_teams(message: str):
     settings = NOTIFY_SETTINGS["teams"]
@@ -413,9 +479,10 @@ async def send_teams(message: str):
     try:
         payload = {"text": message}
         async with aiohttp.ClientSession() as session:
-            await session.post(settings['webhook_url'], json=payload)
+            await session.post(settings["webhook_url"], json=payload)
     except Exception as e:
         print(f"Teams error: {e}")
+
 
 async def send_discord(message: str):
     settings = NOTIFY_SETTINGS["discord"]
@@ -424,9 +491,10 @@ async def send_discord(message: str):
     try:
         payload = {"content": message}
         async with aiohttp.ClientSession() as session:
-            await session.post(settings['webhook_url'], json=payload)
+            await session.post(settings["webhook_url"], json=payload)
     except Exception as e:
         print(f"Discord error: {e}")
+
 
 async def send_slack(message: str):
     settings = NOTIFY_SETTINGS["slack"]
@@ -435,30 +503,48 @@ async def send_slack(message: str):
     try:
         payload = {"text": message}
         async with aiohttp.ClientSession() as session:
-            await session.post(settings['webhook_url'], json=payload)
+            await session.post(settings["webhook_url"], json=payload)
     except Exception as e:
         print(f"Slack error: {e}")
 
+
 async def send_email(message: str):
     settings = NOTIFY_SETTINGS["email"]
-    if not all([settings.get("smtp_server"), settings.get("username"), settings.get("password"), settings.get("to_email")]):
+    if not all(
+        [
+            settings.get("smtp_server"),
+            settings.get("username"),
+            settings.get("password"),
+            settings.get("to_email"),
+        ]
+    ):
         return
     try:
         msg = MIMEText(message, "plain", "utf-8")
         msg["Subject"] = "Uptime Alert"
         msg["From"] = settings["username"]
         msg["To"] = settings["to_email"]
-        
-        with smtplib.SMTP(settings["smtp_server"], settings.get("smtp_port", 587)) as server:
+
+        with smtplib.SMTP(
+            settings["smtp_server"], settings.get("smtp_port", 587)
+        ) as server:
             server.starttls()
             server.login(settings["username"], settings["password"])
             server.send_message(msg)
     except Exception as e:
         print(f"Email error: {e}")
 
+
 async def send_sms(message: str):
     settings = NOTIFY_SETTINGS["sms"]
-    if not all([settings.get("account_sid"), settings.get("auth_token"), settings.get("from_number"), settings.get("to_number")]):
+    if not all(
+        [
+            settings.get("account_sid"),
+            settings.get("auth_token"),
+            settings.get("from_number"),
+            settings.get("to_number"),
+        ]
+    ):
         return
     try:
         url = f"https://api.twilio.com/2010-04-01/Accounts/{settings['account_sid']}/Messages.json"
@@ -466,15 +552,17 @@ async def send_sms(message: str):
         payload = {
             "From": settings["from_number"],
             "To": settings["to_number"],
-            "Body": message[:1600]
+            "Body": message[:1600],
         }
         async with aiohttp.ClientSession() as session:
             await session.post(url, data=payload, auth=auth)
     except Exception as e:
         print(f"SMS error: {e}")
 
+
 # Track last notification time for DOWN sites (for 1-minute repeat alerts)
 LAST_DOWN_ALERT = {}  # site_id -> datetime of last alert
+
 
 async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
     global LAST_STATUS, LAST_DOWN_ALERT
@@ -483,12 +571,20 @@ async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
     status_code = None
     response_time = None
     error_message = None
-    
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers=headers, ssl=False, allow_redirects=True) as response:
+            async with session.get(
+                url,
+                timeout=aiohttp.ClientTimeout(total=15),
+                headers=headers,
+                ssl=False,
+                allow_redirects=True,
+            ) as response:
                 status_code = response.status
                 response_time = (datetime.now() - start_time).total_seconds() * 1000
                 status = "up" if status_code < 500 else "down"
@@ -498,27 +594,36 @@ async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
         error_message = "Timeout"
     except Exception as e:
         error_message = str(e)[:100]
-    
+
     checked_at = datetime.now()
     checked_at_iso = checked_at.isoformat()
-    
+
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT name FROM sites WHERE id = ?", (site_id,))
     site = c.fetchone()
-    
-    c.execute("""INSERT INTO status_history (site_id, status, status_code, response_time, error_message, checked_at)
+
+    c.execute(
+        """INSERT INTO status_history (site_id, status, status_code, response_time, error_message, checked_at)
                  VALUES (?, ?, ?, ?, ?, ?)""",
-              (site_id, status, status_code, round(response_time, 2) if response_time else None, error_message, checked_at_iso))
+        (
+            site_id,
+            status,
+            status_code,
+            round(response_time, 2) if response_time else None,
+            error_message,
+            checked_at_iso,
+        ),
+    )
     conn.commit()
-    
+
     prev_status = LAST_STATUS.get(site_id)
-    
+
     # Production alerting: immediate notifications, no delays
     if status == "down" and site and notify_methods:
         should_alert = False
         alert_type = ""
-        
+
         if prev_status == "up" or prev_status is None:
             # Site just went down - immediate alert
             should_alert = True
@@ -529,16 +634,16 @@ async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
             if last_alert is None or (checked_at - last_alert).total_seconds() >= 1800:
                 should_alert = True
                 alert_type = "REPEAT"
-        
+
         if should_alert:
             if alert_type == "NEW":
                 msg = f"🔴 {site['name']}\n🌐 {url}\nStatus: {status_code or 'N/A'}\nError: {error_message or 'None'}\nTime: {checked_at_iso}"
             else:
                 msg = f"🔴 {site['name']} - STILL DOWN\n🌐 {url}\nStatus: {status_code or 'N/A'}\nError: {error_message or 'None'}\nTime: {checked_at_iso}\n⏱️ Still down after 1 minute"
-            
+
             await send_notification(msg, notify_methods)
             LAST_DOWN_ALERT[site_id] = checked_at
-    
+
     # Site is back up - immediate recovery alert
     if status == "up" and prev_status == "down" and site and notify_methods:
         msg = f"🟢 {site['name']} - RECOVERED\n🌐 {url}\nStatus: {status_code}\nResponse Time: {round(response_time, 2) if response_time else 0}ms\nTime: {checked_at_iso}"
@@ -546,11 +651,12 @@ async def check_site_status(site_id: int, url: str, notify_methods: List[str]):
         # Clear last down alert time
         if site_id in LAST_DOWN_ALERT:
             del LAST_DOWN_ALERT[site_id]
-    
+
     LAST_STATUS[site_id] = status
-    
+
     conn.close()
     return status, status_code, response_time, error_message
+
 
 def normalize_ssl_url(url: str) -> Optional[str]:
     if not url:
@@ -562,10 +668,11 @@ def normalize_ssl_url(url: str) -> Optional[str]:
     if lower_candidate.startswith("https://"):
         return candidate
     if lower_candidate.startswith("http://"):
-        return "https://" + candidate[len("http://"):]
+        return "https://" + candidate[len("http://") :]
     if "://" in candidate:
         return None
     return f"https://{candidate}"
+
 
 async def check_site_certificate(site_id: int, url: str, notify_methods: List[str]):
     """Перевіряє SSL сертифікат сайту та зберігає результати"""
@@ -573,83 +680,98 @@ async def check_site_certificate(site_id: int, url: str, notify_methods: List[st
     ssl_url = normalize_ssl_url(url)
     if not ssl_url:
         return
-    
+
     cert_info = await check_ssl_certificate(ssl_url)
-    
+
     if not cert_info:
         return
-    
+
     conn = get_db_connection()
     c = conn.cursor()
-    
+
     # Отримуємо назву сайту
     c.execute("SELECT name FROM sites WHERE id = ?", (site_id,))
     site = c.fetchone()
-    site_name = site['name'] if site else ssl_url
-    
+    site_name = site["name"] if site else ssl_url
+
     # Зберігаємо або оновлюємо інформацію про сертифікат
-    c.execute("""
+    c.execute(
+        """
         INSERT OR REPLACE INTO ssl_certificates 
         (site_id, hostname, issuer, subject, start_date, expire_date, days_until_expire, is_valid, last_checked)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        site_id,
-        cert_info['hostname'],
-        cert_info['issuer'],
-        cert_info['subject'],
-        cert_info['start_date'],
-        cert_info['expire_date'],
-        cert_info['days_until_expire'],
-        cert_info['is_valid'],
-        cert_info['checked_at']
-    ))
+    """,
+        (
+            site_id,
+            cert_info["hostname"],
+            cert_info["issuer"],
+            cert_info["subject"],
+            cert_info["start_date"],
+            cert_info["expire_date"],
+            cert_info["days_until_expire"],
+            cert_info["is_valid"],
+            cert_info["checked_at"],
+        ),
+    )
     conn.commit()
-    
+
     # Перевіряємо чи треба сповіщати
-    days = cert_info['days_until_expire']
-    
+    days = cert_info["days_until_expire"]
+
     # Сповіщати за 14 днів до закінчення і кожен день після
     if days <= 14:
         # Перевіряємо коли останній раз сповіщали
-        c.execute("SELECT last_notified FROM ssl_certificates WHERE site_id = ?", (site_id,))
+        c.execute(
+            "SELECT last_notified FROM ssl_certificates WHERE site_id = ?", (site_id,)
+        )
         row = c.fetchone()
-        
+
         should_notify = True
-        if row and row['last_notified']:
-            last_notif = datetime.fromisoformat(row['last_notified'])
+        if row and row["last_notified"]:
+            last_notif = datetime.fromisoformat(row["last_notified"])
             # Сповіщати раз на день
             if (datetime.now() - last_notif).total_seconds() < 86400:  # 24 години
                 should_notify = False
-        
+
         if should_notify and notify_methods:
             msg = format_certificate_alert(cert_info, site_name, ssl_url)
             await send_notification(msg, notify_methods)
-            
+
             # Оновлюємо час останнього сповіщення
-            c.execute("UPDATE ssl_certificates SET last_notified = ? WHERE site_id = ?", 
-                     (datetime.now().isoformat(), site_id))
+            c.execute(
+                "UPDATE ssl_certificates SET last_notified = ? WHERE site_id = ?",
+                (datetime.now().isoformat(), site_id),
+            )
             conn.commit()
-    
+
     conn.close()
+
 
 async def check_all_certificates():
     """Перевіряє SSL сертифікати всіх активних сайтів"""
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT id, url, notify_methods, monitor_type FROM sites WHERE is_active = 1 AND (url LIKE 'https://%' OR monitor_type = 'ssl')")
+    c.execute(
+        "SELECT id, url, notify_methods, monitor_type FROM sites WHERE is_active = 1 AND (url LIKE 'https://%' OR monitor_type = 'ssl')"
+    )
     sites = c.fetchall()
     conn.close()
-    
+
     for site in sites:
-        notify_methods = json.loads(site['notify_methods']) if site['notify_methods'] else []
-        await check_site_certificate(site['id'], site['url'], notify_methods)
+        notify_methods = (
+            json.loads(site["notify_methods"]) if site["notify_methods"] else []
+        )
+        await check_site_certificate(site["id"], site["url"], notify_methods)
         await asyncio.sleep(1)  # Пауза між перевірками
 
+
 load_notify_settings()
+
 
 def get_local_ip():
     try:
         import socket
+
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
@@ -658,7 +780,9 @@ def get_local_ip():
     except:
         return "127.0.0.1"
 
+
 LOCAL_IP = get_local_ip()
+
 
 async def get_ssl_certificates_data():
     conn = get_db_connection()
@@ -671,46 +795,49 @@ async def get_ssl_certificates_data():
     """)
     certs = c.fetchall()
     conn.close()
-    
+
     return certs
+
 
 @app.get("/status", response_class=HTMLResponse)
 async def public_status_page(request: Request):
     """Публічна сторінка статусу"""
     from datetime import datetime as dt
-    
+
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT id, name, url FROM sites ORDER BY id")
     sites = c.fetchall()
-    
-    c.execute("SELECT site_id, status FROM status_history WHERE checked_at > datetime('now', '-24 hours') ORDER BY checked_at DESC")
+
+    c.execute(
+        "SELECT site_id, status FROM status_history WHERE checked_at > datetime('now', '-24 hours') ORDER BY checked_at DESC"
+    )
     history = c.fetchall()
-    
+
     site_status = {}
     for h in history:
-        if h['site_id'] not in site_status:
-            site_status[h['site_id']] = h['status']
-    
+        if h["site_id"] not in site_status:
+            site_status[h["site_id"]] = h["status"]
+
     conn.close()
-    
-    up_count = sum(1 for s in site_status.values() if s == 'up')
-    down_count = sum(1 for s in site_status.values() if s == 'down')
+
+    up_count = sum(1 for s in site_status.values() if s == "up")
+    down_count = sum(1 for s in site_status.values() if s == "down")
     total = len(sites)
-    
-    monitors_html = ''
+
+    monitors_html = ""
     for site in sites:
-        status = site_status.get(site['id'], 'unknown')
-        status_class = 'up' if status == 'up' else 'down'
-        status_text = '✓ Онлайн' if status == 'up' else '✗ Офлайн'
-        monitors_html += f'''
+        status = site_status.get(site["id"], "unknown")
+        status_class = "up" if status == "up" else "down"
+        status_text = "✓ Онлайн" if status == "up" else "✗ Офлайн"
+        monitors_html += f"""
         <div class="monitor {status_class}">
-            <div><div class="monitor-name">{site['name']}</div>
-            <div class="monitor-url">{site['url']}</div></div>
+            <div><div class="monitor-name">{site["name"]}</div>
+            <div class="monitor-url">{site["url"]}</div></div>
             <span class="status-badge {status_class}">{status_text}</span>
-        </div>'''
-    
-    status_html = f'''<!DOCTYPE html>
+        </div>"""
+
+    status_html = f"""<!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
@@ -744,8 +871,8 @@ async def public_status_page(request: Request):
 <body>
     <div class="header">
         <div class="logo"><span class="logo-icon">⚡</span>Uptime Monitor</div>
-        <div class="overall-status {'up' if down_count == 0 else 'down'}">
-            {'✅ Всі системи працюють' if down_count == 0 else '⚠️ Деякі проблеми'}
+        <div class="overall-status {"up" if down_count == 0 else "down"}">
+            {"✅ Всі системи працюють" if down_count == 0 else "⚠️ Деякі проблеми"}
         </div>
         <div class="stats">
             <div class="stat"><div class="stat-value" style="color: #00d9ff;">{total}</div><div class="stat-label">Моніторів</div></div>
@@ -755,67 +882,82 @@ async def public_status_page(request: Request):
     </div>
     <div class="container">{monitors_html}
     </div>
-    <div class="footer"><p>Оновлено: {dt.now().strftime('%Y-%m-%d %H:%M:%S')}</p></div>
+    <div class="footer"><p>Оновлено: {dt.now().strftime("%Y-%m-%d %H:%M:%S")}</p></div>
 </body>
-</html>'''
-    
+</html>"""
+
     return HTMLResponse(content=status_html)
+
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     # Перевірка авторизації
-    session_id = request.cookies.get('session_id')
+    session_id = request.cookies.get("session_id")
     user = auth_module.validate_session(session_id, DB_PATH)
-    
+
     if not user:
-        return RedirectResponse(url='/login', status_code=302)
-    
+        return RedirectResponse(url="/login", status_code=302)
+
     # Перевірка чи потрібно змінити пароль
-    if user.get('must_change_password'):
-        return RedirectResponse(url='/change-password', status_code=302)
-    
+    if user.get("must_change_password"):
+        return RedirectResponse(url="/change-password", status_code=302)
+
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM sites ORDER BY id")
     sites = c.fetchall()
-    
+
     site_data = []
     for site in sites:
-        c.execute("SELECT * FROM status_history WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1", (site['id'],))
+        c.execute(
+            "SELECT * FROM status_history WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1",
+            (site["id"],),
+        )
         last_status = c.fetchone()
-        
-        c.execute("SELECT COUNT(*) as total, SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) as up_count FROM status_history WHERE site_id = ?", (site['id'],))
+
+        c.execute(
+            "SELECT COUNT(*) as total, SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) as up_count FROM status_history WHERE site_id = ?",
+            (site["id"],),
+        )
         stats = c.fetchone()
-        uptime = (stats['up_count'] / stats['total'] * 100) if stats['total'] > 0 else 0
-        
-        notify_methods = json.loads(site['notify_methods']) if site['notify_methods'] else []
-        
-        site_data.append({
-            'id': site['id'],
-            'name': site['name'],
-            'url': site['url'],
-            'is_active': site['is_active'],
-            'monitor_type': site['monitor_type'] if 'monitor_type' in site.keys() and site['monitor_type'] else 'http',
-            'status': last_status['status'] if last_status else 'unknown',
-            'status_code': last_status['status_code'] if last_status else None,
-            'response_time': last_status['response_time'] if last_status else None,
-            'error_message': last_status['error_message'] if last_status else None,
-            'last_checked': last_status['checked_at'] if last_status else None,
-            'uptime': round(uptime, 2),
-            'notify_methods': notify_methods
-        })
+        uptime = (stats["up_count"] / stats["total"] * 100) if stats["total"] > 0 else 0
+
+        notify_methods = (
+            json.loads(site["notify_methods"]) if site["notify_methods"] else []
+        )
+
+        site_data.append(
+            {
+                "id": site["id"],
+                "name": site["name"],
+                "url": site["url"],
+                "is_active": site["is_active"],
+                "monitor_type": site["monitor_type"]
+                if "monitor_type" in site.keys() and site["monitor_type"]
+                else "http",
+                "status": last_status["status"] if last_status else "unknown",
+                "status_code": last_status["status_code"] if last_status else None,
+                "response_time": last_status["response_time"] if last_status else None,
+                "error_message": last_status["error_message"] if last_status else None,
+                "last_checked": last_status["checked_at"] if last_status else None,
+                "uptime": round(uptime, 2),
+                "notify_methods": notify_methods,
+            }
+        )
     conn.close()
-    
+
     total_sites = len(site_data)
-    up_sites = sum(1 for s in site_data if s['status'] == 'up')
-    down_sites = sum(1 for s in site_data if s['status'] == 'down')
-    
+    up_sites = sum(1 for s in site_data if s["status"] == "up")
+    down_sites = sum(1 for s in site_data if s["status"] == "down")
+
     notify_config_json = json.dumps(NOTIFY_SETTINGS)
-    display_address = DISPLAY_ADDRESS if DISPLAY_ADDRESS else f"http://{LOCAL_IP}:{port}"
-    
+    display_address = (
+        DISPLAY_ADDRESS if DISPLAY_ADDRESS else f"http://{LOCAL_IP}:{port}"
+    )
+
     certs_data = await get_ssl_certificates_data()
-    
-    html = f'''<!DOCTYPE html>
+
+    html = f"""<!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
@@ -1178,7 +1320,7 @@ async def dashboard(request: Request):
     </div>
     
     <script>
-        const notifyConfig = {notify_config_json};
+        const notifyConfig = {{}};
         let currentFilter = 'all';
         let responseChart = null;
         
@@ -1641,8 +1783,9 @@ async def dashboard(request: Request):
         setInterval(loadSSLCertificates, 86400000);
     </script>
 </body>
-</html>'''
+</html>"""
     return html
+
 
 @app.get("/api/sites", response_model=List[dict])
 async def get_sites():
@@ -1650,76 +1793,92 @@ async def get_sites():
     c = conn.cursor()
     c.execute("SELECT * FROM sites ORDER BY id")
     sites = c.fetchall()
-    
+
     result = []
     for site in sites:
-        c.execute("SELECT * FROM status_history WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1", (site['id'],))
+        c.execute(
+            "SELECT * FROM status_history WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1",
+            (site["id"],),
+        )
         last_status = c.fetchone()
-        
-        c.execute("SELECT COUNT(*) as total, SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) as up_count FROM status_history WHERE site_id = ?", (site['id'],))
+
+        c.execute(
+            "SELECT COUNT(*) as total, SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) as up_count FROM status_history WHERE site_id = ?",
+            (site["id"],),
+        )
         stats = c.fetchone()
-        uptime = (stats['up_count'] / stats['total'] * 100) if stats['total'] > 0 else 0
-        
-        notify_methods = json.loads(site['notify_methods']) if site['notify_methods'] else []
-        
-        result.append({
-            'id': site['id'],
-            'name': site['name'],
-            'url': site['url'],
-            'is_active': site['is_active'],
-            'monitor_type': site['monitor_type'] if 'monitor_type' in site.keys() and site['monitor_type'] else 'http',
-            'status': last_status['status'] if last_status else 'unknown',
-            'status_code': last_status['status_code'] if last_status else None,
-            'response_time': last_status['response_time'] if last_status else None,
-            'error_message': last_status['error_message'] if last_status else None,
-            'last_checked': last_status['checked_at'] if last_status else None,
-            'uptime': round(uptime, 2),
-            'notify_methods': notify_methods
-        })
+        uptime = (stats["up_count"] / stats["total"] * 100) if stats["total"] > 0 else 0
+
+        notify_methods = (
+            json.loads(site["notify_methods"]) if site["notify_methods"] else []
+        )
+
+        result.append(
+            {
+                "id": site["id"],
+                "name": site["name"],
+                "url": site["url"],
+                "is_active": site["is_active"],
+                "monitor_type": site["monitor_type"]
+                if "monitor_type" in site.keys() and site["monitor_type"]
+                else "http",
+                "status": last_status["status"] if last_status else "unknown",
+                "status_code": last_status["status_code"] if last_status else None,
+                "response_time": last_status["response_time"] if last_status else None,
+                "error_message": last_status["error_message"] if last_status else None,
+                "last_checked": last_status["checked_at"] if last_status else None,
+                "uptime": round(uptime, 2),
+                "notify_methods": notify_methods,
+            }
+        )
     conn.close()
     return result
+
 
 @app.get("/test123")
 async def test123():
     return {"test": "123"}
 
+
 @app.get("/public-status")
 async def public_status_page(request: Request):
     """Публічна сторінка статусу - без авторизації"""
     from datetime import datetime as dt
-    
+
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT id, name, url FROM sites ORDER BY id")
     sites = c.fetchall()
-    
-    c.execute("SELECT site_id, status FROM status_history WHERE checked_at > datetime('now', '-24 hours') ORDER BY checked_at DESC")
+
+    c.execute(
+        "SELECT site_id, status FROM status_history WHERE checked_at > datetime('now', '-24 hours') ORDER BY checked_at DESC"
+    )
     history = c.fetchall()
-    
+
     site_status = {}
     for h in history:
-        if h['site_id'] not in site_status:
-            site_status[h['site_id']] = h['status']
-    
+        if h["site_id"] not in site_status:
+            site_status[h["site_id"]] = h["status"]
+
     conn.close()
-    
-    up_count = sum(1 for s in site_status.values() if s == 'up')
-    down_count = sum(1 for s in site_status.values() if s == 'down')
+
+    up_count = sum(1 for s in site_status.values() if s == "up")
+    down_count = sum(1 for s in site_status.values() if s == "down")
     total = len(sites)
-    
-    monitors_html = ''
+
+    monitors_html = ""
     for site in sites:
-        status = site_status.get(site['id'], 'unknown')
-        status_class = 'up' if status == 'up' else 'down'
-        status_text = '✓ Онлайн' if status == 'up' else '✗ Офлайн'
-        monitors_html += f'''
+        status = site_status.get(site["id"], "unknown")
+        status_class = "up" if status == "up" else "down"
+        status_text = "✓ Онлайн" if status == "up" else "✗ Офлайн"
+        monitors_html += f"""
         <div class="monitor {status_class}">
-            <div><div class="monitor-name">{site['name']}</div>
-            <div class="monitor-url">{site['url']}</div></div>
+            <div><div class="monitor-name">{site["name"]}</div>
+            <div class="monitor-url">{site["url"]}</div></div>
             <span class="status-badge {status_class}">{status_text}</span>
-        </div>'''
-    
-    status_html = f'''<!DOCTYPE html>
+        </div>"""
+
+    status_html = f"""<!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
@@ -1753,8 +1912,8 @@ async def public_status_page(request: Request):
 <body>
     <div class="header">
         <div class="logo"><span class="logo-icon">⚡</span>Uptime Monitor</div>
-        <div class="overall-status {'up' if down_count == 0 else 'down'}">
-            {'✅ Всі системи працюють' if down_count == 0 else '⚠️ Деякі проблеми'}
+        <div class="overall-status {"up" if down_count == 0 else "down"}">
+            {"✅ Всі системи працюють" if down_count == 0 else "⚠️ Деякі проблеми"}
         </div>
         <div class="stats">
             <div class="stat"><div class="stat-value" style="color: #00d9ff;">{total}</div><div class="stat-label">Моніторів</div></div>
@@ -1764,11 +1923,12 @@ async def public_status_page(request: Request):
     </div>
     <div class="container">{monitors_html}
     </div>
-    <div class="footer"><p>Оновлено: {dt.now().strftime('%Y-%m-%d %H:%M:%S')}</p></div>
+    <div class="footer"><p>Оновлено: {dt.now().strftime("%Y-%m-%d %H:%M:%S")}</p></div>
 </body>
-</html>'''
-    
+</html>"""
+
     return HTMLResponse(content=status_html)
+
 
 @app.post("/api/sites")
 async def add_site(site: SiteCreate):
@@ -1787,11 +1947,23 @@ async def add_site(site: SiteCreate):
         normalized_ssl_url = normalize_ssl_url(site_url)
         if not normalized_ssl_url:
             conn.close()
-            raise HTTPException(status_code=400, detail="SSL monitor URL must be a domain or HTTP/HTTPS URL")
+            raise HTTPException(
+                status_code=400,
+                detail="SSL monitor URL must be a domain or HTTP/HTTPS URL",
+            )
         site_url = normalized_ssl_url
     try:
-        c.execute("INSERT INTO sites (name, url, check_interval, is_active, notify_methods, monitor_type) VALUES (?, ?, ?, ?, ?, ?)",
-                  (site.name, site_url, site.check_interval, site.is_active, notify_json, monitor_type))
+        c.execute(
+            "INSERT INTO sites (name, url, check_interval, is_active, notify_methods, monitor_type) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                site.name,
+                site_url,
+                site.check_interval,
+                site.is_active,
+                notify_json,
+                monitor_type,
+            ),
+        )
         site_id = c.lastrowid
         conn.commit()
     except sqlite3.IntegrityError:
@@ -1804,6 +1976,7 @@ async def add_site(site: SiteCreate):
     if monitor_type == "ssl" or site_url.lower().startswith("https://"):
         await check_site_certificate(site_id, site_url, notify_methods)
     return {"id": site_id, "message": "Site added"}
+
 
 @app.get("/api/ssl-certificates")
 async def get_ssl_certificates():
@@ -1819,24 +1992,27 @@ async def get_ssl_certificates():
     """)
     certs = c.fetchall()
     conn.close()
-    
+
     result = []
     for cert in certs:
-        result.append({
-            'id': cert['id'],
-            'site_id': cert['site_id'],
-            'site_name': cert['site_name'],
-            'site_url': cert['site_url'],
-            'hostname': cert['hostname'],
-            'issuer': cert['issuer'],
-            'subject': cert['subject'],
-            'start_date': cert['start_date'],
-            'expire_date': cert['expire_date'],
-            'days_until_expire': cert['days_until_expire'],
-            'is_valid': cert['is_valid'],
-            'last_checked': cert['last_checked']
-        })
+        result.append(
+            {
+                "id": cert["id"],
+                "site_id": cert["site_id"],
+                "site_name": cert["site_name"],
+                "site_url": cert["site_url"],
+                "hostname": cert["hostname"],
+                "issuer": cert["issuer"],
+                "subject": cert["subject"],
+                "start_date": cert["start_date"],
+                "expire_date": cert["expire_date"],
+                "days_until_expire": cert["days_until_expire"],
+                "is_valid": cert["is_valid"],
+                "last_checked": cert["last_checked"],
+            }
+        )
     return result
+
 
 @app.post("/api/ssl-certificates/check")
 async def check_ssl_certificates():
@@ -1845,24 +2021,27 @@ async def check_ssl_certificates():
     return {"message": "SSL certificates check completed"}
     certs = c.fetchall()
     conn.close()
-    
+
     result = []
     for cert in certs:
-        result.append({
-            'id': cert['id'],
-            'site_id': cert['site_id'],
-            'site_name': cert['site_name'],
-            'site_url': cert['site_url'],
-            'hostname': cert['hostname'],
-            'issuer': cert['issuer'],
-            'subject': cert['subject'],
-            'start_date': cert['start_date'],
-            'expire_date': cert['expire_date'],
-            'days_until_expire': cert['days_until_expire'],
-            'is_valid': cert['is_valid'],
-            'last_checked': cert['last_checked']
-        })
+        result.append(
+            {
+                "id": cert["id"],
+                "site_id": cert["site_id"],
+                "site_name": cert["site_name"],
+                "site_url": cert["site_url"],
+                "hostname": cert["hostname"],
+                "issuer": cert["issuer"],
+                "subject": cert["subject"],
+                "start_date": cert["start_date"],
+                "expire_date": cert["expire_date"],
+                "days_until_expire": cert["days_until_expire"],
+                "is_valid": cert["is_valid"],
+                "last_checked": cert["last_checked"],
+            }
+        )
     return result
+
 
 @app.delete("/api/sites/{site_id}")
 async def delete_site(site_id: int):
@@ -1875,6 +2054,7 @@ async def delete_site(site_id: int):
     conn.close()
     return {"message": "Site deleted"}
 
+
 @app.post("/api/sites/{site_id}/check")
 async def check_site_endpoint(site_id: int):
     conn = get_db_connection()
@@ -1882,19 +2062,22 @@ async def check_site_endpoint(site_id: int):
     c.execute("SELECT url, notify_methods FROM sites WHERE id = ?", (site_id,))
     site = c.fetchone()
     conn.close()
-    
+
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
-    
-    notify_methods = json.loads(site['notify_methods']) if site['notify_methods'] else []
-    await check_site_status(site_id, site['url'], notify_methods)
+
+    notify_methods = (
+        json.loads(site["notify_methods"]) if site["notify_methods"] else []
+    )
+    await check_site_status(site_id, site["url"], notify_methods)
     return {"message": "Check completed"}
+
 
 @app.put("/api/sites/{site_id}")
 async def update_site(site_id: int, site_update: SiteUpdate):
     conn = get_db_connection()
     c = conn.cursor()
-    
+
     updates = []
     params = []
     if site_update.name is not None:
@@ -1909,14 +2092,15 @@ async def update_site(site_id: int, site_update: SiteUpdate):
     if site_update.is_active is not None:
         updates.append("is_active = ?")
         params.append(site_update.is_active)
-    
+
     if updates:
         params.append(site_id)
         c.execute(f"UPDATE sites SET {', '.join(updates)} WHERE id = ?", params)
         conn.commit()
-    
+
     conn.close()
     return {"message": "Site updated"}
+
 
 @app.post("/api/notify-settings")
 async def save_notify_settings(settings: NotifySettings):
@@ -1936,8 +2120,10 @@ async def save_notify_settings(settings: NotifySettings):
     save_notify_settings_to_db()
     return {"message": "Settings saved"}
 
+
 class AppSettings(BaseModel):
     display_address: Optional[str] = ""
+
 
 @app.post("/api/app-settings")
 async def save_app_settings(settings: AppSettings):
@@ -1945,19 +2131,26 @@ async def save_app_settings(settings: AppSettings):
     DISPLAY_ADDRESS = settings.display_address or ""
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO app_settings (id, display_address) VALUES (1, ?)", (DISPLAY_ADDRESS,))
+    c.execute(
+        "INSERT OR REPLACE INTO app_settings (id, display_address) VALUES (1, ?)",
+        (DISPLAY_ADDRESS,),
+    )
     conn.commit()
     conn.close()
     return {"message": "Settings saved"}
+
 
 @app.get("/api/app-settings")
 async def get_app_settings():
     return {"display_address": DISPLAY_ADDRESS}
 
+
 async def monitor_loop():
     """Основний цикл моніторингу"""
-    last_cert_check = datetime.now() - timedelta(hours=25)  # Запускаємо перевірку сертифікатів відразу
-    
+    last_cert_check = datetime.now() - timedelta(
+        hours=25
+    )  # Запускаємо перевірку сертифікатів відразу
+
     while True:
         # Перевірка доступності сайтів
         conn = get_db_connection()
@@ -1965,52 +2158,62 @@ async def monitor_loop():
         c.execute("SELECT id, url, notify_methods FROM sites WHERE is_active = 1")
         sites = c.fetchall()
         conn.close()
-        
+
         for site in sites:
-            notify_methods = json.loads(site['notify_methods']) if site['notify_methods'] else []
-            await check_site_status(site['id'], site['url'], notify_methods)
-        
+            notify_methods = (
+                json.loads(site["notify_methods"]) if site["notify_methods"] else []
+            )
+            await check_site_status(site["id"], site["url"], notify_methods)
+
         # Перевірка SSL сертифікатів раз на добу
         if (datetime.now() - last_cert_check).total_seconds() >= 86400:  # 24 години
             print("Checking SSL certificates...")
             await check_all_certificates()
             last_cert_check = datetime.now()
-        
+
         await asyncio.sleep(CHECK_INTERVAL)
 
+
 if IS_WINDOWS:
+
     class UptimeMonitorService(win32serviceutil.ServiceFramework):
         _svc_name_ = "UptimeMonitor"
         _svc_display_name_ = "Uptime Monitor Service"
-        
+
         def __init__(self, args):
             win32serviceutil.ServiceFramework.__init__(self, args)
             self.stop_event = win32event.CreateEvent(None, 0, 0, None)
-            
+
         def SvcStop(self):
             self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
             win32event.SetEvent(self.stop_event)
-            
+
         def SvcDoRun(self):
-            servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE, servicemanager.PYS_SERVICE_STARTED, (self._svc_name_, ''))
-            
+            servicemanager.LogMsg(
+                servicemanager.EVENTLOG_INFORMATION_TYPE,
+                servicemanager.PYS_SERVICE_STARTED,
+                (self._svc_name_, ""),
+            )
+
             import uvicorn
             import threading
-            
-            monitor_thread = threading.Thread(target=lambda: asyncio.run(monitor_loop()), daemon=True)
+
+            monitor_thread = threading.Thread(
+                target=lambda: asyncio.run(monitor_loop()), daemon=True
+            )
             monitor_thread.start()
-            
+
             # Setup SSL if enabled
             ssl_context = setup_ssl()
             uvicorn.run(
-                app, 
-                host=CONFIG['server'].get('host', '0.0.0.0'), 
-                port=CONFIG['server'].get('port', 8080), 
+                app,
+                host=CONFIG["server"].get("host", "0.0.0.0"),
+                port=CONFIG["server"].get("port", 8080),
                 log_level="error",
-                ssl_keyfile=CONFIG['ssl'].get('key_path') if ssl_context else None,
-                ssl_certfile=CONFIG['ssl'].get('cert_path') if ssl_context else None
+                ssl_keyfile=CONFIG["ssl"].get("key_path") if ssl_context else None,
+                ssl_certfile=CONFIG["ssl"].get("cert_path") if ssl_context else None,
             )
-            
+
             win32event.WaitForSingleObject(self.stop_event, win32event.INFINITE)
 
     def run_service():
@@ -2018,169 +2221,229 @@ if IS_WINDOWS:
 
 # ============ AUTH ROUTES ============
 
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request, error: str = None):
     """Сторінка логіну"""
     try:
-        session_id = request.cookies.get('session_id') or ""
+        session_id = request.cookies.get("session_id") or ""
         if session_id and auth_module.validate_session(session_id, DB_PATH):
-            return RedirectResponse(url='/', status_code=302)
-        
-        error_html = f'<div class="error">{error}</div>' if error else ''
-        warning_html = '<div class="warning">WARNING: Change password after first login!</div>'
-        return auth_module.LOGIN_HTML.format(error_message=error_html, warning_message=warning_html)
+            return RedirectResponse(url="/", status_code=302)
+
+        error_html = f'<div class="error">{error}</div>' if error else ""
+        warning_html = (
+            '<div class="warning">WARNING: Change password after first login!</div>'
+        )
+        return auth_module.LOGIN_HTML.format(
+            error_message=error_html, warning_message=warning_html
+        )
     except Exception as e:
         print(f"Login page error: {e}")
         return HTMLResponse(content=f"Error: {str(e)}", status_code=500)
+
 
 @app.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
     """Обробка логіну"""
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT id, password_hash, must_change_password FROM users WHERE username = ?",
-             (username,))
+    c.execute(
+        "SELECT id, password_hash, must_change_password FROM users WHERE username = ?",
+        (username,),
+    )
     user = c.fetchone()
     conn.close()
 
     if not user:
-        return RedirectResponse(url='/login?error=Невірне ім\'я користувача або пароль', status_code=302)
+        return RedirectResponse(
+            url="/login?error=Невірне ім'я користувача або пароль", status_code=302
+        )
 
     # Перевіряємо пароль через verify_password
-    if not auth_module.verify_password(password, user['password_hash']):
-        return RedirectResponse(url='/login?error=Невірне ім\'я користувача або пароль', status_code=302)
+    if not auth_module.verify_password(password, user["password_hash"]):
+        return RedirectResponse(
+            url="/login?error=Невірне ім'я користувача або пароль", status_code=302
+        )
 
     # Створюємо сесію
-    session_id = auth_module.create_session(user['id'], DB_PATH)
-    
+    session_id = auth_module.create_session(user["id"], DB_PATH)
+
     # Перевіряємо чи потрібно змінити пароль
-    if user['must_change_password']:
-        response = RedirectResponse(url='/change-password', status_code=302)
+    if user["must_change_password"]:
+        response = RedirectResponse(url="/change-password", status_code=302)
     else:
-        response = RedirectResponse(url='/', status_code=302)
-    
-    response.set_cookie(key='session_id', value=session_id, httponly=True, max_age=604800)
+        response = RedirectResponse(url="/", status_code=302)
+
+    response.set_cookie(
+        key="session_id", value=session_id, httponly=True, max_age=604800
+    )
     return response
+
 
 @app.get("/logout")
 async def logout(request: Request):
     """Вихід"""
-    session_id = request.cookies.get('session_id')
+    session_id = request.cookies.get("session_id")
     if session_id:
         auth_module.delete_session(session_id, DB_PATH)
-    
-    response = RedirectResponse(url='/login', status_code=302)
-    response.delete_cookie('session_id')
+
+    response = RedirectResponse(url="/login", status_code=302)
+    response.delete_cookie("session_id")
     return response
 
+
 @app.get("/forgot-password", response_class=HTMLResponse)
-async def forgot_password_page(request: Request, error: str = None, success: str = None):
+async def forgot_password_page(
+    request: Request, error: str = None, success: str = None
+):
     """Сторінка скидання пароля"""
-    error_html = f'<div class="error">{error}</div>' if error else ''
-    success_html = f'<div class="success">{success}</div>' if success else ''
-    return auth_module.FORGOT_PASSWORD_HTML.format(error_message=error_html, success_message=success_html)
+    error_html = f'<div class="error">{error}</div>' if error else ""
+    success_html = f'<div class="success">{success}</div>' if success else ""
+    return auth_module.FORGOT_PASSWORD_HTML.format(
+        error_message=error_html, success_message=success_html
+    )
+
 
 @app.post("/forgot-password")
 async def forgot_password(request: Request, username: str = Form(...)):
     """Обробка скидання пароля - скидає до admin"""
     import secrets
-    
+
     # Знаходимо користувача
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT id FROM users WHERE username = ?", (username,))
     user = c.fetchone()
-    
+
     if not user:
         conn.close()
-        return RedirectResponse(url='/forgot-password?error=Користувач не знайдений', status_code=302)
-    
+        return RedirectResponse(
+            url="/forgot-password?error=Користувач не знайдений", status_code=302
+        )
+
     # Генеруємо новий пароль
     new_password = secrets.token_urlsafe(8)
     password_hash = auth_module.hash_password(new_password)
-    
+
     # Оновлюємо пароль (з вимогою зміни)
-    c.execute("UPDATE users SET password_hash = ?, must_change_password = 1 WHERE username = ?",
-             (password_hash, username))
+    c.execute(
+        "UPDATE users SET password_hash = ?, must_change_password = 1 WHERE username = ?",
+        (password_hash, username),
+    )
     conn.commit()
     conn.close()
-    
-    return RedirectResponse(url=f'/forgot-password?success=Пароль скинуто. Новий пароль: {new_password}', status_code=302)
+
+    return RedirectResponse(
+        url=f"/forgot-password?success=Пароль скинуто. Новий пароль: {new_password}",
+        status_code=302,
+    )
+
 
 @app.get("/change-password", response_class=HTMLResponse)
 async def change_password_page(request: Request, error: str = None):
     """Сторінка зміни пароля"""
-    session_id = request.cookies.get('session_id')
+    session_id = request.cookies.get("session_id")
     user = auth_module.validate_session(session_id, DB_PATH)
-    
+
     if not user:
-        return RedirectResponse(url='/login', status_code=302)
-    
-    error_html = f'<div class="error">{error}</div>' if error else ''
+        return RedirectResponse(url="/login", status_code=302)
+
+    error_html = f'<div class="error">{error}</div>' if error else ""
     return auth_module.CHANGE_PASSWORD_HTML.format(error_message=error_html)
 
+
 @app.post("/change-password")
-async def change_password(request: Request, current_password: str = Form(...), new_password: str = Form(...), confirm_password: str = Form(...)):
+async def change_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+):
     """Обробка зміни пароля"""
-    session_id = request.cookies.get('session_id')
+    session_id = request.cookies.get("session_id")
     user = auth_module.validate_session(session_id, DB_PATH)
-    
+
     if not user:
-        return RedirectResponse(url='/login', status_code=302)
-    
+        return RedirectResponse(url="/login", status_code=302)
+
     # Перевіряємо поточний пароль
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT password_hash FROM users WHERE id = ?", (user['user_id'],))
+    c.execute("SELECT password_hash FROM users WHERE id = ?", (user["user_id"],))
     user_data = c.fetchone()
     conn.close()
 
-    if not user_data or not auth_module.verify_password(current_password, user_data['password_hash']):
-        return RedirectResponse(url='/change-password?error=Невірний поточний пароль', status_code=302)
-    
+    if not user_data or not auth_module.verify_password(
+        current_password, user_data["password_hash"]
+    ):
+        return RedirectResponse(
+            url="/change-password?error=Невірний поточний пароль", status_code=302
+        )
+
     # Перевіряємо чи паролі співпадають
     if new_password != confirm_password:
-        return RedirectResponse(url='/change-password?error=Нові паролі не співпадають', status_code=302)
-    
+        return RedirectResponse(
+            url="/change-password?error=Нові паролі не співпадають", status_code=302
+        )
+
     # Перевіряємо довжину пароля
     if len(new_password) < 6:
-        return RedirectResponse(url='/change-password?error=Пароль повинен містити мінімум 6 символів', status_code=302)
-    
+        return RedirectResponse(
+            url="/change-password?error=Пароль повинен містити мінімум 6 символів",
+            status_code=302,
+        )
+
     # Змінюємо пароль
-    if auth_module.change_password(user['user_id'], new_password, DB_PATH):
-        return RedirectResponse(url='/?message=Пароль успішно змінено', status_code=302)
+    if auth_module.change_password(user["user_id"], new_password, DB_PATH):
+        return RedirectResponse(url="/?message=Пароль успішно змінено", status_code=302)
     else:
-        return RedirectResponse(url='/change-password?error=Помилка при зміні пароля', status_code=302)
+        return RedirectResponse(
+            url="/change-password?error=Помилка при зміні пароля", status_code=302
+        )
+
 
 @app.get("/api/user")
 async def get_user(request: Request):
     """Отримати поточного користувача"""
-    session_id = request.cookies.get('session_id')
+    session_id = request.cookies.get("session_id")
     user = auth_module.validate_session(session_id, DB_PATH)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return {"username": user['username'], "is_admin": user['is_admin']}
+    return {"username": user["username"], "is_admin": user["is_admin"]}
+
 
 # ============ END AUTH ROUTES ============
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == 'install':
+    if len(sys.argv) > 1 and sys.argv[1] == "install":
         import tkinter as tk
         from tkinter import simpledialog
-        
+
         root = tk.Tk()
         root.withdraw()
-        
-        port_input = simpledialog.askinteger("Встановлення", "Введіть порт:", initialvalue=8000, minvalue=1, maxvalue=65535)
-        
+
+        port_input = simpledialog.askinteger(
+            "Встановлення",
+            "Введіть порт:",
+            initialvalue=8000,
+            minvalue=1,
+            maxvalue=65535,
+        )
+
         if port_input:
             port = port_input
             with open(os.path.join(APP_DIR, "port.txt"), "w") as f:
                 f.write(str(port))
-        
+
         root.destroy()
-    
-    if len(sys.argv) > 1 and sys.argv[1] in ('start', 'stop', 'restart', 'install', 'remove'):
+
+    if len(sys.argv) > 1 and sys.argv[1] in (
+        "start",
+        "stop",
+        "restart",
+        "install",
+        "remove",
+    ):
         run_service()
     else:
         # Create port.txt if it doesn't exist (for first run)
@@ -2191,33 +2454,33 @@ if __name__ == "__main__":
                     f.write(str(port))
             except:
                 pass
-        
-        print(f"="*60)
+
+        print(f"=" * 60)
         print(f"  Uptime Monitor - Production Ready")
         # Get current configuration
-        current_port = CONFIG['server'].get('port', 8080)
-        current_host = CONFIG['server'].get('host', '0.0.0.0')
-        current_domain = CONFIG['server'].get('domain', get_server_ip())
-        ssl_enabled = CONFIG.get('ssl', {}).get('enabled', False)
-        
-        protocol = 'https' if ssl_enabled else 'http'
+        current_port = CONFIG["server"].get("port", 8080)
+        current_host = CONFIG["server"].get("host", "0.0.0.0")
+        current_domain = CONFIG["server"].get("domain", get_server_ip())
+        ssl_enabled = CONFIG.get("ssl", {}).get("enabled", False)
+
+        protocol = "https" if ssl_enabled else "http"
         access_url = f"{protocol}://{current_domain}:{current_port}"
-        
-        print(f"="*60)
+
+        print(f"=" * 60)
         print(f"  Uptime Monitor - Production Ready")
-        print(f"="*60)
+        print(f"=" * 60)
         print(f"  Version:     latest (main branch)")
         print(f"  Port:        {current_port}")
         print(f"  Host:        {current_host}")
         print(f"  Domain:      {current_domain}")
         print(f"  SSL:         {'Enabled' if ssl_enabled else 'Disabled'}")
         print(f"  URL:         {access_url}")
-        print(f"="*60)
+        print(f"=" * 60)
         print(f"  Default Credentials:")
         print(f"    Username: admin")
         print(f"    Password: admin")
         print(f"  Please change the password after first login!")
-        print(f"="*60)
+        print(f"=" * 60)
         print(f"Management commands:")
         print(f"  sudo systemctl status uptime-monitor")
         print(f"  sudo systemctl restart uptime-monitor")
@@ -2226,21 +2489,23 @@ if __name__ == "__main__":
         print(f"Configuration:")
         print(f"  Config file: {CONFIG_PATH}")
         print(f"  Logs:        {CONFIG.get('log_dir', '/var/log/uptime-monitor')}/")
-        print(f"="*60)
-        
+        print(f"=" * 60)
+
         import uvicorn
         import threading
-        
-        monitor_thread = threading.Thread(target=lambda: asyncio.run(monitor_loop()), daemon=True)
+
+        monitor_thread = threading.Thread(
+            target=lambda: asyncio.run(monitor_loop()), daemon=True
+        )
         monitor_thread.start()
-        
+
         # Setup SSL if enabled
         ssl_context = setup_ssl()
         uvicorn.run(
-            app, 
-            host=current_host, 
-            port=current_port, 
+            app,
+            host=current_host,
+            port=current_port,
             log_level="warning",
-            ssl_keyfile=CONFIG['ssl'].get('key_path') if ssl_context else None,
-            ssl_certfile=CONFIG['ssl'].get('cert_path') if ssl_context else None
+            ssl_keyfile=CONFIG["ssl"].get("key_path") if ssl_context else None,
+            ssl_certfile=CONFIG["ssl"].get("cert_path") if ssl_context else None,
         )
