@@ -455,6 +455,42 @@ async def add_site(site: SiteCreate, user: dict = Depends(get_current_user)):
     return {"id": site_id, "message": "Site added"}
 
 
+@app.put("/api/sites/{site_id}")
+async def update_site(
+    site_id: int, site: SiteUpdate, user: dict = Depends(get_current_user)
+):
+    if not user:
+        raise HTTPException(status_code=401)
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute(
+            "SELECT name, url, check_interval, is_active, notify_methods FROM sites WHERE id = ?",
+            (site_id,),
+        )
+        existing = c.fetchone()
+        if not existing:
+            raise HTTPException(404, "Site not found")
+
+        # Use existing values if not provided
+        name = site.name if site.name is not None else existing["name"]
+        url = site.url if site.url is not None else existing["url"]
+        is_active = (
+            site.is_active if site.is_active is not None else existing["is_active"]
+        )
+        notify_methods = (
+            json.dumps(site.notify_methods)
+            if site.notify_methods is not None
+            else existing["notify_methods"]
+        )
+
+        c.execute(
+            "UPDATE sites SET name = ?, url = ?, is_active = ?, notify_methods = ? WHERE id = ?",
+            (name, url, is_active, notify_methods, site_id),
+        )
+        conn.commit()
+    return {"message": "Updated"}
+
+
 @app.delete("/api/sites/{site_id}")
 async def delete_site(site_id: int, user: dict = Depends(get_current_user)):
     if not user:
