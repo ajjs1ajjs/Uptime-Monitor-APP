@@ -53,6 +53,17 @@ sudo chown -R root:root /etc/uptime-monitor/
 sudo chmod 600 /etc/uptime-monitor/config.json
 ```
 
+### Помилка Permission denied на uptime_monitor.log
+
+```bash
+# Створити файл і виправити права
+sudo touch /opt/uptime-monitor/uptime_monitor.log
+sudo chown uptime-monitor:uptime-monitor /opt/uptime-monitor/uptime_monitor.log
+
+# Перезапустити
+sudo systemctl restart uptime-monitor
+```
+
 ### Перевірка Python
 
 ```bash
@@ -304,19 +315,19 @@ sudo systemctl status uptime-monitor
 sudo journalctl -u uptime-monitor -n 50
 
 # Перевірити права
-sudo ls -la /var/lib/uptime-monitor/
+sudo ls -la /opt/uptime-monitor/
 sudo ls -la /etc/uptime-monitor/
 
 # Виправити права
-sudo chown -R uptime-monitor:uptime-monitor /var/lib/uptime-monitor/
-sudo chmod 644 /var/lib/uptime-monitor/sites.db
+sudo chown -R uptime-monitor:uptime-monitor /opt/uptime-monitor/
+sudo chmod 644 /opt/uptime-monitor/sites.db
 
 # Перезапустити
 sudo systemctl restart uptime-monitor
 
 # Якщо не допомогло - відновити з safety backup
 ls -la /tmp/uptime-pre-restore-*/
-sudo cp -r /tmp/uptime-pre-restore-*/sites.db /var/lib/uptime-monitor/
+sudo cp -r /tmp/uptime-pre-restore-*/sites.db /opt/uptime-monitor/
 sudo systemctl restart uptime-monitor
 ```
 
