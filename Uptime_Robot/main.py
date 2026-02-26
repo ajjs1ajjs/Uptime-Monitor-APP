@@ -1320,7 +1320,8 @@ async def dashboard(request: Request):
     </div>
     
     <script>
-        const notifyConfig = {{}};
+        // const notifyConfig removed - using empty object
+        var notifyConfig = {};
         let currentFilter = 'all';
         let responseChart = null;
         

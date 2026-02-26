@@ -765,7 +765,8 @@ async def dashboard():
     </div>
     
     <script>
-        const notifyConfig = {{}};
+        // const notifyConfig removed - using empty object
+        var notifyConfig = {};
         
         function initNotifyUI() {{
             ['telegram', 'teams', 'discord', 'slack', 'email', 'sms'].forEach(method => {{
