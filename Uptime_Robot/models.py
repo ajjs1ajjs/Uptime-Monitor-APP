@@ -238,6 +238,12 @@ def get_ssl_certificates(db_path: str) -> List[Dict[str, Any]]:
     """Отримує всі SSL сертифікати"""
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
+        # Clean up duplicates - keep only the latest
+        c.execute("""DELETE FROM ssl_certificates WHERE id NOT IN (
+            SELECT MAX(id) FROM ssl_certificates GROUP BY site_id
+        )""")
+        conn.commit()
+
         c.execute("""SELECT c.*, s.name as site_name, s.url as site_url 
                      FROM ssl_certificates c
                      JOIN sites s ON c.site_id = s.id

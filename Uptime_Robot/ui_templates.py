@@ -559,7 +559,7 @@ DASHBOARD_JS = """
                     </div>
                     <div class="monitor-actions">
                         <button class="btn btn-check" onclick="checkSite(${site.id})">Check</button>
-                        <button class="btn btn-edit" onclick="openEditModal(${site.id}, '${site.name}', '${site.url}', ${JSON.stringify(site.notify_methods)})">Edit</button>
+                        <button class="btn btn-edit" onclick="openEditModal(${site.id}, '${encodeURIComponent(site.name)}', '${encodeURIComponent(site.url)}', ${JSON.stringify(site.notify_methods || [])})">Edit</button>
                         <button class="btn btn-delete" onclick="deleteSite(${site.id})">Delete</button>
                     </div>
                 </div>`;
@@ -825,8 +825,8 @@ DASHBOARD_JS = """
 
         function openEditModal(id, name, url, notifyMethods) {
             document.getElementById('editSiteId').value = id;
-            document.getElementById('editSiteName').value = name;
-            document.getElementById('editSiteUrl').value = url;
+            document.getElementById('editSiteName').value = decodeURIComponent(name);
+            document.getElementById('editSiteUrl').value = decodeURIComponent(url);
             const select = document.getElementById('editSiteNotify');
             if (select) Array.from(select.options).forEach(opt => { opt.selected = notifyMethods.includes(opt.value); });
             document.getElementById('editModal').classList.add('active');

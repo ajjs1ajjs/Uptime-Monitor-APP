@@ -500,7 +500,7 @@ async def get_response_time_stats(user: dict = Depends(get_current_user)):
     with get_db_connection() as conn:
         c = conn.cursor()
         c.execute("""
-            SELECT site_id, s.name as site_name, AVG(response_time) as avg_time, MIN(response_time) as min_time, MAX(response_time) as max_time, COUNT(*) as checks
+            SELECT site_id, s.name as site_name, AVG(sh.response_time) as avg_time, MIN(sh.response_time) as min_time, MAX(sh.response_time) as max_time, COUNT(*) as checks
             FROM status_history sh
             JOIN sites s ON sh.site_id = s.id
             WHERE sh.checked_at >= datetime('now', '-24 hours') AND sh.response_time IS NOT NULL
