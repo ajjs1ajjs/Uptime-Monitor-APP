@@ -563,13 +563,19 @@ async def get_incidents(user: dict = Depends(get_current_user)):
         raise HTTPException(401)
     with get_db_connection() as conn:
         c = conn.cursor()
+        # Show only status changes (incidents and recoveries)
         c.execute("""
             SELECT sh.id, sh.site_id, s.name as site_name, sh.status, sh.status_code, sh.response_time, sh.error_message, sh.checked_at
             FROM status_history sh
             JOIN sites s ON sh.site_id = s.id
-            WHERE sh.status = 'down'
+            WHERE sh.id IN (
+                SELECT MAX(id) FROM status_history 
+                WHERE checked_at >= datetime('now', '-7 days')
+                GROUP BY site_id, status
+                ORDER BY checked_at DESC
+            )
             ORDER BY sh.checked_at DESC
-            LIMIT 100
+            LIMIT 50
         """)
         results = c.fetchall()
         return [
