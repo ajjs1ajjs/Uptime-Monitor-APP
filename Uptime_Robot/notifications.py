@@ -6,9 +6,306 @@ import smtplib
 import json
 import os
 from email.mime.text import MIMEText
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 from logger import logger
+
+
+def format_telegram_message(data: Dict[str, Any], alert_type: str = "down") -> str:
+    """Форматує повідомлення для Telegram"""
+    site_name = data.get("site_name", "Unknown")
+    url = data.get("url", "")
+    status_code = data.get("status_code", "N/A")
+    error = data.get("error", "None")
+    response_time = data.get("response_time", 0)
+    checked_at = data.get("checked_at", "")
+
+    if alert_type == "down":
+        return f"""🔴 <b>⚠️ САЙТ НЕ ПРАЦЮЄ!</b>
+
+<b>🌐 Сайт:</b> {site_name}
+<b>📎 URL:</b> <code>{url}</code>
+<b>📊 Статус:</b> <code>{status_code}</code>
+<b>❌ Помилка:</b> <i>{error}</i>
+<b>🕐 Час:</b> {checked_at}
+
+━━━━━━━━━━━━━━━━━━
+<i>Uptime Monitor</i>"""
+
+    elif alert_type == "still_down":
+        return f"""🔴 <b>⏱️ САЙТ ДОСІ НЕ ПРАЦЮЄ!</b>
+
+<b>🌐 Сайт:</b> {site_name}
+<b>📎 URL:</b> <code>{url}</code>
+<b>📊 Статус:</b> <code>{status_code}</code>
+<b>❌ Помилка:</b> <i>{error}</i>
+<b>🕐 Час:</b> {checked_at}
+<b>⚠️ Проблема триває...</b>
+
+━━━━━━━━━━━━━━━━━━
+<i>Uptime Monitor</i>"""
+
+    elif alert_type == "up":
+        return f"""🟢 <b>✅ САЙТ ВІДНОВЛЕНО!</b>
+
+<b>🌐 Сайт:</b> {site_name}
+<b>📎 URL:</b> <code>{url}</code>
+<b>📊 Статус:</b> <code>{status_code}</code>
+<b>⏱️ Час відповіді:</b> <code>{round(response_time, 2) if response_time else 0}ms</code>
+<b>🕐 Час:</b> {checked_at}
+
+━━━━━━━━━━━━━━━━━━
+<i>Uptime Monitor</i>"""
+
+    elif alert_type == "ssl":
+        days = data.get("days_left", 0)
+        expire_date = data.get("expire_date", "")
+        urgency = data.get("urgency", "УВАГА")
+
+        if days <= 0:
+            icon = "🔴"
+            status = "ПРОСТРОЧЕНИЙ"
+        elif days <= 3:
+            icon = "🔴"
+            status = f"Закінчується через {days} днів"
+        elif days <= 7:
+            icon = "🟠"
+            status = f"Закінчується через {days} днів"
+        else:
+            icon = "🟡"
+            status = f"Закінчується через {days} днів"
+
+        return f"""🔒 <b>{icon} SSL СЕРТИФІКАТ - {urgency}</b>
+
+<b>🌐 Сайт:</b> {site_name}
+<b>📎 URL:</b> <code>{url}</code>
+<b>📅 Статус:</b> <i>{status}</i>
+<b>📆 Дійсний до:</b> <code>{expire_date}</code>
+<b>⏰ Залишилось:</b> <code>{days} днів</code>
+
+━━━━━━━━━━━━━━━━━━
+<i>Uptime Monitor</i>"""
+
+    return str(data)
+
+
+def format_discord_message(
+    data: Dict[str, Any], alert_type: str = "down"
+) -> Dict[str, Any]:
+    """Форматує повідомлення для Discord (embed)"""
+    site_name = data.get("site_name", "Unknown")
+    url = data.get("url", "")
+    status_code = data.get("status_code", "N/A")
+    error = data.get("error", "None")
+    response_time = data.get("response_time", 0)
+    checked_at = data.get("checked_at", "")
+
+    if alert_type == "down":
+        return {
+            "embeds": [
+                {
+                    "title": "🔴 ⚠️ САЙТ НЕ ПРАЦЮЄ!",
+                    "color": 16711680,
+                    "fields": [
+                        {"name": "🌐 Сайт", "value": site_name, "inline": True},
+                        {"name": "📎 URL", "value": f"`{url}`", "inline": False},
+                        {
+                            "name": "📊 Статус",
+                            "value": f"`{status_code}`",
+                            "inline": True,
+                        },
+                        {"name": "❌ Помилка", "value": f"_{error}_", "inline": False},
+                        {"name": "🕐 Час", "value": checked_at, "inline": True},
+                    ],
+                    "footer": {
+                        "text": "Uptime Monitor",
+                        "icon_url": "https://i.imgur.com/AfFp7pu.png",
+                    },
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ]
+        }
+
+    elif alert_type == "still_down":
+        return {
+            "embeds": [
+                {
+                    "title": "🔴 ⏱️ САЙТ ДОСІ НЕ ПРАЦЮЄ!",
+                    "color": 16711680,
+                    "fields": [
+                        {"name": "🌐 Сайт", "value": site_name, "inline": True},
+                        {"name": "📎 URL", "value": f"`{url}`", "inline": False},
+                        {
+                            "name": "📊 Статус",
+                            "value": f"`{status_code}`",
+                            "inline": True,
+                        },
+                        {
+                            "name": "⚠️ Проблема триває...",
+                            "value": f"_{error}_",
+                            "inline": False,
+                        },
+                        {"name": "🕐 Час", "value": checked_at, "inline": True},
+                    ],
+                    "footer": {"text": "Uptime Monitor"},
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ]
+        }
+
+    elif alert_type == "up":
+        return {
+            "embeds": [
+                {
+                    "title": "🟢 ✅ САЙТ ВІДНОВЛЕНО!",
+                    "color": 65280,
+                    "fields": [
+                        {"name": "🌐 Сайт", "value": site_name, "inline": True},
+                        {"name": "📎 URL", "value": f"`{url}`", "inline": False},
+                        {
+                            "name": "📊 Статус",
+                            "value": f"`{status_code}`",
+                            "inline": True,
+                        },
+                        {
+                            "name": "⏱️ Час відповіді",
+                            "value": f"`{round(response_time, 2) if response_time else 0}ms`",
+                            "inline": True,
+                        },
+                        {"name": "🕐 Час", "value": checked_at, "inline": True},
+                    ],
+                    "footer": {"text": "Uptime Monitor"},
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ]
+        }
+
+    elif alert_type == "ssl":
+        days = data.get("days_left", 0)
+        expire_date = data.get("expire_date", "")
+
+        if days <= 3:
+            color = 16711680
+            icon = "🔴"
+        elif days <= 7:
+            color = 16744448
+            icon = "🟠"
+        else:
+            color = 16776960
+            icon = "🟡"
+
+        return {
+            "embeds": [
+                {
+                    "title": f"{icon} 🔒 SSL СЕРТИФІКАТ",
+                    "color": color,
+                    "fields": [
+                        {"name": "🌐 Сайт", "value": site_name, "inline": True},
+                        {"name": "📎 URL", "value": f"`{url}`", "inline": False},
+                        {"name": "📆 Дійсний до", "value": expire_date, "inline": True},
+                        {
+                            "name": "⏰ Залишилось",
+                            "value": f"`{days} днів`",
+                            "inline": True,
+                        },
+                    ],
+                    "footer": {"text": "Uptime Monitor"},
+                    "timestamp": datetime.now().isoformat(),
+                }
+            ]
+        }
+
+    return {"content": str(data)}
+
+
+def format_teams_message(
+    data: Dict[str, Any], alert_type: str = "down"
+) -> Dict[str, Any]:
+    """Форматує повідомлення для Microsoft Teams"""
+    site_name = data.get("site_name", "Unknown")
+    url = data.get("url", "")
+    status_code = data.get("status_code", "N/A")
+    error = data.get("error", "None")
+
+    if alert_type == "down":
+        return {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "FF0000",
+            "summary": "Uptime Alert",
+            "sections": [
+                {
+                    "activityTitle": "🔴 ⚠️ САЙТ НЕ ПРАЦЮЄ!",
+                    "facts": [
+                        {"name": "🌐 Сайт:", "value": site_name},
+                        {"name": "📎 URL:", "value": url},
+                        {"name": "📊 Статус:", "value": str(status_code)},
+                        {"name": "❌ Помилка:", "value": error},
+                    ],
+                    "markdown": True,
+                }
+            ],
+        }
+
+    elif alert_type == "up":
+        return {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "00FF00",
+            "summary": "Uptime Alert",
+            "sections": [
+                {
+                    "activityTitle": "🟢 ✅ САЙТ ВІДНОВЛЕНО!",
+                    "facts": [
+                        {"name": "🌐 Сайт:", "value": site_name},
+                        {"name": "📎 URL:", "value": url},
+                        {"name": "📊 Статус:", "value": str(status_code)},
+                    ],
+                    "markdown": True,
+                }
+            ],
+        }
+
+    return {"text": str(data)}
+
+
+def parse_message(message: str) -> Dict[str, Any]:
+    """Парсить просте повідомлення на частини"""
+    data = {
+        "site_name": "",
+        "url": "",
+        "status_code": "",
+        "error": "",
+        "checked_at": "",
+    }
+
+    lines = message.split("\n")
+    for line in lines:
+        if line.startswith("🔴 "):
+            data["site_name"] = (
+                line.replace("🔴 ", "").replace(" - STILL DOWN", "").strip()
+            )
+        elif line.startswith("🟢 "):
+            data["site_name"] = (
+                line.replace("🟢 ", "").replace(" - RECOVERED", "").strip()
+            )
+        elif line.startswith("🌐 "):
+            data["url"] = line.replace("🌐 ", "").strip()
+        elif line.startswith("Status: "):
+            data["status_code"] = line.replace("Status: ", "").strip()
+        elif line.startswith("Error: "):
+            data["error"] = line.replace("Error: ", "").strip()
+        elif line.startswith("Response Time: "):
+            try:
+                data["response_time"] = float(
+                    line.replace("Response Time: ", "").replace("ms", "").strip()
+                )
+            except:
+                pass
+        elif line.startswith("Time: "):
+            data["checked_at"] = line.replace("Time: ", "").strip()
+
+    return data
 
 
 class NotificationService:
@@ -66,7 +363,7 @@ async def send_notification(
         await asyncio.gather(*tasks, return_exceptions=True)
 
 
-async def send_telegram(message: str, settings: Dict[str, Any]):
+async def send_telegram(message: Union[str, Dict], settings: Dict[str, Any]):
     """Відправляє повідомлення в Telegram"""
     token = settings.get("token")
     chat_id = settings.get("chat_id")
@@ -76,7 +373,18 @@ async def send_telegram(message: str, settings: Dict[str, Any]):
 
     try:
         url = f"https://api.telegram.org/bot{token}/sendMessage"
-        payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
+
+        if isinstance(message, dict):
+            alert_type = message.get("alert_type", "down")
+            text = format_telegram_message(message, alert_type)
+        else:
+            data = parse_message(message)
+            alert_type = "down" if "🔴" in message else "up"
+            if "STILL DOWN" in message:
+                alert_type = "still_down"
+            text = format_telegram_message(data, alert_type)
+
+        payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
 
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload) as response:
@@ -89,14 +397,23 @@ async def send_telegram(message: str, settings: Dict[str, Any]):
         logger.error(f"Telegram error: {e}")
 
 
-async def send_teams(message: str, settings: Dict[str, Any]):
+async def send_teams(message: Union[str, Dict], settings: Dict[str, Any]):
     """Відправляє повідомлення в Microsoft Teams"""
     webhook_url = settings.get("webhook_url")
     if not webhook_url:
         return
 
     try:
-        payload = {"text": message}
+        if isinstance(message, dict):
+            alert_type = message.get("alert_type", "down")
+            payload = format_teams_message(message, alert_type)
+        else:
+            data = parse_message(message)
+            alert_type = "down" if "🔴" in message else "up"
+            if "STILL DOWN" in message:
+                alert_type = "still_down"
+            payload = format_teams_message(data, alert_type)
+
         async with aiohttp.ClientSession() as session:
             async with session.post(webhook_url, json=payload) as response:
                 if response.status not in [200, 204]:
@@ -105,14 +422,23 @@ async def send_teams(message: str, settings: Dict[str, Any]):
         logger.error(f"Teams error: {e}")
 
 
-async def send_discord(message: str, settings: Dict[str, Any]):
+async def send_discord(message: Union[str, Dict], settings: Dict[str, Any]):
     """Відправляє повідомлення в Discord"""
     webhook_url = settings.get("webhook_url")
     if not webhook_url:
         return
 
     try:
-        payload = {"content": message}
+        if isinstance(message, dict):
+            alert_type = message.get("alert_type", "down")
+            payload = format_discord_message(message, alert_type)
+        else:
+            data = parse_message(message)
+            alert_type = "down" if "🔴" in message else "up"
+            if "STILL DOWN" in message:
+                alert_type = "still_down"
+            payload = format_discord_message(data, alert_type)
+
         async with aiohttp.ClientSession() as session:
             async with session.post(webhook_url, json=payload) as response:
                 if response.status not in [200, 204]:

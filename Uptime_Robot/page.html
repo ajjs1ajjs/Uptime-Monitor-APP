@@ -224,14 +224,17 @@
                         <option value="ping">📡 Пінг</option>
                         <option value="ssl">🔒 SSL</option>
                     </select>
-                    <select id="siteNotify" multiple>
-                        <option value="telegram">📱 Telegram</option>
-                        <option value="teams">🏢 Teams</option>
-                        <option value="discord">🎮 Discord</option>
-                        <option value="email">📧 Email</option>
-                    </select>
                 </div>
-                <button class="btn btn-check" style="margin-top: 15px; width: 100%;" onclick="addSite()">➕ Додати монітор</button>
+                <div class="modal-field" style="margin-top: 16px;">
+                    <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 10px; display: block;">Способи сповіщень</label>
+                    <div class="edit-notify-options" id="siteNotifyOptions">
+                        <label class="notify-option"><input type="checkbox" value="telegram"><span>📱 Telegram</span></label>
+                        <label class="notify-option"><input type="checkbox" value="discord"><span>🎮 Discord</span></label>
+                        <label class="notify-option"><input type="checkbox" value="teams"><span>🏢 MS Teams</span></label>
+                        <label class="notify-option"><input type="checkbox" value="email"><span>📧 Email</span></label>
+                    </div>
+                </div>
+                <button class="btn btn-check" style="margin-top: 20px; width: 100%;" onclick="addSite()">➕ Додати монітор</button>
             </div>
             
             <div class="panel">
@@ -245,10 +248,7 @@
             </div>
             
             <div class="panel">
-                <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>🔔 Глобальні налаштування сповіщень</span>
-                    <button class="btn-add-channel" onclick="openAddChannelModal()" style="padding: 8px 16px; font-size: 12px;">➕ Додати канал</button>
-                </div>
+                <div class="panel-title">🔔 Глобальні налаштування сповіщень</div>
                 <div class="notify-grid">
                     <!-- Notification Cards here -->
                     
@@ -542,8 +542,8 @@
             const name = document.getElementById('siteName').value;
             const url = document.getElementById('siteUrl').value;
             const monitor_type = document.getElementById('monitorType').value;
-            const notify_select = document.getElementById('siteNotify');
-            const notify_methods = Array.from(notify_select.selectedOptions).map(o => o.value);
+            const container = document.getElementById('siteNotifyOptions');
+            const notify_methods = container ? Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(o => o.value) : [];
 
             if (!name || !url) return alert('Заповніть назву та URL');
 
@@ -556,6 +556,7 @@
                 if (response.ok) {
                     document.getElementById('siteName').value = '';
                     document.getElementById('siteUrl').value = '';
+                    if (container) container.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
                     loadSites();
                     alert('Монітор додано!');
                 }

@@ -121,16 +121,37 @@ async def check_site_status(
 
         if should_alert:
             if alert_type == "NEW":
-                msg = f"🔴 {site_name}\n🌐 {url}\nStatus: {status_code or 'N/A'}\nError: {error_message or 'None'}\nTime: {checked_at_iso}"
+                msg = {
+                    "alert_type": "down",
+                    "site_name": site_name,
+                    "url": url,
+                    "status_code": status_code or "N/A",
+                    "error": error_message or "None",
+                    "checked_at": checked_at_iso,
+                }
             else:
-                msg = f"🔴 {site_name} - STILL DOWN\n🌐 {url}\nStatus: {status_code or 'N/A'}\nError: {error_message or 'None'}\nTime: {checked_at_iso}\n⏱️ Схоже, проблема триває..."
+                msg = {
+                    "alert_type": "still_down",
+                    "site_name": site_name,
+                    "url": url,
+                    "status_code": status_code or "N/A",
+                    "error": error_message or "None",
+                    "checked_at": checked_at_iso,
+                }
 
             await send_notification(msg, notify_methods, notify_settings)
             LAST_DOWN_ALERT[site_id] = checked_at
 
     # Сповіщення про відновлення
     if status == "up" and notification_status == "down" and notify_methods:
-        msg = f"🟢 {site_name} - RECOVERED\n🌐 {url}\nStatus: {status_code}\nResponse Time: {round(response_time, 2) if response_time else 0}ms\nTime: {checked_at_iso}"
+        msg = {
+            "alert_type": "up",
+            "site_name": site_name,
+            "url": url,
+            "status_code": status_code,
+            "response_time": response_time,
+            "checked_at": checked_at_iso,
+        }
         await send_notification(msg, notify_methods, notify_settings)
         if site_id in LAST_DOWN_ALERT:
             del LAST_DOWN_ALERT[site_id]
@@ -196,7 +217,28 @@ async def check_site_certificate(
                 should_notify = False
 
         if should_notify:
-            msg = format_certificate_alert(cert_info, site_name, url)
+            expire_date = datetime.fromisoformat(cert_info["expire_date"]).strftime(
+                "%Y-%m-%d %H:%M"
+            )
+            days = cert_info["days_until_expire"]
+
+            if days <= 0:
+                urgency = "КРИТИЧНО"
+            elif days <= 3:
+                urgency = "КРИТИЧНО"
+            elif days <= 7:
+                urgency = "ВАЖЛИВО"
+            else:
+                urgency = "УВАГА"
+
+            msg = {
+                "alert_type": "ssl",
+                "site_name": site_name,
+                "url": url,
+                "days_left": days,
+                "expire_date": expire_date,
+                "urgency": urgency,
+            }
             await send_notification(msg, notify_methods, notify_settings)
 
             c.execute(
