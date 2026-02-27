@@ -341,23 +341,37 @@ class NotificationService:
 
 
 async def send_notification(
-    message: str, methods: List[str], notify_settings: Dict[str, Any]
+    message: Union[str, Dict], methods: List[str], notify_settings: Dict[str, Any]
 ):
     """Відправляє сповіщення через вказані методи"""
     tasks = []
     for method in methods:
-        if method == "telegram" and notify_settings.get("telegram", {}).get("enabled"):
-            tasks.append(send_telegram(message, notify_settings["telegram"]))
-        elif method == "teams" and notify_settings.get("teams", {}).get("enabled"):
-            tasks.append(send_teams(message, notify_settings["teams"]))
-        elif method == "discord" and notify_settings.get("discord", {}).get("enabled"):
-            tasks.append(send_discord(message, notify_settings["discord"]))
-        elif method == "slack" and notify_settings.get("slack", {}).get("enabled"):
-            tasks.append(send_slack(message, notify_settings["slack"]))
-        elif method == "email" and notify_settings.get("email", {}).get("enabled"):
-            tasks.append(send_email(message, notify_settings["email"]))
-        elif method == "sms" and notify_settings.get("sms", {}).get("enabled"):
-            tasks.append(send_sms(message, notify_settings["sms"]))
+        method_config = notify_settings.get(method, {})
+
+        if not method_config.get("enabled", False):
+            continue
+
+        if method == "telegram":
+            channels = method_config.get("channels", [])
+            for channel in channels:
+                if channel.get("token") and channel.get("chat_id"):
+                    tasks.append(send_telegram(message, channel))
+
+        elif method == "discord":
+            channels = method_config.get("channels", [])
+            for channel in channels:
+                if channel.get("webhook_url"):
+                    tasks.append(send_discord(message, channel))
+
+        elif method == "teams":
+            channels = method_config.get("channels", [])
+            for channel in channels:
+                if channel.get("webhook_url"):
+                    tasks.append(send_teams(message, channel))
+
+        elif method == "email":
+            if method_config.get("smtp_server"):
+                tasks.append(send_email(message, method_config))
 
     if tasks:
         await asyncio.gather(*tasks, return_exceptions=True)

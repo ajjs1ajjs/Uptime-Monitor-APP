@@ -18,7 +18,8 @@ else:
 
 # Configuration paths
 CONFIG_PATH = os.environ.get("CONFIG_PATH", "/etc/uptime-monitor/config.json")
-DB_PATH = "" # Will be set in init_paths
+DB_PATH = ""  # Will be set in init_paths
+
 
 def init_paths():
     global CONFIG_PATH, DB_PATH
@@ -29,6 +30,7 @@ def init_paths():
     DB_PATH = os.path.join(os.path.dirname(CONFIG_PATH), "sites.db")
     if IS_WINDOWS and not os.path.exists(os.path.dirname(CONFIG_PATH)):
         os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+
 
 # Default configuration
 DEFAULT_CONFIG = {
@@ -69,10 +71,18 @@ DEFAULT_CONFIG = {
 }
 
 DEFAULT_NOTIFY_SETTINGS = {
-    "telegram": {"enabled": False, "token": "", "chat_id": ""},
-    "teams": {"enabled": False, "webhook_url": ""},
-    "discord": {"enabled": False, "webhook_url": ""},
-    "slack": {"enabled": False, "webhook_url": ""},
+    "telegram": {
+        "enabled": False,
+        "channels": [{"id": "default", "name": "Основний", "token": "", "chat_id": ""}],
+    },
+    "discord": {
+        "enabled": False,
+        "channels": [{"id": "default", "name": "Основний", "webhook_url": ""}],
+    },
+    "teams": {
+        "enabled": False,
+        "channels": [{"id": "default", "name": "Основний", "webhook_url": ""}],
+    },
     "email": {
         "enabled": False,
         "smtp_server": "",
@@ -81,14 +91,8 @@ DEFAULT_NOTIFY_SETTINGS = {
         "password": "",
         "to_email": "",
     },
-    "sms": {
-        "enabled": False,
-        "account_sid": "",
-        "auth_token": "",
-        "from_number": "",
-        "to_number": "",
-    },
 }
+
 
 def get_server_ip():
     """Get the server IP address"""
@@ -110,6 +114,7 @@ def get_server_ip():
         return ip
     except:
         return "0.0.0.0"
+
 
 def load_config():
     """Load configuration from file or create default"""
@@ -143,6 +148,7 @@ def load_config():
             pass
         return config
 
+
 def save_config(config):
     """Save configuration to file"""
     try:
@@ -153,6 +159,7 @@ def save_config(config):
     except Exception as e:
         print(f"Error saving config: {e}")
         return False
+
 
 def log_config_change(config, old_config, new_config, user="system"):
     """Log configuration changes"""
@@ -172,6 +179,7 @@ def log_config_change(config, old_config, new_config, user="system"):
             f.write(json.dumps(change_entry, ensure_ascii=False) + "\n")
     except:
         pass
+
 
 def backup_config(config):
     """Create backup of current configuration"""
@@ -193,21 +201,28 @@ def backup_config(config):
 
         if os.path.exists(latest_link):
             if os.path.exists(prev_link):
-                try: os.remove(prev_link)
-                except: pass
-            try: os.rename(latest_link, prev_link)
-            except: pass
+                try:
+                    os.remove(prev_link)
+                except:
+                    pass
+            try:
+                os.rename(latest_link, prev_link)
+            except:
+                pass
 
         if os.path.exists(latest_link):
-            try: os.remove(latest_link)
-            except: pass
-        
+            try:
+                os.remove(latest_link)
+            except:
+                pass
+
         try:
-            if hasattr(os, 'symlink'):
+            if hasattr(os, "symlink"):
                 os.symlink(backup_file, latest_link)
             else:
                 # Fallback for systems without symlink support (Windows without admin)
                 import shutil
+
                 shutil.copy2(backup_file, latest_link)
         except:
             pass
@@ -226,11 +241,14 @@ def backup_config(config):
         )
         if len(backups) > max_backups:
             for old_backup in backups[:-max_backups]:
-                try: os.remove(os.path.join(backup_dir, old_backup))
-                except: pass
+                try:
+                    os.remove(os.path.join(backup_dir, old_backup))
+                except:
+                    pass
 
     except Exception as e:
         print(f"Backup error: {e}")
+
 
 def setup_ssl(config):
     """Setup SSL context"""
@@ -252,6 +270,7 @@ def setup_ssl(config):
         print(f"SSL setup error: {e}")
         return None
 
+
 async def https_redirect_middleware(request, call_next, config):
     """Middleware for HTTPS redirect and HSTS"""
     ssl_config = config.get("ssl", {})
@@ -259,12 +278,15 @@ async def https_redirect_middleware(request, call_next, config):
         if request.url.scheme == "http":
             url = request.url.replace(scheme="https")
             from fastapi.responses import RedirectResponse
+
             return RedirectResponse(url, status_code=301)
-    
+
     response = await call_next(request)
-    
+
     if ssl_config.get("enabled") and ssl_config.get("hsts"):
         max_age = ssl_config.get("hsts_max_age", 31536000)
-        response.headers["Strict-Transport-Security"] = f"max-age={max_age}; includeSubDomains"
-        
+        response.headers["Strict-Transport-Security"] = (
+            f"max-age={max_age}; includeSubDomains"
+        )
+
     return response

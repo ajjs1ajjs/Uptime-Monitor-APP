@@ -179,6 +179,15 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         .add-channel-card {{ display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 30px; border-radius: 14px; background: rgba(15, 23, 42, 0.3); border: 2px dashed var(--border); cursor: pointer; transition: all 0.2s; min-height: 140px; }}
         .add-channel-card:hover {{ border-color: var(--accent); background: rgba(0, 217, 255, 0.05); }}
         
+        .channels-list {{ display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }}
+        .channel-item {{ background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }}
+        .channel-header {{ display: flex; justify-content: space-between; align-items: center; }}
+        .channel-name {{ font-weight: 500; color: var(--text-primary); }}
+        .btn-remove-channel {{ background: rgba(239, 68, 68, 0.2); border: none; color: #ef4444; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }}
+        .btn-remove-channel:hover {{ background: rgba(239, 68, 68, 0.4); }}
+        .btn-add-channel-inline {{ width: 100%; padding: 12px; background: rgba(0, 217, 255, 0.1); border: 1px dashed var(--accent); border-radius: 10px; color: var(--accent); cursor: pointer; font-size: 13px; transition: all 0.2s; }}
+        .btn-add-channel-inline:hover {{ background: rgba(0, 217, 255, 0.2); }}
+        
         .btn-save-notify {{ margin-top: 24px; width: 100%; padding: 16px; background: linear-gradient(135deg, var(--accent), #00d9ff); border: none; border-radius: 12px; color: #000; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s; }}
         .btn-save-notify:hover {{ transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 217, 255, 0.3); }}
         
@@ -370,23 +379,31 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         <div class="modal-content" style="max-width: 480px;">
             <div class="modal-title" style="margin-bottom: 20px; font-size: 20px;">➕ Додати канал сповіщень</div>
             <div class="modal-field">
-                <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Оберіть канал</label>
-                <select id="newChannelType" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
+                <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Тип каналу</label>
+                <select id="addChannelMethod" onchange="updateChannelFields()" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
                     <option value="telegram">📱 Telegram</option>
                     <option value="discord">🎮 Discord</option>
                     <option value="teams">🏢 MS Teams</option>
-                    <option value="email">📧 Email</option>
-                    <option value="custom">🔧 Свій webhook</option>
                 </select>
             </div>
             <div class="modal-field" style="margin-top: 16px;">
                 <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Назва каналу</label>
                 <input type="text" id="newChannelName" placeholder="Наприклад: Основний Telegram" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
             </div>
-            <div id="customChannelFields" style="display: none; margin-top: 16px;">
+            <div id="telegramFields" style="margin-top: 16px;">
                 <div class="modal-field">
-                    <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">URL webhook</label>
-                    <input type="url" id="newChannelUrl" placeholder="https://..." style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
+                    <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Telegram Bot Token</label>
+                    <input type="text" id="newTelegramToken" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
+                </div>
+                <div class="modal-field" style="margin-top: 12px;">
+                    <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Chat ID</label>
+                    <input type="text" id="newTelegramChatId" placeholder="123456789" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
+                </div>
+            </div>
+            <div id="webhookFields" style="display: none; margin-top: 16px;">
+                <div class="modal-field">
+                    <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Webhook URL</label>
+                    <input type="url" id="newWebhookUrl" placeholder="https://discord.com/api/webhooks/..." style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
                 </div>
             </div>
             <div class="modal-actions" style="margin-top: 24px; display: flex; gap: 12px;">
@@ -1021,24 +1038,31 @@ DASHBOARD_JS = """
             else card.classList.remove('enabled');
         }
 
-        async function saveNotifySettings() {
-            const settings = {
-                telegram: { enabled: document.getElementById('toggle-telegram')?.checked, token: document.getElementById('telegram-token')?.value, chat_id: document.getElementById('telegram-chat_id')?.value },
-                discord: { enabled: document.getElementById('toggle-discord')?.checked, webhook_url: document.getElementById('discord-webhook_url')?.value },
-                teams: { enabled: document.getElementById('toggle-teams')?.checked, webhook_url: document.getElementById('teams-webhook_url')?.value },
-                email: { enabled: document.getElementById('toggle-email')?.checked, smtp_server: document.getElementById('email-smtp_server')?.value, smtp_port: parseInt(document.getElementById('email-smtp_port')?.value) || 587, username: document.getElementById('email-username')?.value, password: document.getElementById('email-password')?.value, to_email: document.getElementById('email-to_email')?.value },
-            };
-            try {
-                await fetch('/api/notify-settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(settings) });
-                alert('✅ Налаштування збережено!');
-            } catch(e) { console.error(e); }
+        function updateChannelFields() {
+            const method = document.getElementById('addChannelMethod').value;
+            if (method === 'telegram') {
+                document.getElementById('telegramFields').style.display = 'block';
+                document.getElementById('webhookFields').style.display = 'none';
+            } else {
+                document.getElementById('telegramFields').style.display = 'none';
+                document.getElementById('webhookFields').style.display = 'block';
+            }
         }
 
-        function openAddChannelModal() {
-            document.getElementById('newChannelType').value = 'telegram';
+        function openAddChannelModal(method) {
+            document.getElementById('addChannelMethod').value = method;
             document.getElementById('newChannelName').value = '';
-            document.getElementById('newChannelUrl').value = '';
-            document.getElementById('customChannelFields').style.display = 'none';
+            document.getElementById('newTelegramToken').value = '';
+            document.getElementById('newTelegramChatId').value = '';
+            document.getElementById('newWebhookUrl').value = '';
+            
+            if (method === 'telegram') {
+                document.getElementById('telegramFields').style.display = 'block';
+                document.getElementById('webhookFields').style.display = 'none';
+            } else {
+                document.getElementById('telegramFields').style.display = 'none';
+                document.getElementById('webhookFields').style.display = 'block';
+            }
             document.getElementById('addChannelModal').classList.add('active');
         }
 
@@ -1047,23 +1071,98 @@ DASHBOARD_JS = """
         }
 
         function addNewChannel() {
-            const type = document.getElementById('newChannelType').value;
+            const method = document.getElementById('addChannelMethod').value;
             const name = document.getElementById('newChannelName').value.trim();
             if (!name) return alert('Введіть назву каналу!');
             
-            if (type === 'custom') {
-                const url = document.getElementById('newChannelUrl').value.trim();
-                if (!url) return alert('Введіть URL webhook!');
-                alert('Канал "' + name + '" додано! (webhook: ' + url + ')');
+            const channelId = 'ch_' + Date.now();
+            let html = '';
+            
+            if (method === 'telegram') {
+                const token = document.getElementById('newTelegramToken').value.trim();
+                const chat_id = document.getElementById('newTelegramChatId').value.trim();
+                if (!token || !chat_id) return alert('Введіть token та chat_id!');
+                
+                html = `<div class="channel-item" id="ch_${channelId}">
+                    <div class="channel-header">
+                        <span class="channel-name">📱 ${name}</span>
+                        <button type="button" class="btn-remove-channel" onclick="removeChannel('${method}', '${channelId}')">✕</button>
+                    </div>
+                    <input type="hidden" name="${method}_channels" value="${channelId}">
+                    <input type="hidden" id="${method}_${channelId}_name" value="${name}">
+                    <input type="hidden" id="${method}_${channelId}_token" value="${token}">
+                    <input type="hidden" id="${method}_${channelId}_chat_id" value="${chat_id}">
+                </div>`;
             } else {
-                alert('Канал "' + name + '" (' + type + ') додано! Налаштуйте його нижче.');
+                const webhookUrl = document.getElementById('newWebhookUrl').value.trim();
+                if (!webhookUrl) return alert('Введіть URL webhook!');
+                
+                html = `<div class="channel-item" id="ch_${channelId}">
+                    <div class="channel-header">
+                        <span class="channel-name">🔗 ${name}</span>
+                        <button type="button" class="btn-remove-channel" onclick="removeChannel('${method}', '${channelId}')">✕</button>
+                    </div>
+                    <input type="hidden" name="${method}_channels" value="${channelId}">
+                    <input type="hidden" id="${method}_${channelId}_name" value="${name}">
+                    <input type="hidden" id="${method}_${channelId}_webhook_url" value="${webhookUrl}">
+                </div>`;
             }
+            
+            document.getElementById('channels-' + method).insertAdjacentHTML('beforeend', html);
+            document.getElementById('newTelegramToken').value = '';
+            document.getElementById('newTelegramChatId').value = '';
+            document.getElementById('newWebhookUrl').value = '';
             closeAddChannelModal();
         }
 
-        document.getElementById('newChannelType')?.addEventListener('change', function() {
-            document.getElementById('customChannelFields').style.display = this.value === 'custom' ? 'block' : 'none';
-        });
+        function removeChannel(method, channelId) {
+            const el = document.getElementById('ch_' + channelId);
+            if (el) el.remove();
+        }
+
+        async function saveNotifySettings() {
+            const settings = {
+                telegram: { enabled: document.getElementById('toggle-telegram')?.checked, channels: [] },
+                discord: { enabled: document.getElementById('toggle-discord')?.checked, channels: [] },
+                teams: { enabled: document.getElementById('toggle-teams')?.checked, channels: [] },
+                email: { 
+                    enabled: document.getElementById('toggle-email')?.checked, 
+                    smtp_server: document.getElementById('email-smtp_server')?.value, 
+                    smtp_port: parseInt(document.getElementById('email-smtp_port')?.value) || 587, 
+                    username: document.getElementById('email-username')?.value, 
+                    password: document.getElementById('email-password')?.value, 
+                    to_email: document.getElementById('email-to_email')?.value 
+                },
+            };
+            
+            ['telegram', 'discord', 'teams'].forEach(method => {
+                const container = document.getElementById('channels-' + method);
+                if (container) {
+                    const items = container.querySelectorAll('.channel-item');
+                    items.forEach(item => {
+                        const id = item.id.replace('ch_', '');
+                        const name = document.getElementById(`${method}_${id}_name`)?.value;
+                        if (method === 'telegram') {
+                            const token = document.getElementById(`${method}_${id}_token`)?.value;
+                            const chat_id = document.getElementById(`${method}_${id}_chat_id`)?.value;
+                            if (name && token && chat_id) {
+                                settings[method].channels.push({ id, name, token, chat_id });
+                            }
+                        } else {
+                            const webhook_url = document.getElementById(`${method}_${id}_webhook_url`)?.value;
+                            if (name && webhook_url) {
+                                settings[method].channels.push({ id, name, webhook_url });
+                            }
+                        }
+                    });
+                }
+            });
+            
+            try {
+                await fetch('/api/notify-settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(settings) });
+                alert('✅ Налаштування збережено!');
+            } catch(e) { console.error(e); }
+        }
 
         async function loadAppSettings() {
             try {
@@ -1125,43 +1224,88 @@ DASHBOARD_JS = """
 
 def get_notification_cards_html(config):
     methods = [
-        ("telegram", "📱", "Telegram", "Миттєві сповіщення", ["token", "chat_id"]),
-        ("discord", "🎮", "Discord", "Геймерські спільноти", ["webhook_url"]),
-        ("teams", "🏢", "MS Teams", "Робочі групи", ["webhook_url"]),
-        (
-            "email",
-            "📧",
-            "Email",
-            "Електронна пошта",
-            ["smtp_server", "smtp_port", "username", "password", "to_email"],
-        ),
+        ("telegram", "📱", "Telegram", "Миттєві сповіщення"),
+        ("discord", "🎮", "Discord", "Геймерські спільноти"),
+        ("teams", "🏢", "MS Teams", "Робочі групи"),
+        ("email", "📧", "Email", "Електронна пошта"),
     ]
 
     html = ""
-    for key, icon, name, desc, fields in methods:
+    for key, icon, name, desc in methods:
         enabled = config.get(key, {}).get("enabled", False)
         enabled_class = "enabled" if enabled else ""
         checked = "checked" if enabled else ""
 
-        card = f"""
-        <div class="notify-card {enabled_class}" id="card-{key}">
-            <div class="notify-header">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:24px;">{icon}</span>
-                    <div><div style="font-weight:600;">{name}</div><div style="font-size:12px; color:var(--text-secondary);">{desc}</div></div>
+        channels = config.get(key, {}).get("channels", [])
+
+        channels_html = ""
+        for ch in channels:
+            ch_id = ch.get("id", "")
+            ch_name = ch.get("name", "Канал")
+            if key == "telegram":
+                channels_html += f"""
+                <div class="channel-item" id="ch_{ch_id}">
+                    <div class="channel-header">
+                        <span class="channel-name">📱 {ch_name}</span>
+                        <button type="button" class="btn-remove-channel" onclick="removeChannel('{key}', '{ch_id}')">✕</button>
+                    </div>
+                    <input type="hidden" name="{key}_channels" value="{ch_id}">
+                    <input type="hidden" id="{key}_{ch_id}_name" value="{ch_name}">
+                    <input type="hidden" id="{key}_{ch_id}_token" value="{ch.get("token", "")}">
+                    <input type="hidden" id="{key}_{ch_id}_chat_id" value="{ch.get("chat_id", "")}">
+                </div>"""
+            else:
+                channels_html += f"""
+                <div class="channel-item" id="ch_{ch_id}">
+                    <div class="channel-header">
+                        <span class="channel-name">🔗 {ch_name}</span>
+                        <button type="button" class="btn-remove-channel" onclick="removeChannel('{key}', '{ch_id}')">✕</button>
+                    </div>
+                    <input type="hidden" name="{key}_channels" value="{ch_id}">
+                    <input type="hidden" id="{key}_{ch_id}_name" value="{ch_name}">
+                    <input type="hidden" id="{key}_{ch_id}_webhook_url" value="{ch.get("webhook_url", "")}">
+                </div>"""
+
+        if key == "email":
+            card = f"""
+            <div class="notify-card {enabled_class}" id="card-{key}">
+                <div class="notify-header">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:24px;">{icon}</span>
+                        <div><div style="font-weight:600;">{name}</div><div style="font-size:12px; color:var(--text-secondary);">{desc}</div></div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="toggle-{key}" onchange="toggleNotify('{key}')" {checked}>
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
-                <label class="toggle">
-                    <input type="checkbox" id="toggle-{key}" onchange="toggleNotify('{key}')" {checked}>
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-            <div class="notify-fields">"""
+                <div class="notify-fields">
+                    <input type="text" id="email-smtp_server" placeholder="SMTP сервер" value="{config.get(key, {}).get("smtp_server", "")}">
+                    <input type="text" id="email-smtp_port" placeholder="Порт" value="{config.get(key, {}).get("smtp_port", 587)}">
+                    <input type="text" id="email-username" placeholder="Username" value="{config.get(key, {}).get("username", "")}">
+                    <input type="password" id="email-password" placeholder="Password" value="{config.get(key, {}).get("password", "")}">
+                    <input type="text" id="email-to_email" placeholder="Отримувач" value="{config.get(key, {}).get("to_email", "")}">
+                </div>
+            </div>"""
+        else:
+            card = f"""
+            <div class="notify-card {enabled_class}" id="card-{key}">
+                <div class="notify-header">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:24px;">{icon}</span>
+                        <div><div style="font-weight:600;">{name}</div><div style="font-size:12px; color:var(--text-secondary);">{desc}</div></div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="toggle-{key}" onchange="toggleNotify('{key}')" {checked}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="channels-list" id="channels-{key}">
+                    {channels_html}
+                </div>
+                <button type="button" class="btn-add-channel-inline" onclick="openAddChannelModal('{key}')">➕ Додати канал</button>
+            </div>"""
 
-        for field in fields:
-            val = config.get(key, {}).get(field, "")
-            card += f'<input type="text" id="{key}-{field}" placeholder="{field}" value="{val}">'
-
-        card += "</div></div>"
         html += card
     return html
 
