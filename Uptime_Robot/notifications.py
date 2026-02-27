@@ -370,8 +370,10 @@ async def send_notification(
                     tasks.append(send_teams(message, channel))
 
         elif method == "email":
-            if method_config.get("smtp_server"):
-                tasks.append(send_email(message, method_config))
+            channels = method_config.get("channels", [])
+            for channel in channels:
+                if channel.get("smtp_server") and channel.get("username"):
+                    tasks.append(send_email(message, channel))
 
     if tasks:
         await asyncio.gather(*tasks, return_exceptions=True)

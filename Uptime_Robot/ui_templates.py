@@ -384,6 +384,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                     <option value="telegram">📱 Telegram</option>
                     <option value="discord">🎮 Discord</option>
                     <option value="teams">🏢 MS Teams</option>
+                    <option value="email">📧 Email</option>
                 </select>
             </div>
             <div class="modal-field" style="margin-top: 16px;">
@@ -404,6 +405,28 @@ DASHBOARD_HTML = """<!DOCTYPE html>
                 <div class="modal-field">
                     <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Webhook URL</label>
                     <input type="url" id="newWebhookUrl" placeholder="https://discord.com/api/webhooks/..." style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
+                </div>
+            </div>
+            <div id="emailFields" style="display: none; margin-top: 16px;">
+                <div class="modal-field">
+                    <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">SMTP Сервер</label>
+                    <input type="text" id="newEmailSmtp" placeholder="smtp.gmail.com" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
+                </div>
+                <div class="modal-field" style="margin-top: 12px;">
+                    <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Порт</label>
+                    <input type="text" id="newEmailPort" placeholder="587" value="587" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
+                </div>
+                <div class="modal-field" style="margin-top: 12px;">
+                    <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Username</label>
+                    <input type="text" id="newEmailUser" placeholder="your@email.com" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
+                </div>
+                <div class="modal-field" style="margin-top: 12px;">
+                    <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Password</label>
+                    <input type="password" id="newEmailPass" placeholder="Пароль" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
+                </div>
+                <div class="modal-field" style="margin-top: 12px;">
+                    <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Отримувач</label>
+                    <input type="text" id="newEmailTo" placeholder="to@email.com" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
                 </div>
             </div>
             <div class="modal-actions" style="margin-top: 24px; display: flex; gap: 12px;">
@@ -1043,9 +1066,15 @@ DASHBOARD_JS = """
             if (method === 'telegram') {
                 document.getElementById('telegramFields').style.display = 'block';
                 document.getElementById('webhookFields').style.display = 'none';
+                document.getElementById('emailFields').style.display = 'none';
+            } else if (method === 'email') {
+                document.getElementById('telegramFields').style.display = 'none';
+                document.getElementById('webhookFields').style.display = 'none';
+                document.getElementById('emailFields').style.display = 'block';
             } else {
                 document.getElementById('telegramFields').style.display = 'none';
                 document.getElementById('webhookFields').style.display = 'block';
+                document.getElementById('emailFields').style.display = 'none';
             }
         }
 
@@ -1055,13 +1084,24 @@ DASHBOARD_JS = """
             document.getElementById('newTelegramToken').value = '';
             document.getElementById('newTelegramChatId').value = '';
             document.getElementById('newWebhookUrl').value = '';
+            document.getElementById('newEmailSmtp').value = '';
+            document.getElementById('newEmailPort').value = '';
+            document.getElementById('newEmailUser').value = '';
+            document.getElementById('newEmailPass').value = '';
+            document.getElementById('newEmailTo').value = '';
             
             if (method === 'telegram') {
                 document.getElementById('telegramFields').style.display = 'block';
                 document.getElementById('webhookFields').style.display = 'none';
+                document.getElementById('emailFields').style.display = 'none';
+            } else if (method === 'email') {
+                document.getElementById('telegramFields').style.display = 'none';
+                document.getElementById('webhookFields').style.display = 'none';
+                document.getElementById('emailFields').style.display = 'block';
             } else {
                 document.getElementById('telegramFields').style.display = 'none';
                 document.getElementById('webhookFields').style.display = 'block';
+                document.getElementById('emailFields').style.display = 'none';
             }
             document.getElementById('addChannelModal').classList.add('active');
         }
@@ -1093,6 +1133,27 @@ DASHBOARD_JS = """
                     <input type="hidden" id="${method}_${channelId}_token" value="${token}">
                     <input type="hidden" id="${method}_${channelId}_chat_id" value="${chat_id}">
                 </div>`;
+            } else if (method === 'email') {
+                const smtp_server = document.getElementById('newEmailSmtp').value.trim();
+                const smtp_port = document.getElementById('newEmailPort').value.trim();
+                const username = document.getElementById('newEmailUser').value.trim();
+                const password = document.getElementById('newEmailPass').value.trim();
+                const to_email = document.getElementById('newEmailTo').value.trim();
+                if (!smtp_server || !username || !to_email) return alert('Заповніть всі поля!');
+                
+                html = `<div class="channel-item" id="ch_${channelId}">
+                    <div class="channel-header">
+                        <span class="channel-name">📧 ${name}</span>
+                        <button type="button" class="btn-remove-channel" onclick="removeChannel('${method}', '${channelId}')">✕</button>
+                    </div>
+                    <input type="hidden" name="${method}_channels" value="${channelId}">
+                    <input type="hidden" id="${method}_${channelId}_name" value="${name}">
+                    <input type="hidden" id="${method}_${channelId}_smtp_server" value="${smtp_server}">
+                    <input type="hidden" id="${method}_${channelId}_smtp_port" value="${smtp_port || 587}">
+                    <input type="hidden" id="${method}_${channelId}_username" value="${username}">
+                    <input type="hidden" id="${method}_${channelId}_password" value="${password}">
+                    <input type="hidden" id="${method}_${channelId}_to_email" value="${to_email}">
+                </div>`;
             } else {
                 const webhookUrl = document.getElementById('newWebhookUrl').value.trim();
                 if (!webhookUrl) return alert('Введіть URL webhook!');
@@ -1112,6 +1173,11 @@ DASHBOARD_JS = """
             document.getElementById('newTelegramToken').value = '';
             document.getElementById('newTelegramChatId').value = '';
             document.getElementById('newWebhookUrl').value = '';
+            document.getElementById('newEmailSmtp').value = '';
+            document.getElementById('newEmailPort').value = '';
+            document.getElementById('newEmailUser').value = '';
+            document.getElementById('newEmailPass').value = '';
+            document.getElementById('newEmailTo').value = '';
             closeAddChannelModal();
         }
 
@@ -1125,17 +1191,10 @@ DASHBOARD_JS = """
                 telegram: { enabled: document.getElementById('toggle-telegram')?.checked, channels: [] },
                 discord: { enabled: document.getElementById('toggle-discord')?.checked, channels: [] },
                 teams: { enabled: document.getElementById('toggle-teams')?.checked, channels: [] },
-                email: { 
-                    enabled: document.getElementById('toggle-email')?.checked, 
-                    smtp_server: document.getElementById('email-smtp_server')?.value, 
-                    smtp_port: parseInt(document.getElementById('email-smtp_port')?.value) || 587, 
-                    username: document.getElementById('email-username')?.value, 
-                    password: document.getElementById('email-password')?.value, 
-                    to_email: document.getElementById('email-to_email')?.value 
-                },
+                email: { enabled: document.getElementById('toggle-email')?.checked, channels: [] },
             };
             
-            ['telegram', 'discord', 'teams'].forEach(method => {
+            ['telegram', 'discord', 'teams', 'email'].forEach(method => {
                 const container = document.getElementById('channels-' + method);
                 if (container) {
                     const items = container.querySelectorAll('.channel-item');
@@ -1147,6 +1206,15 @@ DASHBOARD_JS = """
                             const chat_id = document.getElementById(`${method}_${id}_chat_id`)?.value;
                             if (name && token && chat_id) {
                                 settings[method].channels.push({ id, name, token, chat_id });
+                            }
+                        } else if (method === 'email') {
+                            const smtp_server = document.getElementById(`${method}_${id}_smtp_server`)?.value;
+                            const smtp_port = document.getElementById(`${method}_${id}_smtp_port`)?.value || 587;
+                            const username = document.getElementById(`${method}_${id}_username`)?.value;
+                            const password = document.getElementById(`${method}_${id}_password`)?.value;
+                            const to_email = document.getElementById(`${method}_${id}_to_email`)?.value;
+                            if (name && smtp_server && username && to_email) {
+                                settings[method].channels.push({ id, name, smtp_server, smtp_port: parseInt(smtp_port), username, password, to_email });
                             }
                         } else {
                             const webhook_url = document.getElementById(`${method}_${id}_webhook_url`)?.value;
@@ -1254,6 +1322,21 @@ def get_notification_cards_html(config):
                     <input type="hidden" id="{key}_{ch_id}_token" value="{ch.get("token", "")}">
                     <input type="hidden" id="{key}_{ch_id}_chat_id" value="{ch.get("chat_id", "")}">
                 </div>"""
+            elif key == "email":
+                channels_html += f"""
+                <div class="channel-item" id="ch_{ch_id}">
+                    <div class="channel-header">
+                        <span class="channel-name">📧 {ch_name}</span>
+                        <button type="button" class="btn-remove-channel" onclick="removeChannel('{key}', '{ch_id}')">✕</button>
+                    </div>
+                    <input type="hidden" name="{key}_channels" value="{ch_id}">
+                    <input type="hidden" id="{key}_{ch_id}_name" value="{ch_name}">
+                    <input type="hidden" id="{key}_{ch_id}_smtp_server" value="{ch.get("smtp_server", "")}">
+                    <input type="hidden" id="{key}_{ch_id}_smtp_port" value="{ch.get("smtp_port", 587)}">
+                    <input type="hidden" id="{key}_{ch_id}_username" value="{ch.get("username", "")}">
+                    <input type="hidden" id="{key}_{ch_id}_password" value="{ch.get("password", "")}">
+                    <input type="hidden" id="{key}_{ch_id}_to_email" value="{ch.get("to_email", "")}">
+                </div>"""
             else:
                 channels_html += f"""
                 <div class="channel-item" id="ch_{ch_id}">
@@ -1279,13 +1362,10 @@ def get_notification_cards_html(config):
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
-                <div class="notify-fields">
-                    <input type="text" id="email-smtp_server" placeholder="SMTP сервер" value="{config.get(key, {}).get("smtp_server", "")}">
-                    <input type="text" id="email-smtp_port" placeholder="Порт" value="{config.get(key, {}).get("smtp_port", 587)}">
-                    <input type="text" id="email-username" placeholder="Username" value="{config.get(key, {}).get("username", "")}">
-                    <input type="password" id="email-password" placeholder="Password" value="{config.get(key, {}).get("password", "")}">
-                    <input type="text" id="email-to_email" placeholder="Отримувач" value="{config.get(key, {}).get("to_email", "")}">
+                <div class="channels-list" id="channels-{key}">
+                    {channels_html}
                 </div>
+                <button type="button" class="btn-add-channel-inline" onclick="openAddChannelModal('{key}')">➕ Додати канал</button>
             </div>"""
         else:
             card = f"""
