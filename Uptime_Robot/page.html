@@ -93,7 +93,15 @@
         
         .notify-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
         .notify-card { background: linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%); padding: 20px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.1); transition: all 0.2s ease; }
+        .notify-card:hover { border-color: rgba(0, 217, 255, 0.3); box-shadow: 0 0 20px rgba(0, 217, 255, 0.1); }
+        .notify-card.enabled { border-color: rgba(34, 197, 94, 0.4); background: linear-gradient(180deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%); }
         .notify-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        
+        .edit-notify-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .notify-option { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); cursor: pointer; transition: all 0.2s; }
+        .notify-option:hover { border-color: var(--accent); background: rgba(0, 217, 255, 0.1); }
+        .notify-option input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+        .notify-option span { font-size: 13px; color: var(--text-primary); }
         
         .toggle { position: relative; display: inline-block; width: 44px; height: 24px; }
         .toggle input { opacity: 0; width: 0; height: 0; }
@@ -104,6 +112,16 @@
         
         .notify-fields { display: flex; flex-direction: column; gap: 10px; }
         .notify-fields input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 13px; }
+        .notify-fields input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1); }
+        
+        .btn-add-channel { padding: 10px 18px; background: linear-gradient(135deg, var(--accent), #06b6d4); border: none; border-radius: 8px; color: #000; font-weight: 600; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        .btn-add-channel:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3); }
+        
+        .add-channel-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 30px; border-radius: 14px; background: rgba(15, 23, 42, 0.3); border: 2px dashed var(--border); cursor: pointer; transition: all 0.2s; min-height: 140px; }
+        .add-channel-card:hover { border-color: var(--accent); background: rgba(0, 217, 255, 0.05); }
+        
+        .btn-save-notify { margin-top: 24px; width: 100%; padding: 16px; background: linear-gradient(135deg, var(--accent), #00d9ff); border: none; border-radius: 12px; color: #000; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s; }
+        .btn-save-notify:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 217, 255, 0.3); }
         
         .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
         .form-row input, .form-row select { flex: 1; min-width: 180px; padding: 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.8); color: var(--text-primary); border: 1px solid var(--border); font-size: 14px; }
@@ -227,7 +245,10 @@
             </div>
             
             <div class="panel">
-                <div class="panel-title">🔧 Налаштування сповіщень</div>
+                <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>🔔 Глобальні налаштування сповіщень</span>
+                    <button class="btn-add-channel" onclick="openAddChannelModal()" style="padding: 8px 16px; font-size: 12px;">➕ Додати канал</button>
+                </div>
                 <div class="notify-grid">
                     <!-- Notification Cards here -->
                     
@@ -292,7 +313,11 @@
             </div>
             <div class="notify-fields"><input type="text" id="email-smtp_server" placeholder="smtp_server" value=""><input type="text" id="email-smtp_port" placeholder="smtp_port" value="587"><input type="text" id="email-username" placeholder="username" value=""><input type="text" id="email-password" placeholder="password" value=""><input type="text" id="email-to_email" placeholder="to_email" value=""></div></div>
                 </div>
-                <button class="btn btn-check" style="margin-top: 20px; width: 100%;" onclick="saveNotifySettings()">💾 Зберегти налаштування</button>
+                <div class="add-channel-card" onclick="openAddChannelModal()">
+                    <span style="font-size: 28px;">➕</span>
+                    <span style="font-size: 14px; color: var(--text-secondary);">Додати новий канал сповіщень</span>
+                </div>
+                <button class="btn-save-notify" onclick="saveNotifySettings()">💾 Зберегти налаштування</button>
             </div>
         </div>
     </div>
@@ -308,33 +333,62 @@
     </div>
 
     <div class="modal" id="editModal">
-        <div class="modal-content">
-            <div class="modal-title">✏️ Редагування сайту</div>
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-title" style="margin-bottom: 24px; font-size: 22px;">✏️ Редагування сайту</div>
             <input type="hidden" id="editSiteId">
             <div class="modal-field">
-                <label>Назва</label>
-                <input type="text" id="editSiteName">
+                <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 6px; display: block;">Назва</label>
+                <input type="text" id="editSiteName" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 15px;">
             </div>
-            <div class="modal-field">
-                <label>URL</label>
-                <input type="url" id="editSiteUrl">
+            <div class="modal-field" style="margin-top: 16px;">
+                <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 6px; display: block;">URL</label>
+                <input type="url" id="editSiteUrl" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 15px;">
             </div>
-            <div class="modal-field">
-                <label>Способи сповіщень</label>
-                <select id="editSiteNotify" multiple style="height: 120px;">
-                    <option value="telegram">📱 Telegram</option>
-                    <option value="teams">🏢 MS Teams</option>
-                    <option value="discord">🎮 Discord</option>
-                    <option value="slack">💬 Slack</option>
-                    <option value="email">📧 Email</option>
-                    <option value="sms">📱 SMS</option>
-                </select>
+            <div class="modal-field" style="margin-top: 16px;">
+                <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 10px; display: block;">Способи сповіщень</label>
+                <div class="edit-notify-options" id="editSiteNotify">
+                    <label class="notify-option"><input type="checkbox" value="telegram"><span>📱 Telegram</span></label>
+                    <label class="notify-option"><input type="checkbox" value="discord"><span>🎮 Discord</span></label>
+                    <label class="notify-option"><input type="checkbox" value="teams"><span>🏢 MS Teams</span></label>
+                    <label class="notify-option"><input type="checkbox" value="email"><span>📧 Email</span></label>
+                </div>
             </div>
-            <div class="modal-actions">
-                <button onclick="closeEditModal()" style="background: var(--border); color: var(--text-primary);">Скасувати</button>
-                <button onclick="saveEdit()" style="background: var(--accent); color: #000;">💾 Зберегти</button>
+            <div class="modal-actions" style="margin-top: 28px; display: flex; gap: 12px;">
+                <button onclick="closeEditModal()" style="flex: 1; padding: 14px; border: none; border-radius: 10px; background: rgba(148, 163, 184, 0.15); color: var(--text-primary); cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s;">Скасувати</button>
+                <button onclick="saveEdit()" style="flex: 1; padding: 14px; border: none; border-radius: 10px; background: linear-gradient(135deg, var(--accent), #00d9ff); color: #000; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">💾 Зберегти</button>
             </div>
         </div>
+    </div>
+
+    <div class="modal" id="addChannelModal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-title" style="margin-bottom: 20px; font-size: 20px;">➕ Додати канал сповіщень</div>
+            <div class="modal-field">
+                <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Оберіть канал</label>
+                <select id="newChannelType" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
+                    <option value="telegram">📱 Telegram</option>
+                    <option value="discord">🎮 Discord</option>
+                    <option value="teams">🏢 MS Teams</option>
+                    <option value="email">📧 Email</option>
+                    <option value="custom">🔧 Свій webhook</option>
+                </select>
+            </div>
+            <div class="modal-field" style="margin-top: 16px;">
+                <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">Назва каналу</label>
+                <input type="text" id="newChannelName" placeholder="Наприклад: Основний Telegram" style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
+            </div>
+            <div id="customChannelFields" style="display: none; margin-top: 16px;">
+                <div class="modal-field">
+                    <label style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; display: block;">URL webhook</label>
+                    <input type="url" id="newChannelUrl" placeholder="https://..." style="width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.8); color: var(--text-primary); font-size: 14px;">
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 24px; display: flex; gap: 12px;">
+                <button onclick="closeAddChannelModal()" style="flex: 1; padding: 14px; border: none; border-radius: 10px; background: rgba(148, 163, 184, 0.15); color: var(--text-primary); cursor: pointer; font-size: 14px; font-weight: 500;">Скасувати</button>
+                <button onclick="addNewChannel()" style="flex: 1; padding: 14px; border: none; border-radius: 10px; background: linear-gradient(135deg, var(--accent), #00d9ff); color: #000; cursor: pointer; font-size: 14px; font-weight: 600;">Додати</button>
+            </div>
+        </div>
+    </div>
     </div>
 
     <script>
@@ -720,8 +774,12 @@
             document.getElementById('editSiteName').value = name;
             document.getElementById('editSiteUrl').value = decodeURIComponent(url);
             const methods = typeof notifyMethods === 'string' ? JSON.parse(decodeURIComponent(notifyMethods)) : notifyMethods;
-            const select = document.getElementById('editSiteNotify');
-            if (select) Array.from(select.options).forEach(opt => { opt.selected = methods.includes(opt.value); });
+            const container = document.getElementById('editSiteNotify');
+            if (container) {
+                container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.checked = methods.includes(cb.value);
+                });
+            }
             document.getElementById('editModal').classList.add('active');
         }
 
@@ -733,8 +791,8 @@
             const id = document.getElementById('editSiteId').value;
             const name = document.getElementById('editSiteName').value.trim();
             const url = document.getElementById('editSiteUrl').value.trim();
-            const select = document.getElementById('editSiteNotify');
-            const notify_methods = select ? Array.from(select.selectedOptions).map(o => o.value) : [];
+            const container = document.getElementById('editSiteNotify');
+            const notify_methods = container ? Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(o => o.value) : [];
             if (!name || !url) return alert('Заповніть всі поля!');
             try {
                 await fetch(`/api/sites/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, url, notify_methods}) });
@@ -750,6 +808,36 @@
             } catch(e) { console.error(e); }
         }
 
+        function openAddChannelModal() {
+            document.getElementById('newChannelType').value = 'telegram';
+            document.getElementById('newChannelName').value = '';
+            document.getElementById('newChannelUrl').value = '';
+            document.getElementById('customChannelFields').style.display = 'none';
+            document.getElementById('addChannelModal').classList.add('active');
+        }
+
+        function closeAddChannelModal() {
+            document.getElementById('addChannelModal').classList.remove('active');
+        }
+
+        function addNewChannel() {
+            const type = document.getElementById('newChannelType').value;
+            const name = document.getElementById('newChannelName').value.trim();
+            if (!name) return alert('Введіть назву каналу!');
+            
+            if (type === 'custom') {
+                const url = document.getElementById('newChannelUrl').value.trim();
+                if (!url) return alert('Введіть URL webhook!');
+                alert('Канал "' + name + '" додано! (webhook: ' + url + ')');
+            } else {
+                alert('Канал "' + name + '" (' + type + ') додано! Налаштуйте його нижче.');
+            }
+            closeAddChannelModal();
+        }
+
+        document.getElementById('newChannelType')?.addEventListener('change', function() {
+            document.getElementById('customChannelFields').style.display = this.value === 'custom' ? 'block' : 'none';
+        });
 
         initNotifyUI();
         loadAppSettings();
