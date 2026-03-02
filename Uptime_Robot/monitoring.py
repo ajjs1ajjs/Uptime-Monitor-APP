@@ -185,11 +185,11 @@ async def check_site_certificate(
         site_name = row["name"] if row else url
 
         c.execute(
-            """INSERT OR REPLACE INTO ssl_certificates 
-            (site_id, hostname, issuer, subject, start_date, expire_date, days_until_expire, is_valid, last_checked)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """UPDATE ssl_certificates SET
+               hostname = ?, issuer = ?, subject = ?, start_date = ?, expire_date = ?,
+               days_until_expire = ?, is_valid = ?, last_checked = ?
+               WHERE site_id = ?""",
             (
-                site_id,
                 cert_info["hostname"],
                 cert_info["issuer"],
                 cert_info["subject"],
@@ -198,8 +198,26 @@ async def check_site_certificate(
                 cert_info["days_until_expire"],
                 cert_info["is_valid"],
                 cert_info["checked_at"],
+                site_id,
             ),
         )
+        if c.rowcount == 0:
+            c.execute(
+                """INSERT INTO ssl_certificates
+                (site_id, hostname, issuer, subject, start_date, expire_date, days_until_expire, is_valid, last_checked)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    site_id,
+                    cert_info["hostname"],
+                    cert_info["issuer"],
+                    cert_info["subject"],
+                    cert_info["start_date"],
+                    cert_info["expire_date"],
+                    cert_info["days_until_expire"],
+                    cert_info["is_valid"],
+                    cert_info["checked_at"],
+                ),
+            )
         conn.commit()
 
     # Сповіщення про закінчення терміну дії (за 14 днів)

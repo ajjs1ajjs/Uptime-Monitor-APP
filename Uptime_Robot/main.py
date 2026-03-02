@@ -4,8 +4,10 @@ import json
 import sqlite3
 import asyncio
 import threading
+import ipaddress
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Request, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -133,6 +135,52 @@ class AppSettingsModel(BaseModel):
     display_address: Optional[str] = ""
 
 
+def _is_valid_host(hostname: Optional[str]) -> bool:
+    if not hostname:
+        return False
+    host = hostname.strip().lower().rstrip(".")
+    if not host:
+        return False
+    if host == "localhost":
+        return True
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        pass
+    labels = host.split(".")
+    if len(labels) < 2:
+        return False
+    for label in labels:
+        if not label or len(label) > 63:
+            return False
+        if label.startswith("-") or label.endswith("-"):
+            return False
+        if not all(ch.isalnum() or ch == "-" for ch in label):
+            return False
+    return True
+
+
+def _normalize_and_validate_url(raw_url: str, monitor_type: str) -> str:
+    url = (raw_url or "").strip()
+    if not url:
+        raise HTTPException(400, "URL required")
+
+    m_type = (monitor_type or "http").lower()
+    if m_type == "ssl":
+        normalized = monitoring.normalize_ssl_url(url)
+        if not normalized:
+            raise HTTPException(400, "Invalid URL")
+        url = normalized
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise HTTPException(400, "URL must start with http:// or https://")
+    if not _is_valid_host(parsed.hostname):
+        raise HTTPException(400, "Invalid host in URL")
+    return url
+
+
 # --- UI Routes ---
 
 
@@ -148,17 +196,11 @@ async def dashboard(request: Request, user: dict = Depends(get_current_user)):
         c = conn.cursor()
         c.execute("SELECT COUNT(*) FROM sites")
         total_sites = c.fetchone()[0]
-        c.execute("""
-            SELECT COUNT(*) FROM sites s 
-            WHERE EXISTS (
-                SELECT 1 FROM status_history sh 
-                WHERE sh.site_id = s.id 
-                AND sh.status = 'up' 
-                AND sh.checked_at > datetime('now', '-1 hour')
-            )
-        """)
+        # status_history stores rows only on state changes, so use current status.
+        c.execute("SELECT COUNT(*) FROM sites WHERE status = 'up'")
         up_sites = c.fetchone()[0]
-        down_sites = total_sites - up_sites
+        c.execute("SELECT COUNT(*) FROM sites WHERE status = 'down'")
+        down_sites = c.fetchone()[0]
 
     notification_cards = ui_templates.get_notification_cards_html(NOTIFY_SETTINGS)
     notify_config_json = json.dumps(NOTIFY_SETTINGS)
@@ -177,57 +219,61 @@ async def dashboard(request: Request, user: dict = Depends(get_current_user)):
 @app.get("/status", response_class=HTMLResponse)
 @app.get("/public-status", response_class=HTMLResponse)
 async def public_status_page(request: Request):
-    """Публічна сторінка статусу"""
+    """Public status page."""
     with get_db_connection() as conn:
         c = conn.cursor()
         c.execute(
-            "SELECT id, name, url, monitor_type FROM sites WHERE is_active = 1 ORDER BY id"
+            "SELECT id, name, url, monitor_type, status FROM sites WHERE is_active = 1 ORDER BY id"
         )
         sites = c.fetchall()
 
-        # Get last status for each site from history
-        c.execute("""
-            SELECT site_id, status FROM status_history 
-            WHERE checked_at > datetime('now', '-24 hours') 
-            ORDER BY checked_at DESC
-        """)
-        history = c.fetchall()
+    def status_of(site_row: sqlite3.Row) -> str:
+        value = site_row["status"]
+        return (value or "unknown").lower()
 
-    site_status = {}
-    for h in history:
-        if h["site_id"] not in site_status:
-            site_status[h["site_id"]] = h["status"]
-
-    up_count = sum(1 for s in site_status.values() if s == "up")
-    down_count = sum(1 for s in site_status.values() if s == "down")
+    up_count = sum(1 for s in sites if status_of(s) == "up")
+    down_count = sum(1 for s in sites if status_of(s) == "down")
     total = len(sites)
 
-    # Sort: DOWN first, then UP
-    def get_sort_order(site_id):
-        status = site_status.get(site_id, "unknown")
+    # Sort: DOWN first, then slow, then unknown/paused, then UP.
+    def get_sort_order(site_row: sqlite3.Row) -> int:
+        status = status_of(site_row)
         if status == "down":
             return 0
         if status == "slow":
             return 1
-        return 2
+        if status == "unknown":
+            return 2
+        if status == "paused":
+            return 3
+        return 4
 
-    sites.sort(key=lambda s: get_sort_order(s["id"]))
+    sites.sort(key=get_sort_order)
 
     monitors_html = ""
     for site in sites:
-        status = site_status.get(site["id"], "unknown")
-        status_class = (
-            "up" if status == "up" else ("paused" if status == "paused" else "down")
-        )
-        status_text = (
-            "✓ UP"
-            if status == "up"
-            else ("⏸ PAUSED" if status == "paused" else "✗ DOWN")
-        )
+        status = status_of(site)
+        if status == "up":
+            status_class = "up"
+            status_text = "UP"
+            dot_color = "#00ff88"
+        elif status in ("paused", "slow"):
+            status_class = "paused"
+            status_text = "PAUSED" if status == "paused" else "SLOW"
+            dot_color = "#f59e0b"
+        elif status == "unknown":
+            status_class = "unknown"
+            status_text = "UNKNOWN"
+            dot_color = "#94a3b8"
+        else:
+            status_class = "down"
+            status_text = "DOWN"
+            dot_color = "#ff4757"
+
         monitors_html += f"""
         <div class="monitor {status_class}">
             <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 10px; height: 10px; border-radius: 50%; background: {"#00ff88" if status == "up" else "#ff4757"}; box-shadow: 0 0 8px {"#00ff88" if status == "up" else "#ff4757"};"></div>
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: {dot_color}; box-shadow: 0 0 8px {dot_color};"></div>
                 <div><div class="monitor-name">{site["name"]}</div>
                 <div class="monitor-url">{site["url"]}</div></div>
             </div>
@@ -236,7 +282,7 @@ async def public_status_page(request: Request):
 
     overall_status_class = "up" if down_count == 0 else "down"
     overall_status_text = (
-        "✅ All systems operational" if down_count == 0 else "⚠️ Some issues"
+        "All systems operational" if down_count == 0 else "Some issues detected"
     )
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -459,13 +505,8 @@ async def get_site_history(site_id: int, limit: int = 50):
 async def add_site(site: SiteCreate, user: dict = Depends(get_current_user)):
     if not user:
         raise HTTPException(status_code=401)
-    url = site.url.strip()
-    if not url:
-        raise HTTPException(400, "URL required")
-
     m_type = site.monitor_type.lower()
-    if m_type == "ssl":
-        url = monitoring.normalize_ssl_url(url)
+    url = _normalize_and_validate_url(site.url, m_type)
 
     with get_db_connection() as conn:
         c = conn.cursor()
@@ -506,7 +547,7 @@ async def update_site(
     with get_db_connection() as conn:
         c = conn.cursor()
         c.execute(
-            "SELECT name, url, check_interval, is_active, notify_methods FROM sites WHERE id = ?",
+            "SELECT name, url, check_interval, is_active, notify_methods, monitor_type FROM sites WHERE id = ?",
             (site_id,),
         )
         existing = c.fetchone()
@@ -515,7 +556,12 @@ async def update_site(
 
         # Use existing values if not provided
         name = site.name if site.name is not None else existing["name"]
-        url = site.url if site.url is not None else existing["url"]
+        current_monitor_type = existing["monitor_type"] or "http"
+        url = (
+            _normalize_and_validate_url(site.url, current_monitor_type)
+            if site.url is not None
+            else existing["url"]
+        )
         is_active = (
             site.is_active if site.is_active is not None else existing["is_active"]
         )

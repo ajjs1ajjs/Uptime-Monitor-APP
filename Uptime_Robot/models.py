@@ -66,6 +66,23 @@ def init_database(db_path: str):
             id INTEGER PRIMARY KEY,
             display_address TEXT
         )""")
+
+        # Migrations for legacy ssl_certificates schema:
+        # - add missing last_notified column
+        # - deduplicate legacy rows (older DBs may miss UNIQUE(site_id))
+        # - enforce one row per site via unique index
+        c.execute("PRAGMA table_info(ssl_certificates)")
+        ssl_columns = {row[1] for row in c.fetchall()}
+        if "last_notified" not in ssl_columns:
+            c.execute("ALTER TABLE ssl_certificates ADD COLUMN last_notified TEXT")
+
+        c.execute("""DELETE FROM ssl_certificates
+                     WHERE id NOT IN (
+                         SELECT MAX(id) FROM ssl_certificates GROUP BY site_id
+                     )""")
+        c.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_ssl_certificates_site_id_unique ON ssl_certificates(site_id)"
+        )
         conn.commit()
 
 
@@ -238,15 +255,10 @@ def get_ssl_certificates(db_path: str) -> List[Dict[str, Any]]:
     """Отримує всі SSL сертифікати"""
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
-        # Clean up duplicates - keep only the latest
-        c.execute("""DELETE FROM ssl_certificates WHERE id NOT IN (
-            SELECT MAX(id) FROM ssl_certificates GROUP BY site_id
-        )""")
-        conn.commit()
-
         c.execute("""SELECT c.*, s.name as site_name, s.url as site_url 
                      FROM ssl_certificates c
                      JOIN sites s ON c.site_id = s.id
+                     WHERE s.is_active = 1
                      ORDER BY c.days_until_expire ASC""")
         certs = [dict(row) for row in c.fetchall()]
     return certs

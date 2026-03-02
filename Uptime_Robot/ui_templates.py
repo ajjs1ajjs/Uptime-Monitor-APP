@@ -27,11 +27,13 @@ PUBLIC_STATUS_HTML = """<!DOCTYPE html>
         .monitor {{ background: linear-gradient(145deg, #1a1a2e, #16213e); padding: 20px; margin-bottom: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #2a2a4a; }}
         .monitor.up {{ border-left: 4px solid #00ff88; }}
         .monitor.down {{ border-left: 4px solid #ff4757; }}
+        .monitor.unknown {{ border-left: 4px solid #94a3b8; }}
         .monitor-name {{ font-size: 18px; font-weight: 600; }}
         .monitor-url {{ color: #a0a0b0; font-size: 13px; margin-top: 5px; }}
         .status-badge {{ padding: 8px 20px; border-radius: 20px; font-weight: 600; font-size: 14px; }}
         .status-badge.up {{ background: rgba(0,255,136,0.15); color: #00ff88; }}
         .status-badge.down {{ background: rgba(255,71,87,0.15); color: #ff4757; }}
+        .status-badge.unknown {{ background: rgba(148,163,184,0.15); color: #94a3b8; }}
         .footer {{ text-align: center; padding: 40px; color: #a0a0b0; font-size: 14px; }}
     </style>
 </head>
