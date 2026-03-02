@@ -35,11 +35,31 @@ sudo systemctl disable uptime-monitor
 sudo systemctl stop uptime-monitor
 
 # 2. Бекап бази даних (ТУТ ВСІ МОНІТОРИ!)
-sudo cp /opt/uptime-monitor/sites.db /backup/sites.db.backup
+DB_PATH=$(python3 - <<'PY'
+import json, os
+config='/etc/uptime-monitor/config.json'
+if os.path.exists(config):
+    try:
+        with open(config,'r',encoding='utf-8') as f:
+            data=json.load(f)
+        print(os.path.join(os.path.dirname(config), 'sites.db'))
+    except Exception:
+        print('/etc/uptime-monitor/sites.db')
+else:
+    print('/etc/uptime-monitor/sites.db')
+PY
+)
+sudo cp "$DB_PATH" /backup/sites.db.backup
 
 # 3. Оновити код
 cd /opt/uptime-monitor
-sudo git pull
+if [ -d .git ]; then
+    sudo git fetch --all --prune
+    sudo git checkout main
+    sudo git pull origin main
+else
+    echo "No .git directory found. Use wget update flow from Uptime_Robot/UPDATE_INSTRUCTIONS.md"
+fi
 
 # 4. Скачати нові модулі (якщо потрібно)
 sudo wget -O config_manager.py https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/config_manager.py
@@ -58,7 +78,13 @@ sudo systemctl status uptime-monitor
 
 ### Швидке оновлення (якщо вже все налаштовано)
 ```bash
-cd /opt/uptime-monitor && sudo git pull && sudo systemctl restart uptime-monitor
+cd /opt/uptime-monitor && if [ -d .git ]; then
+    sudo git fetch --all --prune
+    sudo git checkout main
+    sudo git pull origin main
+else
+    echo "No .git directory found. Use wget update flow from Uptime_Robot/UPDATE_INSTRUCTIONS.md"
+fi && sudo systemctl restart uptime-monitor
 ```
 
 ---
@@ -344,7 +370,7 @@ sudo ./venv/bin/python /opt/uptime-monitor/auth_cli.py list-users
 - Система ВИМАГАТИМЕ змінити пароль при першому вході!
 
 ### Шлях до бази даних
-- Linux: `/opt/uptime-monitor/sites.db`
+- Linux: `/etc/uptime-monitor/sites.db` (default; computed from `CONFIG_PATH`)
 - Windows: `%USERPROFILE%\UptimeMonitor\data\sites.db`
 
 ## 📍 Шляхи до файлів
@@ -352,7 +378,7 @@ sudo ./venv/bin/python /opt/uptime-monitor/auth_cli.py list-users
 | Файл | Шлях |
 |------|------|
 | Конфігурація | `/etc/uptime-monitor/config.json` |
-| База даних (монітори) | `/opt/uptime-monitor/sites.db` |
+| База даних (монітори) | `/etc/uptime-monitor/sites.db` |
 | Логи | `/var/log/uptime-monitor/` |
 | Скрипти | `/opt/uptime-monitor/scripts/` |
 | Бекапи | `/backup/uptime-monitor/` |

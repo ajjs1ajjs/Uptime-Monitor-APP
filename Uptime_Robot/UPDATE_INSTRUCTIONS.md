@@ -1,78 +1,109 @@
 # Оновлення Uptime Monitor на продакшені
 
-## Варіант 1: Git (якщо є .git)
+Нижче два коректні сценарії: для git clone і для встановлення без `.git`.
+
+## Крок 0: Перевірити тип інсталяції
 
 ```bash
-# 1. Зупинити службу
-sudo systemctl stop uptime-monitor
-
-# 2. Бекап бази
-sudo cp /etc/uptime-monitor/sites.db /backup/sites_$(date +%Y%m%d).db
-
-# 3. Оновити
 cd /opt/uptime-monitor
-sudo git pull
-
-# 4. Запустити
-sudo systemctl start uptime-monitor
-
-# 5. Перевірити
-sudo systemctl status uptime-monitor
+if [ -d .git ]; then
+  echo "git installation"
+else
+  echo "non-git installation"
+fi
 ```
 
-## Варіант 2: wget (якщо немає git)
+## Варіант 1: Git (якщо є `.git`)
 
 ```bash
-# 1. Зупинити
+# 1) Stop service
 sudo systemctl stop uptime-monitor
 
-# 2. Бекап
-sudo cp /etc/uptime-monitor/sites.db /backup/sites_$(date +%Y%m%d).db
+# 2) Backup database
+DB_PATH=$(python3 - <<'PY'
+import json, os
+config='/etc/uptime-monitor/config.json'
+if os.path.exists(config):
+    try:
+        with open(config,'r',encoding='utf-8') as f:
+            data=json.load(f)
+        print(os.path.join(os.path.dirname(config), 'sites.db'))
+    except Exception:
+        print('/etc/uptime-monitor/sites.db')
+else:
+    print('/etc/uptime-monitor/sites.db')
+PY
+)
+sudo cp "$DB_PATH" "/backup/sites_$(date +%Y%m%d-%H%M%S).db"
 
-# 3. Скачати нові файли
+# 3) Update code
 cd /opt/uptime-monitor
+sudo git fetch --all --prune
+sudo git checkout main
+sudo git pull origin main
 
-# Видалити старі дублікати якщо є
-sudo rm -f *.py.1 *.py.2
-
-# Скачати нові
-sudo wget -q https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/config_manager.py
-sudo wget -q https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/ui_templates.py
-sudo wget -q https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/notifications.py
-sudo wget -q https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/monitoring.py
-sudo wget -q https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/main.py
-
-# 4. Перевірити розмір файлів (має бути > 10000 bytes)
-ls -la *.py
-
-# 5. Запустити
+# 4) Start service
 sudo systemctl start uptime-monitor
 
-# 6. Перевірити
-sudo systemctl status uptime-monitor
+# 5) Verify
+sudo systemctl status uptime-monitor --no-pager
+sudo journalctl -u uptime-monitor -n 80 --no-pager
 ```
 
-## Перевірка оновлення
+## Варіант 2: wget (якщо немає `.git`)
 
-Після оновлення в браузері:
-- Очистити кеш: Ctrl+Shift+R
-- Або відкрити в інкогніто
+```bash
+# 1) Stop service
+sudo systemctl stop uptime-monitor
 
-## Розміри файлів (актуальні):
+# 2) Backup database
+DB_PATH=$(python3 - <<'PY'
+import json, os
+config='/etc/uptime-monitor/config.json'
+if os.path.exists(config):
+    try:
+        with open(config,'r',encoding='utf-8') as f:
+            data=json.load(f)
+        print(os.path.join(os.path.dirname(config), 'sites.db'))
+    except Exception:
+        print('/etc/uptime-monitor/sites.db')
+else:
+    print('/etc/uptime-monitor/sites.db')
+PY
+)
+sudo cp "$DB_PATH" "/backup/sites_$(date +%Y%m%d-%H%M%S).db"
 
-| Файл | Розмір |
-|------|---------|
-| main.py | ~25500 |
-| ui_templates.py | ~84300 |
-| notifications.py | ~20000 |
-| monitoring.py | ~10900 |
-| config_manager.py | ~9400 |
+# 3) Download updated files (pin to known-good commit)
+cd /opt/uptime-monitor
+COMMIT=74f3187
+sudo wget -O main.py         "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/${COMMIT}/Uptime_Robot/main.py"
+sudo wget -O models.py       "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/${COMMIT}/Uptime_Robot/models.py"
+sudo wget -O monitoring.py   "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/${COMMIT}/Uptime_Robot/monitoring.py"
+sudo wget -O ui_templates.py "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/${COMMIT}/Uptime_Robot/ui_templates.py"
+
+# 4) Start service
+sudo systemctl start uptime-monitor
+
+# 5) Verify
+sudo systemctl status uptime-monitor --no-pager
+sudo journalctl -u uptime-monitor -n 80 --no-pager
+```
+
+## Точна перевірка, що оновлення застосувалось
+
+```bash
+cd /opt/uptime-monitor
+grep -n "_normalize_and_validate_url" main.py
+grep -n "idx_ssl_certificates_site_id_unique" models.py
+grep -n "UPDATE ssl_certificates SET" monitoring.py
+grep -n "WHERE s.is_active = 1" models.py
+```
 
 ## Якщо щось пішло не так
 
 ```bash
-# Відкатити до бекапу
 sudo systemctl stop uptime-monitor
-sudo cp /backup/sites_YYYYMMDD.db /etc/uptime-monitor/sites.db
+# вибери потрібний backup файл у /backup/
+sudo cp /backup/sites_YYYYMMDD-HHMMSS.db /etc/uptime-monitor/sites.db
 sudo systemctl start uptime-monitor
 ```
