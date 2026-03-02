@@ -447,6 +447,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         loadAppSettings();
         loadSites();
         loadSSLCertificates();
+        loadUptimeChart();
         setInterval(loadSites, 30000);
     </script>
 </body>
@@ -620,6 +621,7 @@ DASHBOARD_JS = """
                 sitesData = await response.json();
                 renderMonitors();
                 updateStats();
+                loadUptimeChart();
             } catch(e) { console.error(e); }
         }
 
@@ -657,8 +659,10 @@ DASHBOARD_JS = """
                     return orderA - orderB;
                 });
                 
-                // Get current hour for "today" markers
+                // 24h window aligned to "last 24 hours"
                 const now = new Date();
+                const nowMs = now.getTime();
+                const windowStartMs = nowMs - (24 * 60 * 60 * 1000);
                 const currentHour = now.getHours();
                 const chartWidth = Math.max(600, container.clientWidth - 200);
                 const chartHeight = 40;
@@ -687,8 +691,9 @@ DASHBOARD_JS = """
                     }
                     
                     history.forEach(h => {
-                        const checkTime = new Date(h.checked_at);
-                        const hour = checkTime.getHours();
+                        const ts = new Date(h.checked_at).getTime();
+                        if (!Number.isFinite(ts) || ts < windowStartMs || ts > nowMs) return;
+                        const hour = Math.floor((ts - windowStartMs) / (60 * 60 * 1000));
                         if (hourlyData[hour] !== undefined) {
                             hourlyData[hour].total++;
                             if (h.status === 'up') hourlyData[hour].up++;
@@ -696,6 +701,35 @@ DASHBOARD_JS = """
                             else if (h.status === 'slow') hourlyData[hour].slow++;
                         }
                     });
+
+                    // Fill gaps for stable monitors:
+                    // if there were no events in 24h, use current status for the whole window;
+                    // if data is sparse, carry forward the last known status.
+                    const fallbackStatus = site.status === 'up' || site.status === 'down' || site.status === 'slow'
+                        ? site.status
+                        : null;
+                    const has24hSamples = Object.values(hourlyData).some(d => d.total > 0);
+                    if (!has24hSamples && fallbackStatus) {
+                        for (let h = 0; h < 24; h++) {
+                            hourlyData[h].total = 1;
+                            hourlyData[h][fallbackStatus] = 1;
+                        }
+                    } else {
+                        let carryStatus = null;
+                        for (let h = 0; h < 24; h++) {
+                            const d = hourlyData[h];
+                            if (d.total > 0) {
+                                if (d.up >= d.down && d.up >= d.slow) carryStatus = 'up';
+                                else if (d.down >= d.up && d.down >= d.slow) carryStatus = 'down';
+                                else carryStatus = 'slow';
+                                continue;
+                            }
+                            if (carryStatus) {
+                                d.total = 1;
+                                d[carryStatus] = 1;
+                            }
+                        }
+                    }
                     
                     // Build timeline bars
                     let timelineBars = '';
@@ -729,7 +763,10 @@ DASHBOARD_JS = """
                     }
                     
                     const statusColor = site.status === 'up' ? '#22c55e' : site.status === 'slow' ? '#eab308' : '#ef4444';
-                    const uptime = history.length > 0 ? (history.filter(h => h.status === 'up').length / history.length * 100).toFixed(1) : 0;
+                    const hourValues = Object.values(hourlyData);
+                    const samples = hourValues.reduce((acc, d) => acc + d.total, 0);
+                    const upSamples = hourValues.reduce((acc, d) => acc + d.up, 0);
+                    const uptime = samples > 0 ? ((upSamples / samples) * 100).toFixed(1) : 0;
                     
                     siteCharts += `<div style="position: relative; padding: 10px 0; border-bottom: 1px solid var(--border);">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
