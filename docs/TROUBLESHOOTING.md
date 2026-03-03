@@ -1,4 +1,4 @@
-# 🛠️ Troubleshooting Guide
+# 🛠️ Посібник з усунення несправностей
 
 Вирішення проблем з Uptime Monitor
 
@@ -175,7 +175,7 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --test
 
 ---
 
-## NFS проблеми
+## Проблеми з NFS
 
 ### NFS не монтується
 
@@ -237,7 +237,7 @@ sudo mount -t nfs -o vers=4,soft,intr,rsize=8192,wsize=8192 192.168.1.10:/export
 
 ---
 
-## Samba проблеми
+## Проблеми з Samba
 
 ### Samba не монтується
 

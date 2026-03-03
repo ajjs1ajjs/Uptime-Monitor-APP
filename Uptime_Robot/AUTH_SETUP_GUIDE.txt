@@ -1,37 +1,37 @@
-UPTIME MONITOR - ADDING AUTHENTICATION
-=======================================
+UPTIME MONITOR - ДОДАВАННЯ АВТЕНТИФІКАЦІЇ
+========================================
 
-This guide shows how to add login/password protection to Uptime Monitor..
+У цьому посібнику показано, як додати захист логіном/паролем до Uptime Monitor.
 
 
-FEATURES:
+ОСОБЛИВОСТІ:
 =========
-✅ Login page with session-based auth
-✅ Password hashing (SHA-256)
-✅ Session cookies (7 days validity)
-✅ Protected dashboard (redirects to login if not authenticated)
-✅ Logout functionality
-✅ Default user: admin / admin123
-✅ Easy to add more users
+✅ Сторінка входу з авторизацією на основі сесії
+✅ Хешування пароля (SHA-256)
+✅ Сеансові файли cookie (термін дії 7 днів)
+✅ Захищена інформаційна панель (переспрямовує на вхід, якщо не пройшов автентифікацію)
+✅ Функція виходу
+✅ Користувач за замовчуванням: admin / admin123
+✅ Легко додати більше користувачів
 
 
-QUICK SETUP (5 minutes):
-========================
+ШВИДКЕ НАЛАШТУВАННЯ (5 хвилин):
+=========================
 
-Step 1: Replace main_service.py content
-----------------------------------------
-Open main_service.py and replace it with the version that includes auth.
+Крок 1. Замініть вміст main_service.py
+----------------------------------------------
+Відкрийте main_service.py і замініть його версією, яка включає auth.
 
-The auth version adds:
-1. Import auth_module at the top
-2. Protect the dashboard route
-3. Add login/logout buttons to the interface
-4. Initialize auth tables on startup
+Авторизована версія додає:
+1. Імпортуйте auth_module у верхній частині
+2. Захистіть маршрут приладової панелі
+3. Додайте кнопки входу/виходу до інтерфейсу
+4. Ініціалізуйте таблиці авторизації під час запуску
 
 
-Step 2: Update your main_service.py
------------------------------------
-Add this at the TOP of main_service.py (after imports):
+Крок 2. Оновіть main_service.py
+----------------------------------
+Додайте це в ТОП main_service.py (після імпорту):
 
 ```python
 # Додаємо авторизацію
@@ -41,29 +41,29 @@ from auth_module import init_auth_tables, add_auth_routes, require_auth
 init_auth_tables()
 ```
 
-Then add this AFTER creating the app:
+Потім додайте це ПІСЛЯ створення програми:
 ```python
 # Додаємо роути авторизації
 add_auth_routes(app)
 ```
 
-And protect the dashboard route:
-Change:
+І захистіть маршрут приладової панелі:
+змінити:
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
 
-To:
+до:
 @app.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request):
+інформаційна панель async def (запит: запит):
     # Перевіряємо сесію
-    from auth_module import validate_session
+    з auth_module імпорт validate_session
     session_id = request.cookies.get('session_id')
-    user = validate_session(session_id)
-    if not user:
-        from fastapi.responses import RedirectResponse
+    користувач = validate_session(session_id)
+    якщо не користувач:
+        з fastapi.responses імпорт RedirectResponse
         return RedirectResponse(url='/login', status_code=302)
     
-    # ... rest of dashboard code
+# ... решта коду інформаційної панелі
 ```
 
 
@@ -73,10 +73,10 @@ In the dashboard HTML (in main_service.py), add this to the header:
 
 ```html
 <div class="header">
-    <div class="logo"><div class="logo-icon">⚡</div><span>Uptime Monitor</span></div>
+    <div class="logo"><div class="logo-icon">⚡</div><span>Монітор безвідмовної роботи</span></div>
     <div style="display: flex; align-items: center; gap: 15px;">
-        <span style="color: var(--text-secondary);">admin</span>
-        <a href="/logout" style="color: var(--danger); text-decoration: none; font-weight: 600;">🚪 Logout</a>
+        <span style="color: var(--text-secondary);">адміністратор</span>
+        <a href="/logout" style="color: var(--danger); text-decoration: none; font-weight: 600;">🚪 Вийти</a>
     </div>
 </div>
 ```
@@ -85,7 +85,7 @@ In the dashboard HTML (in main_service.py), add this to the header:
 Step 4: Restart the service
 ---------------------------
 ```cmd
-nssm restart UptimeMonitor
+nssm перезапустіть UptimeMonitor
 ```
 
 Or if running manually:
@@ -121,13 +121,13 @@ ADDING MORE USERS:
 ==================
 Run this SQL in sites.db:
 ```sql
-INSERT INTO users (username, password_hash, is_admin, created_at) 
+INSERT INTO користувачів (username, password_hash, is_admin, created_at) 
 VALUES ('newuser', '<sha256_hash>', 0, datetime('now'));
 ```
 
 Generate hash:
-```python
-import hashlib
+```пітон
+імпорт хешлібу
 print(hashlib.sha256('password'.encode()).hexdigest())
 ```
 
@@ -166,29 +166,29 @@ ALTERNATIVE: Basic HTTP Auth (Simpler)
 ======================================
 If you want simpler auth without database:
 
-```python
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from secrets import compare_digest
+```пітон
+з fastapi.security імпорт HTTPBasic, HTTPBasicCredentials
+із секретів імпорт compare_digest
 
-security = HTTPBasic()
+безпека = HTTPBasic()
 
 @app.get("/")
-async def dashboard(credentials: HTTPBasicCredentials = Depends(security)):
+async def dashboard(облікові дані: HTTPBasicCredentials = Depends(security)):
     correct_username = compare_digest(credentials.username, "admin")
     correct_password = compare_digest(credentials.password, "admin123")
     
-    if not (correct_username and correct_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Basic"},
+якщо ні (правильне_ім'я_користувача та правильний_пароль):
+        підняти HTTPException(
+            status_code=статус.HTTP_401_UNAUTHORIZED,
+            detail="Неправильне ім'я користувача або пароль",
+            headers={"WWW-Authenticate": "Базовий"},
         )
-    # ... show dashboard
+    # ... показати інформаційну панель
 ```
 
-This shows browser's native login popup instead of custom page.
+Це показує рідне спливаюче вікно для входу у веб-переглядачі замість спеціальної сторінки.
 
 
 ---
-Need help? Check auth_module.py comments for more details.
+Потрібна допомога? Перегляньте коментарі auth_module.py для отримання додаткової інформації.
 

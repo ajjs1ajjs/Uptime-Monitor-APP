@@ -1,78 +1,78 @@
-# Uptime Monitor - Installation Guide
+# Uptime Monitor - Посібник із встановлення
 
-## 🚀 Quick Start (5 minutes)
+## 🚀 Швидкий старт (5 хвилин)
 
-Get Uptime Monitor running with backup protection in 5 minutes:
+Запустіть Uptime Monitor із захистом резервного копіювання за 5 хвилин:
 
-### 1. Install
+### 1. Встановити
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
 ```
 
-### 2. Access Web Interface
-- **URL**: http://{SERVER_IP}:8080 (IP detected automatically)
-- **Login**: admin
-- **Password**: admin
+### 2. Доступ до веб-інтерфейсу
+- **URL**: http://{SERVER_IP}:8080 (IP-адреса визначається автоматично)
+- **Вхід**: адмін
+- **Пароль**: admin
 
-### 3. Create First Backup ⚠️ IMPORTANT
+### 3. Створіть першу резервну копію ⚠️ ВАЖЛИВО
 ```bash
 sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 ```
 
-### 4. Setup Automatic Backups
+### 4. Налаштуйте автоматичне резервне копіювання
 ```bash
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 ```
 
-### 5. Change Default Password
-1. Open http://{SERVER_IP}:8080 in browser
-2. Login with admin/admin
-3. Change password immediately!
+### 5. Змініть пароль за умовчанням
+1. Відкрийте http://{SERVER_IP}:8080 у браузері
+2. Увійдіть за допомогою admin/admin
+3. Негайно змініть пароль!
 
 ---
 
-## 📋 Post-Installation Checklist
+## 📋 Контрольний список після інсталяції
 
-Complete these steps after installation:
+Після встановлення виконайте наведені нижче дії.
 
-- [ ] **Change default password** (admin/admin) - CRITICAL!
-- [ ] **Create first backup** - Protect your data
-- [ ] **Configure automatic backups** - Daily backups at 2:00 AM
-- [ ] **Set up external backup** (NFS/Samba) - Optional but recommended
-- [ ] **Configure domain and SSL** - When ready for production
-- [ ] **Add monitoring sites** - Start monitoring your services
-- [ ] **Configure notifications** - Email, Telegram, etc.
-
----
-
-## ✨ What's New
-
-### 🔄 Backup System (NEW!)
-Complete backup and restore solution:
-- **Automatic backups**: daily, weekly, monthly, yearly
-- **Backup on changes**: Automatic backup when you modify configuration
-- **Multiple destinations**: Local disk, NFS, Samba shares
-- **One-command restore**: Restore everything with single command
-- **Backup verification**: Check integrity of your backups
-- **Retention policy**: Automatic cleanup of old backups
-
-### ⚙️ Configuration Management (NEW!)
-- **JSON configuration**: Easy to read and edit
-- **Auto-IP detection**: Server IP detected automatically
-- **Easy domain setup**: Just edit config.json
-- **Configuration rollback**: Rollback to previous configs
-- **Change logging**: Track all configuration changes
-
-### 🔒 SSL/HTTPS (NEW!)
-- **Custom certificates**: Use your own SSL certificates
-- **Auto-redirect**: HTTP → HTTPS automatically
-- **HSTS headers**: Enhanced security
+- [ ] **Змінити пароль за умовчанням** (admin/admin) - КРИТИЧНО!
+- [ ] **Створіть першу резервну копію** - Захистіть свої дані
+- [ ] **Налаштувати автоматичне резервне копіювання** - Щоденне резервне копіювання о 2:00 ночі
+- [ ] **Налаштувати зовнішнє резервне копіювання** (NFS/Samba) – Необов’язково, але рекомендовано
+- [ ] **Налаштувати домен і SSL** - Коли буде готово до виробництва
+- [ ] **Додайте сайти моніторингу** - Почніть моніторинг своїх послуг
+- [ ] **Налаштувати сповіщення** - Електронна пошта, Telegram тощо.
 
 ---
 
-## 📝 Commands Cheat Sheet
+## ✨ Що нового
 
-### Backup Commands
+### 🔄 Система резервного копіювання (НОВИНКА!)
+Повне рішення для резервного копіювання та відновлення:
+- **Автоматичне резервне копіювання**: щодня, щотижня, щомісяця, щороку
+- **Резервне копіювання при змінах**: автоматичне резервне копіювання, коли ви змінюєте конфігурацію
+- **Кілька місць призначення**: локальний диск, NFS, спільні ресурси Samba
+- **Відновлення однією командою**: відновлюйте все за допомогою однієї команди
+- **Перевірка резервної копії**: перевірте цілісність ваших резервних копій
+- **Політика збереження**: автоматичне очищення старих резервних копій
+
+### ⚙️ Керування конфігурацією (НОВИНКА!)
+- **Конфігурація JSON**: легко читати та редагувати
+- **Автоматичне визначення IP-адреси**: IP-адреса сервера визначається автоматично
+- **Просте налаштування домену**: просто відредагуйте config.json
+- **Відкат конфігурації**: повернення до попередніх конфігурацій
+- **Реєстрація змін**: відстежуйте всі зміни конфігурації
+
+### 🔒 SSL/HTTPS (НОВИНКА!)
+- **Користувацькі сертифікати**: використовуйте власні сертифікати SSL
+- **Автоперенаправлення**: HTTP → HTTPS автоматично
+- **Заголовки HSTS**: покращений захист
+
+---
+
+## 📝 Шпаргалка команд
+
+### Команди резервного копіювання
 ```bash
 # Create backup now
 sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
@@ -90,7 +90,7 @@ sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
 sudo /opt/uptime-monitor/scripts/restore-system.sh --from /backup/uptime-monitor/daily/backup-20260218-020000.tar.gz
 ```
 
-### Service Management
+### Керування послугами
 ```bash
 # Start/Stop/Restart
 sudo systemctl start uptime-monitor
@@ -107,7 +107,7 @@ sudo systemctl status uptime-monitor
 sudo journalctl -u uptime-monitor -n 50
 ```
 
-### Configuration Commands
+### Команди конфігурації
 ```bash
 # Edit configuration
 sudo nano /etc/uptime-monitor/config.json
@@ -122,7 +122,7 @@ sudo /opt/uptime-monitor/scripts/config-rollback.sh --list
 sudo systemctl restart uptime-monitor
 ```
 
-### Backup Management
+### Управління резервним копіюванням
 ```bash
 # Schedule automatic backups
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
@@ -142,13 +142,13 @@ sudo /opt/uptime-monitor/scripts/mount-backup.sh --type smb --server 192.168.1.1
 
 ---
 
-## ⬆️ Upgrading from Previous Version
+## ⬆️ Оновлення з попередньої версії
 
-If you have an older version installed:
+Якщо у вас встановлено старішу версію:
 
-### Linux Update
+### Оновлення Linux
 
-#### 1. Backup Current Installation
+#### 1. Резервне копіювання поточної інсталяції
 ```bash
 # Create backup before upgrade
 sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type on-change --comment "Pre-upgrade backup"
@@ -157,7 +157,7 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 sudo cp /opt/uptime-monitor/sites.db /backup/sites.db.backup
 ```
 
-#### 2. Update Code
+#### 2. Оновити код
 ```bash
 cd /opt/uptime-monitor
 sudo git fetch --all --prune
@@ -165,12 +165,12 @@ sudo git checkout main
 sudo git pull --ff-only origin main
 ```
 
-#### 3. Restart Service
+#### 3. Перезапустіть службу
 ```bash
 sudo systemctl restart uptime-monitor
 ```
 
-#### 4. Verify Backup System
+#### 4. Перевірте систему резервного копіювання
 ```bash
 # Check backup system status
 sudo /opt/uptime-monitor/scripts/backup-system.sh --status
@@ -182,32 +182,32 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 sudo /opt/uptime-monitor/scripts/verify-backup.sh --all
 ```
 
-#### 5. Setup Automatic Backups (if not already configured)
+#### 5. Налаштуйте автоматичне резервне копіювання (якщо ще не налаштовано)
 ```bash
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 ```
 
-### Windows Update
+### Оновлення Windows
 
-#### 1. Backup Current Data
+#### 1. Резервне копіювання поточних даних
 ```powershell
 Copy-Item "$env:USERPROFILE\UptimeMonitor\sites.db" "$env:USERPROFILE\UptimeMonitor\sites.db.backup.$(Get-Date -Format yyyyMMdd-HHmmss)"
 Copy-Item "$env:USERPROFILE\UptimeMonitor\config.json" "$env:USERPROFILE\UptimeMonitor\config.json.backup.$(Get-Date -Format yyyyMMdd-HHmmss)"
 ```
 
-#### 2. Update Files
+#### 2. Оновити файли
 
-**If installed from git clone:**
+**Якщо встановлено з git clone:**
 ```powershell
 cd D:\path\to\Uptime-Monitor-APP
 git pull --ff-only origin main
 ```
 
-**If installed from release ZIP:**
-1. Download the new Windows ZIP from [Releases](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
-2. Extract/replace files in your installation folder
+**Якщо встановлено з архіву ZIP:**
+1. Завантажте новий Windows ZIP із [Релізи](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
+2. Розпакуйте/замініть файли у папці встановлення
 
-#### 3. Reinstall Service with Updated Files
+#### 3. Перевстановіть службу з оновленими файлами
 ```powershell
 cd D:\path\to\Uptime-Monitor-APP\Uptime_Robot
 python main_service.py stop
@@ -215,7 +215,7 @@ python main_service.py remove
 .\install.bat
 ```
 
-#### 4. Verify
+#### 4. Перевірити
 ```powershell
 sc.exe queryex UptimeMonitor
 netstat -ano | findstr :8080
@@ -223,53 +223,53 @@ netstat -ano | findstr :8080
 
 ---
 
-## Linux Installation via CURL
+## Встановлення Linux через CURL
 
-### Install Latest Version
+### Встановити останню версію
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
 ```
 
-### Install with Custom Port
+### Встановити за допомогою спеціального порту
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash -s -- --port 9090
 ```
 
-### Install Specific Version
+### Встановити конкретну версію
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash -s -- --version v1.0.0
 ```
 
-**Note:** After installation, the server will be accessible at `http://{SERVER_IP}:8080` where `{SERVER_IP}` is automatically detected.
+**Примітка.** Після встановлення сервер буде доступний за адресою `http://{SERVER_IP}:8080`, де автоматично визначається `{SERVER_IP}`.
 
-## Linux Installation via APT
+## Встановлення Linux через APT
 
-### Add Repository
+### Додати репозиторій
 ```bash
 curl -fsSL https://ajjs1ajjs.github.io/Uptime-Monitor-APP/KEY.gpg | sudo gpg --dearmor -o /usr/share/keyrings/uptime-monitor.gpg
 echo "deb [signed-by=/usr/share/keyrings/uptime-monitor.gpg] https://ajjs1ajjs.github.io/Uptime-Monitor-APP stable main" | sudo tee /etc/apt/sources.list.d/uptime-monitor.list
 ```
 
-### Install
+### Встановити
 ```bash
 sudo apt update && sudo apt install uptime-monitor
 ```
 
-### Start Service
+### Запустити службу
 ```bash
 sudo systemctl start uptime-monitor
 ```
 
-## Windows Installation (Separate Section)
+## Встановлення Windows (окремий розділ)
 
-### Method 1: Simple Installation
-1. Download `uptime-monitor-vX.X.X-windows.zip` from [Releases](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
-2. Extract to desired location
-3. Open `Uptime_Robot` folder
-4. Run `install.bat` as Administrator
-5. Open `http://localhost:8080` (or your selected port)
+### Спосіб 1: Проста інсталяція
+1. Завантажте `uptime-monitor-vX.X.X-windows.zip` з [Релізи](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
+2. Витягніть у потрібне місце
+3. Відкрийте папку `Uptime_Robot`
+4. Запустіть `install.bat` від імені адміністратора
+5. Відкрийте `http://localhost:8080` (або вибраний порт)
 
-### Method 2: Manual Installation
+### Спосіб 2: Встановлення вручну
 ```cmd
 cd C:\path\to\Uptime-Monitor-APP\Uptime_Robot
 python -m pip install -r requirements.txt
@@ -278,20 +278,20 @@ python main_service.py install
 net start UptimeMonitor
 ```
 
-## Docker Installation
+## Встановлення Docker
 
 ```bash
 docker run -d -p 8080:8080 -v uptime-data:/var/lib/uptime-monitor ghcr.io/ajjs1ajjs/uptime-monitor:latest
 ```
 
-## Default Credentials
+## Облікові дані за замовчуванням
 
-- **Username:** `admin`
-- **Password:** `admin`
+- **Ім'я користувача:** `admin`
+- **Пароль:** `admin`
 
-**Change password after first login!**
+**Змініть пароль після першого входу!**
 
-## Management Commands
+## Команди керування
 
 ### Linux (systemd)
 
@@ -321,7 +321,7 @@ sudo journalctl -u uptime-monitor -f
 sudo journalctl -u uptime-monitor -n 50
 ```
 
-### Windows (Service)
+### Windows (служба)
 
 ```cmd
 # Check status
@@ -343,9 +343,9 @@ sc config UptimeMonitor start= disabled
 sc config UptimeMonitor start= auto
 ```
 
-## Uninstallation
+## Видалення
 
-### Linux (via install.sh)
+### Linux (через install.sh)
 
 ```bash
 # Stop service
@@ -367,7 +367,7 @@ sudo rm -rf /opt/uptime-monitor
 sudo userdel uptime-monitor
 ```
 
-### Linux (via APT)
+### Linux (через APT)
 
 ```bash
 # Stop service
@@ -387,13 +387,13 @@ sudo rm /usr/share/keyrings/uptime-monitor.gpg
 sudo apt update
 ```
 
-### Windows (via installer)
+### Windows (через інсталятор)
 
-1. Open "Settings" -> "Apps" -> "Installed apps"
-2. Find "Uptime Monitor"
-3. Click "Uninstall"
+1. Відкрийте «Налаштування» -> «Програми» -> «Встановлені програми»
+2. Знайдіть «Монітор безвідмовної роботи»
+3. Натисніть «Видалити»
 
-### Windows (manual)
+### Windows (вручну)
 
 ```cmd
 # Stop service
@@ -407,9 +407,9 @@ rd /s /q "C:\Program Files\UptimeMonitor"
 rd /s /q "%USERPROFILE%\UptimeMonitor"
 ```
 
-## Troubleshooting
+## Усунення несправностей
 
-### Port Already in Use
+### Порт уже використовується
 
 **Linux:**
 ```bash
@@ -429,7 +429,7 @@ netstat -ano | findstr :8080
 taskkill /PID <PID> /F
 ```
 
-### Service Won't Start
+### Служба не запускається
 
 **Linux:**
 ```bash
@@ -452,21 +452,21 @@ type "%USERPROFILE%\UptimeMonitor\uptime_monitor.log"
 whoami /priv
 ```
 
-### Notifications Not Working
+### Сповіщення не працюють
 
-1. Check if notifications are enabled in web interface
-2. Verify API keys are correct
-3. Check logs for errors:
-   ```bash
+1. Перевірте, чи ввімкнено сповіщення у веб-інтерфейсі
+2. Переконайтеся, що ключі API правильні
+3. Перевірте журнали на наявність помилок:
+```bash
    sudo journalctl -u uptime-monitor -f
    ```
     ```cmd
     type "%USERPROFILE%\UptimeMonitor\uptime_monitor.log"
     ```
 
-### Backup Issues
+### Проблеми резервного копіювання
 
-**Backup fails with permission error:**
+**Помилка резервного копіювання через помилку дозволу:**
 ```bash
 # Check backup directory permissions
 sudo ls -la /backup/
@@ -481,7 +481,7 @@ sudo chmod 755 /backup/uptime-monitor/
 sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 ```
 
-**NFS mount fails:**
+**Помилка монтування NFS:**
 ```bash
 # Install NFS client
 sudo apt-get update
@@ -501,7 +501,7 @@ mount | grep nfs
 sudo /opt/uptime-monitor/scripts/mount-backup.sh --type nfs --server 192.168.1.10 --path /exports/backups --mount-point /mnt/nfs-backup --persist
 ```
 
-**Samba (SMB) mount fails:**
+**Помилка монтування Samba (SMB):**
 ```bash
 # Install Samba client
 sudo apt-get update
@@ -524,7 +524,7 @@ sudo mount -t cifs //192.168.1.11/backups /mnt/smb-backup -o credentials=/root/.
 sudo /opt/uptime-monitor/scripts/mount-backup.sh --type smb --server 192.168.1.11 --share backups --mount-point /mnt/smb-backup --credentials /root/.backup-creds/smb-credentials --persist
 ```
 
-**Restore fails or service won't start after restore:**
+**Помилка відновлення або служба не запускається після відновлення:**
 ```bash
 # Check backup integrity
 sudo /opt/uptime-monitor/scripts/verify-backup.sh /path/to/backup.tar.gz
@@ -547,7 +547,7 @@ sudo cp /tmp/uptime-pre-restore-*/config.json /etc/uptime-monitor/
 sudo systemctl restart uptime-monitor
 ```
 
-**Scheduled backups not running:**
+**Заплановане резервне копіювання не виконується:**
 ```bash
 # Check if cron service is running
 sudo systemctl status cron
@@ -566,7 +566,7 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --remove
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 ```
 
-**Backup too large / disk space issues:**
+**Занадто велика резервна копія/проблеми з дисковим простором:**
 ```bash
 # Check backup sizes
 sudo du -sh /backup/uptime-monitor/*
@@ -582,11 +582,11 @@ sudo /opt/uptime-monitor/scripts/mount-backup.sh --type nfs --server <IP> --path
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /mnt/nfs-backup/uptime-monitor/
 ```
 
-## Configuration
+## Конфігурація
 
-### Linux Configuration File
+### Файл конфігурації Linux
 
-Location: `/etc/uptime-monitor/config.json`
+Розташування: `/etc/uptime-monitor/config.json`
 
 ```json
 {
@@ -623,25 +623,25 @@ Location: `/etc/uptime-monitor/config.json`
 }
 ```
 
-**Configuration Parameters:**
+**Параметри конфігурації:**
 
-- `server.port` - Port number (default: 8080)
-- `server.host` - Bind address (default: 0.0.0.0 - all interfaces)
-- `server.domain` - Server domain or IP (default: "auto" - auto-detect IP)
-- `ssl.enabled` - Enable HTTPS (default: false)
-- `ssl.type` - Certificate type: "custom", "selfsigned", "letsencrypt"
-- `ssl.cert_path` - Path to SSL certificate
-- `ssl.key_path` - Path to SSL private key
-- `backup.enabled` - Enable automatic backups (default: true)
-- `backup.max_backups` - Number of backups to keep (default: 10)
+- `server.port` - номер порту (за замовчуванням: 8080)
+- `server.host` - Адреса прив'язки (за замовчуванням: 0.0.0.0 - усі інтерфейси)
+- `server.domain` - Домен або IP-адреса сервера (за замовчуванням: "авто" - автоматичне визначення IP-адреси)
+- `ssl.enabled` - Увімкнути HTTPS (за замовчуванням: false)
+- `ssl.type` - Тип сертифіката: "custom", "selfsigned", "letsencrypt"
+- `ssl.cert_path` - Шлях до сертифіката SSL
+- `ssl.key_path` - Шлях до закритого ключа SSL
+- `backup.enabled` - Увімкнути автоматичне резервне копіювання (за замовчуванням: true)
+- `backup.max_backups` - Кількість резервних копій для збереження (за замовчуванням: 10)
 
-### Windows Configuration File
+### Файл конфігурації Windows
 
-Location: `%USERPROFILE%\UptimeMonitor\config.json`
+Розташування: `%USERPROFILE%\UptimeMonitor\config.json`
 
-## Configuration Management
+## Керування конфігурацією
 
-### Editing Configuration
+### Редагування конфігурації
 
 **Linux:**
 ```bash
@@ -655,82 +655,82 @@ sudo systemctl restart uptime-monitor
 sudo systemctl status uptime-monitor
 ```
 
-### Configuration Rollback
+### Відкат конфігурації
 
-Automatic backups are created before each configuration change.
+Перед кожною зміною конфігурації створюються автоматичні резервні копії.
 
-**List available backups:**
+**Список доступних резервних копій:**
 ```bash
 sudo /opt/uptime-monitor/scripts/config-rollback.sh --list
 ```
 
-**Rollback to previous configuration:**
+**Повернення до попередньої конфігурації:**
 ```bash
 sudo /opt/uptime-monitor/scripts/config-rollback.sh --previous
 ```
 
-**Rollback to specific backup:**
+**Відкат до певної резервної копії:**
 ```bash
 sudo /opt/uptime-monitor/scripts/config-rollback.sh --to config.20260218-120000.json
 ```
 
-**View differences:**
+**Подивитися відмінності:**
 ```bash
 sudo /opt/uptime-monitor/scripts/config-rollback.sh --diff config.latest.json
 ```
 
-## Backup System
+## Система резервного копіювання
 
-Uptime Monitor includes a comprehensive backup system that supports local storage, NFS, and Samba shares.
+Uptime Monitor включає комплексну систему резервного копіювання, яка підтримує локальне сховище, NFS і спільні ресурси Samba.
 
-### Quick Start
+### Швидкий старт
 
-**Create your first backup:**
+**Створіть першу резервну копію:**
 ```bash
 sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type daily
 ```
 
-**Check backup status:**
+**Перевірити статус резервного копіювання:**
 ```bash
 sudo /opt/uptime-monitor/scripts/backup-system.sh --status
 ```
 
-**List available backups:**
+**Список доступних резервних копій:**
 ```bash
 sudo /opt/uptime-monitor/scripts/restore-system.sh --list
 ```
 
-**Restore from latest backup:**
+**Відновити з останньої резервної копії:**
 ```bash
 sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
 ```
 
-### What Gets Backed Up
+### Що створюється резервна копія
 
-- **Database**: SQLite database with all sites and monitoring data
-- **Configuration**: config.json and configuration history
-- **SSL Certificates**: Your SSL certificates and keys
-- **Logs**: Recent log files (last 7 days)
-- **Systemd Service**: Service configuration file
+- **База даних**: база даних SQLite з усіма сайтами та даними моніторингу
+- **Конфігурація**: config.json і історія конфігурацій
+- **SSL-сертифікати**: ваші SSL-сертифікати та ключі
+- **Журнали**: файли останніх журналів (останні 7 днів)
+- **Systemd Service**: файл конфігурації служби
 
-### Backup Types
+### Типи резервних копій
 
-| Type | When | Retention |
+| Тип | Коли | Збереження |
 |------|------|-----------|
-| on-change | After config changes | 10 backups |
-| daily | Every day at 2:00 AM | 7 days |
-| weekly | Every Sunday at 3:00 AM | All (kept until monthly) |
-| monthly | 1st of month at 4:00 AM | All (kept until yearly) |
-| yearly | January 1st at 5:00 AM | Forever |
+| на зміну | Після зміни конфігурації | 10 резервних копій |
+| щодня | Щодня о 2:00 | 7 днів |
+| щотижня | Кожної неділі о 3:00 | Все (зберігається до місячних) |
+| щомісяця | 1-го числа місяця о 4:00 | Все (зберігається до року) |
+| щорічно | 1 січня о 5:00 | Назавжди |
 
-### Manual Backup
+### Резервне копіювання вручну
 
-**Create immediate backup:**
+**Створити негайну резервну копію:**
 ```bash
 sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 ```
 
-**Create backup with comment:**
+**Створити резервну копію з коментарем:**
 ```bash
 sudo /opt/uptime-monitor/scripts/backup-system.sh \
     --dest /backup/uptime-monitor/ \
@@ -738,21 +738,21 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh \
     --comment "Before major config change"
 ```
 
-**Verify backup integrity:**
+**Перевірте цілісність резервної копії:**
 ```bash
 sudo /opt/uptime-monitor/scripts/backup-system.sh --verify --dest /backup/uptime-monitor/
 ```
 
-### Scheduled Backups (Automatic)
+### Резервне копіювання за розкладом (автоматично)
 
-**Install daily backups:**
+**Встановлюйте щоденні резервні копії:**
 ```bash
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
     --daily "0 2 * * *" \
     --dest /backup/uptime-monitor/
 ```
 
-**Install with full schedule:**
+**Встановити за повним графіком:**
 ```bash
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
     --daily "0 2 * * *" \
@@ -761,30 +761,30 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
     --dest /backup/uptime-monitor/
 ```
 
-**Check schedule status:**
+**Перевірити статус розкладу:**
 ```bash
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --status
 ```
 
-**Remove all schedules:**
+**Видалити всі розклади:**
 ```bash
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --remove
 ```
 
-**Test backup system:**
+**Тестова система резервного копіювання:**
 ```bash
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --test
 ```
 
-### NFS Backup Setup
+### Налаштування резервного копіювання NFS
 
-**1. Install NFS client:**
+**1. Встановити клієнт NFS:**
 ```bash
 sudo apt-get update
 sudo apt-get install -y nfs-common
 ```
 
-**2. Mount NFS share:**
+**2. Підключити ресурс NFS:**
 ```bash
 sudo /opt/uptime-monitor/scripts/mount-backup.sh \
     --type nfs \
@@ -794,21 +794,21 @@ sudo /opt/uptime-monitor/scripts/mount-backup.sh \
     --persist
 ```
 
-**3. Create backup to NFS:**
+**3. Створіть резервну копію в NFS:**
 ```bash
 sudo /opt/uptime-monitor/scripts/backup-system.sh \
     --dest /mnt/nfs-backup/uptime-monitor/ \
     --type daily
 ```
 
-**4. Schedule automatic NFS backups:**
+**4. Заплануйте автоматичне резервне копіювання NFS:**
 ```bash
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
     --daily "0 2 * * *" \
     --dest /mnt/nfs-backup/uptime-monitor/
 ```
 
-**Manual NFS mount (alternative):**
+**Ручне монтування NFS (альтернатива):**
 ```bash
 # Create mount point
 sudo mkdir -p /mnt/nfs-backup
@@ -820,15 +820,15 @@ sudo mount -t nfs 192.168.1.10:/exports/backups /mnt/nfs-backup
 echo "192.168.1.10:/exports/backups /mnt/nfs-backup nfs defaults 0 0" | sudo tee -a /etc/fstab
 ```
 
-### Samba (SMB) Backup Setup
+### Налаштування резервного копіювання Samba (SMB).
 
-**1. Install Samba client:**
+**1. Встановити клієнт Samba:**
 ```bash
 sudo apt-get update
 sudo apt-get install -y cifs-utils
 ```
 
-**2. Create credentials file:**
+**2. Створіть файл облікових даних:**
 ```bash
 sudo mkdir -p /root/.backup-creds
 sudo tee /root/.backup-creds/smb-credentials << EOF
@@ -839,7 +839,7 @@ EOF
 sudo chmod 600 /root/.backup-creds/smb-credentials
 ```
 
-**3. Mount Samba share:**
+**3. Частка гори Самба:**
 ```bash
 sudo /opt/uptime-monitor/scripts/mount-backup.sh \
     --type smb \
@@ -850,14 +850,14 @@ sudo /opt/uptime-monitor/scripts/mount-backup.sh \
     --persist
 ```
 
-**4. Create backup to Samba:**
+**4. Створити резервну копію на Samba:**
 ```bash
 sudo /opt/uptime-monitor/scripts/backup-system.sh \
     --dest /mnt/smb-backup/uptime-monitor/ \
     --type daily
 ```
 
-**Manual Samba mount (alternative):**
+**Ручне кріплення Samba (альтернатива):**
 ```bash
 # Create mount point
 sudo mkdir -p /mnt/smb-backup
@@ -870,9 +870,9 @@ sudo mount -t cifs //192.168.1.11/backups /mnt/smb-backup \
 echo "//192.168.1.11/backups /mnt/smb-backup cifs credentials=/root/.backup-creds/smb-credentials,_netdev 0 0" | sudo tee -a /etc/fstab
 ```
 
-### Using Both NFS and Samba
+### Використання NFS і Samba
 
-You can use multiple backup destinations simultaneously:
+Ви можете використовувати кілька місць призначення резервних копій одночасно:
 
 ```bash
 # Install schedule for both
@@ -886,42 +886,42 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install \
 # 2. /mnt/nfs-backup/uptime-monitor/ (NFS)
 ```
 
-### Restore from Backup
+### Відновити з резервної копії
 
-**List available backups:**
+**Список доступних резервних копій:**
 ```bash
 sudo /opt/uptime-monitor/scripts/restore-system.sh --list
 ```
 
-**Restore from latest backup:**
+**Відновити з останньої резервної копії:**
 ```bash
 sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
 ```
 
-**Restore from specific backup:**
+**Відновити з певної резервної копії:**
 ```bash
 sudo /opt/uptime-monitor/scripts/restore-system.sh \
     --from /backup/uptime-monitor/daily/backup-20260218-020000.tar.gz
 ```
 
-**Restore only database:**
+**Відновити лише базу даних:**
 ```bash
 sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --only database
 ```
 
-**Restore only configuration:**
+**Відновити лише конфігурацію:**
 ```bash
 sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --only config
 ```
 
-**Dry run (see what would be restored):**
+**Сухий хід (подивитися, що буде відновлено):**
 ```bash
 sudo /opt/uptime-monitor/scripts/restore-system.sh --auto --dry-run
 ```
 
-### Backup Rotation
+### Ротація резервного копіювання
 
-Automatic rotation runs after each backup. To run manually:
+Автоматична ротація запускається після кожного резервного копіювання. Щоб запустити вручну:
 
 ```bash
 # Check what would be deleted (dry run)
@@ -934,27 +934,27 @@ sudo /opt/uptime-monitor/scripts/backup-rotation.sh
 sudo /opt/uptime-monitor/scripts/backup-rotation.sh --keep 5
 ```
 
-### Verify Backups
+### Перевірте резервні копії
 
-**Verify specific backup:**
+**Перевірте конкретну резервну копію:**
 ```bash
 sudo /opt/uptime-monitor/scripts/verify-backup.sh \
     /backup/uptime-monitor/daily/backup-20260218-020000.tar.gz
 ```
 
-**Verify all backups:**
+**Перевірте всі резервні копії:**
 ```bash
 sudo /opt/uptime-monitor/scripts/verify-backup.sh --all
 ```
 
-**Show backup statistics:**
+**Показати статистику резервного копіювання:**
 ```bash
 sudo /opt/uptime-monitor/scripts/verify-backup.sh --list
 ```
 
-### Backup Configuration
+### Резервна конфігурація
 
-Edit `/etc/uptime-monitor/config.json`:
+Редагувати `/etc/uptime-monitor/config.json`:
 
 ```json
 {
@@ -972,27 +972,27 @@ Edit `/etc/uptime-monitor/config.json`:
 }
 ```
 
-### Unmount Backup Storage
+### Відключити резервне сховище
 
-**Unmount NFS:**
+**Відключити NFS:**
 ```bash
 sudo /opt/uptime-monitor/scripts/mount-backup.sh \
     --unmount \
     --mount-point /mnt/nfs-backup
 ```
 
-**Unmount Samba:**
+**Відключіть Samba:**
 ```bash
 sudo /opt/uptime-monitor/scripts/mount-backup.sh \
     --unmount \
     --mount-point /mnt/smb-backup
 ```
 
-## SSL/HTTPS Setup
+## Налаштування SSL/HTTPS
 
-### Option 1: Using Your Own Certificates (Recommended)
+### Варіант 1: використання власних сертифікатів (рекомендовано)
 
-**Step 1:** Copy your certificates to the SSL directory:
+**Крок 1:** Скопіюйте свої сертифікати в каталог SSL:
 ```bash
 sudo mkdir -p /etc/uptime-monitor/ssl
 sudo cp /path/to/your/certificate.pem /etc/uptime-monitor/ssl/cert.pem
@@ -1000,12 +1000,12 @@ sudo cp /path/to/your/private.key /etc/uptime-monitor/ssl/key.pem
 sudo chmod 600 /etc/uptime-monitor/ssl/*.pem
 ```
 
-**Step 2:** Update configuration:
+**Крок 2:** Оновіть конфігурацію:
 ```bash
 sudo nano /etc/uptime-monitor/config.json
 ```
 
-Change the following settings:
+Змініть такі налаштування:
 ```json
 {
     "server": {
@@ -1021,12 +1021,12 @@ Change the following settings:
 }
 ```
 
-**Step 3:** Restart service:
+**Крок 3:** Перезапустіть службу:
 ```bash
 sudo systemctl restart uptime-monitor
 ```
 
-### Option 2: Self-Signed Certificate (Testing Only)
+### Варіант 2: Самопідписаний сертифікат (тільки для тестування)
 
 ```bash
 # Generate self-signed certificate
@@ -1040,13 +1040,13 @@ sudo nano /etc/uptime-monitor/config.json
 sudo systemctl restart uptime-monitor
 ```
 
-**Warning:** Browsers will show security warnings with self-signed certificates.
+**Попередження:** веб-переглядачі відображатимуть попередження безпеки з самопідписаними сертифікатами.
 
-## Domain and IP Configuration
+## Конфігурація домену та IP
 
-### Automatic IP Detection
+### Автоматичне визначення IP
 
-By default, the server auto-detects the server's IP address:
+За замовчуванням сервер автоматично визначає IP-адресу сервера:
 ```json
 {
     "server": {
@@ -1055,7 +1055,7 @@ By default, the server auto-detects the server's IP address:
 }
 ```
 
-### Using Specific IP
+### Використання конкретного IP
 
 ```bash
 # Get your server IP
@@ -1065,7 +1065,7 @@ hostname -I
 sudo nano /etc/uptime-monitor/config.json
 ```
 
-Set domain to your IP:
+Встановіть домен на свій IP:
 ```json
 {
     "server": {
@@ -1074,11 +1074,11 @@ Set domain to your IP:
 }
 ```
 
-### Using Domain Name
+### Використання доменного імені
 
-**Step 1:** Configure DNS A-record pointing to your server IP
+**Крок 1:** Налаштуйте DNS-запис A, який вказує на IP-адресу вашого сервера
 
-**Step 2:** Update configuration:
+**Крок 2:** Оновіть конфігурацію:
 ```json
 {
     "server": {
@@ -1087,52 +1087,52 @@ Set domain to your IP:
 }
 ```
 
-**Step 3:** Restart service:
+**Крок 3:** Перезапустіть службу:
 ```bash
 sudo systemctl restart uptime-monitor
 ```
 
-## API Endpoints
+## Кінцеві точки API
 
-- `GET /` - Web interface
-- `GET /api/sites` - List all sites
-- `POST /api/sites` - Add site
-- `PUT /api/sites/{id}` - Update site
-- `DELETE /api/sites/{id}` - Delete site
-- `POST /api/sites/{id}/check` - Check site manually
-- `POST /api/notify-settings` - Save notification settings
+- `GET /` - Веб-інтерфейс
+- `GET /api/sites` - Список усіх сайтів
+- `POST /api/sites` - Додати сайт
+- `PUT /api/sites/{id}` - Оновити сайт
+- `DELETE /api/sites/{id}` - Видалити сайт
+- `POST /api/sites/{id}/check` - Перевірити сайт вручну
+- `POST /api/notify-settings` - Зберегти налаштування сповіщень
 
-## Accessing the Web Interface
+## Доступ до веб-інтерфейсу
 
-**Initial Setup (after installation):**
-- **Linux:** `http://<server-ip>:8080` (IP auto-detected during installation)
-- **Windows:** `http://localhost:8080` or `http://<your-ip>:8080`
+**Початкове налаштування (після встановлення):**
+- **Linux:** `http://<server-ip>:8080` (IP автоматично визначається під час встановлення)
+- **Windows:** `http://localhost:8080` або `http://<your-ip>:8080`
 
-**After SSL configuration:**
-- **HTTPS:** `https://your-domain.com` (port 443)
+**Після налаштування SSL:**
+- **HTTPS:** `https://your-domain.com` (порт 443)
 
-**To check your server IP:**
+**Щоб перевірити IP-адресу вашого сервера:**
 ```bash
 hostname -I
 ```
 
-## Technical Details
+## Технічні деталі
 
 - **Framework:** FastAPI
-- **Database:** SQLite
-- **HTTP Client:** aiohttp
-- **Windows Service:** pywin32
+- **База даних:** SQLite
+- **HTTP-клієнт:** aiohttp
+- **Сервіс Windows:** pywin32
 - **Linux Service:** systemd
-- **Default Port:** 8080 (Linux and Windows)
-- **SSL Support:** Yes (custom certificates, self-signed, Let's Encrypt ready)
-- **Configuration:** JSON-based with automatic backup/rollback
-- **Check Interval:** 60 seconds
-- **Configuration File:** `/etc/uptime-monitor/config.json` (Linux)
-- **Backup Directory:** `/etc/uptime-monitor/config.backups` (Linux)
+- **Порт за замовчуванням:** 8080 (Linux і Windows)
+- **Підтримка SSL:** Так (спеціальні сертифікати, самопідписані, Let's Encrypt готові)
+- **Конфігурація:** на основі JSON з автоматичним резервним копіюванням/відкатом
+- **Інтервал перевірки:** 60 секунд
+- **Файл конфігурації:** `/etc/uptime-monitor/config.json` (Linux)
+- **Каталог резервного копіювання:** `/etc/uptime-monitor/config.backups` (Linux)
 
-## Support
+## Підтримка
 
-For issues and questions, please open an issue on GitHub:
+Якщо виникли проблеми та запитання, будь ласка, відкрийте випуск на GitHub:
 https://github.com/ajjs1ajjs/Uptime-Monitor-APP/issues
 
 

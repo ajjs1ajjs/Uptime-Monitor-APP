@@ -1,4 +1,4 @@
-# Uptime Monitor v2.0 - Security & Architecture Improvements
+# Uptime Monitor v2.0 - Покращення безпеки та архітектури
 
 ## 🚀 Що змінилось
 
@@ -104,7 +104,7 @@ Uptime_Robot/
 
 ## ✅ Валідація даних
 
-### Pydantic Validators
+### Підантичні валідатори
 ```python
 class SiteCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
@@ -120,7 +120,7 @@ class SiteCreate(BaseModel):
 
 ---
 
-## 🎨 Jinja2 Templates
+## 🎨 Шаблони Jinja2
 
 ### Шаблони винесено з Python коду:
 - `templates/login.html`
@@ -267,7 +267,7 @@ POST /api/sites
 
 ## 📝 Ліцензія
 
-MIT License
+МОЯ ліцензія
 
 ---
 

@@ -1,4 +1,4 @@
-# 📋 Commands Reference
+# 📋 Довідник команд
 
 Повний список команд Uptime Monitor
 
@@ -81,7 +81,7 @@ fi && sudo systemctl restart uptime-monitor
 
 ---
 
-## 📊 Logs (Логи)
+## 📊 Журнали
 
 ```bash
 # Дивитись логи в реальному часі
@@ -271,7 +271,7 @@ sudo /opt/uptime-monitor/scripts/mount-backup.sh --unmount --mount-point /mnt/sm
 
 ---
 
-## 🔒 SSL/HTTPS Setup
+## 🔒 Налаштування SSL/HTTPS
 
 ```bash
 # Створити директорію для сертифікатів

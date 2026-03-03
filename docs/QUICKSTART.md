@@ -1,4 +1,4 @@
-# 🚀 Quick Start Guide
+# 🚀 Короткий посібник
 
 Швидкий старт Uptime Monitor за 5 хвилин
 
@@ -29,8 +29,8 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/upt
 ## 5. Доступ до веб-інтерфейсу
 
 - **URL**: `http://$(hostname -I | awk '{print $1}'):8080`
-- **Login**: `admin`
-- **Password**: `admin`
+- **Вхід**: `admin`
+- **Пароль**: `admin`
 
 ## 6. Зміна пароля
 
@@ -41,7 +41,7 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/upt
 
 ---
 
-## ✅ Post-Installation Checklist
+## ✅ Контрольний список після інсталяції
 
 - [ ] Змінити пароль за замовчуванням
 - [ ] Створити перший бекап

@@ -1,4 +1,4 @@
-# Uptime Monitor
+# Монітор безвідмовної роботи
 
 **Сервіс моніторингу веб-сайтів** з автоматичними бекапами, SSL сертифікатами та багатоканальними сповіщеннями.
 
@@ -64,11 +64,11 @@ Login: admin / Password: admin
 
 ## 🛠️ Технології
 
-- **Backend**: Python, FastAPI
-- **Database**: SQLite
-- **Frontend**: HTML/JavaScript
-- **Monitoring**: aiohttp
-- **Notifications**: SMTP, Telegram Bot API, Webhooks
+- **Бекенд**: Python, FastAPI
+- **База даних**: SQLite
+- **Інтерфейс**: HTML/JavaScript
+- **Моніторинг**: aiohttp
+- **Сповіщення**: SMTP, Telegram Bot API, Webhooks
 
 ---
 
@@ -79,7 +79,7 @@ Login: admin / Password: admin
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
 ```
 
-### Docker
+### Докер
 ```bash
 docker run -d -p 8080:8080 -v uptime-data:/var/lib/uptime-monitor \
   ghcr.io/ajjs1ajjs/uptime-monitor:latest
@@ -93,14 +93,14 @@ docker run -d -p 8080:8080 -v uptime-data:/var/lib/uptime-monitor \
 ## 🆘 Допомога
 
 - **Проблеми?** → [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
-- **Команди** → [COMMANDS.md](docs/COMMANDS.md)
-- **Бекапи** → [BACKUP.md](docs/BACKUP.md)
+- **Команді** → [COMMANDS.md](docs/COMMANDS.md)
+- **Бекапі** → [BACKUP.md](docs/BACKUP.md)
 
 ---
 
 ## 📝 Ліцензія
 
-MIT License
+МОЯ ліцензія
 
 ---
 

@@ -1,4 +1,4 @@
-# Uptime Monitor - Portable Version
+# Uptime Monitor - портативна версія
 
 ## ⚡ Швидкий старт
 
@@ -64,6 +64,6 @@
 
 ---
 
-Created with Uptime Monitor
+Створено за допомогою Uptime Monitor
 
 

@@ -1,4 +1,4 @@
-# 📚 Uptime Monitor Documentation
+# 📚 Документація моніторингу безвідмовної роботи
 
 Документація та інструкції для Uptime Monitor
 
@@ -79,12 +79,12 @@ sudo journalctl -u uptime-monitor -f
 Якщо все пішло не так:
 
 1. **Перевірте логи:**
-   ```bash
+```bash
    sudo journalctl -u uptime-monitor -n 50
    ```
 
 2. **Відновіть з бекапу:**
-   ```bash
+```bash
    sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
    ```
 
@@ -94,6 +94,6 @@ sudo journalctl -u uptime-monitor -f
 
 ---
 
-## 📝 License
+## 📝 Ліцензія
 
 MIT License - дивіться основний проект

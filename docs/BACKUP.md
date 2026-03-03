@@ -1,4 +1,4 @@
-# 💾 Backup System Guide
+# 💾 Посібник із системи резервного копіювання
 
 Повна інструкція по системі резервного копіювання
 
@@ -135,7 +135,7 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --remove
 
 ---
 
-## NFS бекап
+## Резервне копіювання NFS
 
 ### 1. Встановлення клієнта
 
@@ -188,7 +188,7 @@ sudo /opt/uptime-monitor/scripts/mount-backup.sh \
 
 ---
 
-## Samba бекап
+## Резервне копіювання Samba
 
 ### 1. Встановлення клієнта
 

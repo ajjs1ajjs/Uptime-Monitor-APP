@@ -1,35 +1,35 @@
-# Uptime Monitor
+# Монітор безвідмовної роботи
 
-[![GitHub release](https://img.shields.io/github/release/ajjs1ajjs/Uptime-Monitor-APP.svg)](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
+[![Випуск GitHub](https://img.shields.io/github/release/ajjs1ajjs/Uptime-Monitor-APP.svg)](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
 [![Codecov](https://codecov.io/gh/ajjs1ajjs/Uptime-Monitor-APP/branch/main/graph/badge.svg)](https://codecov.io/gh/ajjs1ajjs/Uptime-Monitor-APP)
 [![Docker](https://img.shields.io/badge/ghcr.io-ajjs1ajjs%2Fuptime--monitor-blue)](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/pkgs/container/uptime-monitor-app)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Ліцензія: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Website uptime monitoring service with multi-channel notifications and SSL certificate tracking.
+Служба моніторингу безвідмовної роботи веб-сайту з багатоканальними сповіщеннями та відстеженням сертифіката SSL.
 
-**Features:**
-- ✅ **NEW! Backup System** - Automatic backups with restore capability
-- ✅ **NEW! Configuration Management** - JSON config with rollback support
-- ✅ **NEW! SSL/HTTPS** - Custom certificates with auto-redirect
-- Monitor multiple websites and endpoints
-- SSL certificate expiration tracking
-- Multi-channel notifications (Telegram, Email, Slack, Discord, Teams, SMS)
-- Web-based dashboard
+**Особливості:**
+- ✅ **НОВИНКА! Система резервного копіювання** - автоматичне резервне копіювання з можливістю відновлення
+- ✅ **НОВИНКА! Керування конфігураціями** – конфігурація JSON із підтримкою відкату
+- ✅ **НОВИНКА! SSL/HTTPS** - спеціальні сертифікати з автоматичним перенаправленням
+- Моніторинг кількох веб-сайтів і кінцевих точок
+- Відстеження терміну дії сертифіката SSL
+- Багатоканальні сповіщення (Telegram, Email, Slack, Discord, Teams, SMS)
+- Веб-панель інструментів
 - REST API
-- Cross-platform (Linux, Windows, Docker)
+- Кросплатформенність (Linux, Windows, Docker)
 
-## 📚 Documentation
+## 📚 Документація
 
-Quick links to detailed documentation:
+Швидкі посилання на детальну документацію:
 
-- **[Quick Start](../docs/QUICKSTART.md)** - Get running in 5 minutes
-- **[Commands Reference](../docs/COMMANDS.md)** - All commands in one place
-- **[Backup Guide](../docs/BACKUP.md)** - Complete backup instructions
-- **[Troubleshooting](../docs/TROUBLESHOOTING.md)** - Problem solving
+- **[Швидкий старт](../docs/QUICKSTART.md)** - Почніть працювати за 5 хвилин
+- **[Довідка про команди](../docs/COMMANDS.md)** - Усі команди в одному місці
+- **[Посібник із резервного копіювання](../docs/BACKUP.md)** - Повні інструкції з резервного копіювання
+- **[Усунення несправностей](../docs/TROUBLESHOOTING.md)** - Вирішення проблем
 
-## Quick Start
+## Швидкий старт
 
-### Linux (CURL) - Recommended
+### Linux (CURL) – рекомендовано
 
 ```bash
 # Install latest version
@@ -56,7 +56,7 @@ sudo apt update && sudo apt install uptime-monitor
 sudo systemctl start uptime-monitor
 ```
 
-### Docker
+### Докер
 
 ```bash
 # Pull and run
@@ -65,13 +65,13 @@ docker run -d -p 8080:8080 -v uptime-data:/var/lib/uptime-monitor ghcr.io/ajjs1a
 
 ### Windows
 
-1. Download `uptime-monitor-vX.X.X-windows.zip` from [Releases](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
-2. Extract to desired location
-3. Run `install.bat` as Administrator
+1. Завантажте `uptime-monitor-vX.X.X-windows.zip` з [Релізи](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
+2. Витягніть у потрібне місце
+3. Запустіть `install.bat` від імені адміністратора
 
-## ⚡ Quick Start with Backup (IMPORTANT!)
+## ⚡ Швидкий початок резервного копіювання (ВАЖЛИВО!)
 
-After installation, immediately set up backups:
+Після встановлення негайно налаштуйте резервні копії:
 
 ```bash
 # 1. Create first backup
@@ -84,12 +84,12 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/upt
 sudo /opt/uptime-monitor/scripts/backup-system.sh --status
 ```
 
-## Default Credentials
+## Облікові дані за замовчуванням
 
-- **Username:** `admin`
-- **Password:** `admin`
+- **Ім'я користувача:** `admin`
+- **Пароль:** `admin`
 
-**⚠️ Change password after first login!**
+**⚠️ Змініть пароль після першого входу!**
 
 ## Структура проекту
 
@@ -152,8 +152,7 @@ install.bat
 1. **Запустіть збірку:**
 ```bash
 build_exe.bat
-```
-Це створить:
+```Це створить:
 - `UptimeMonitor.exe` - головний виконуваний файл
 - Інсталятор з GUI для вибору порту
 - Програма реєструється в "Programs and Features" для видалення
@@ -407,7 +406,7 @@ sudo systemctl restart uptime-monitor
 - HSTS заголовки
 - Підтримка власних сертифікатів
 
-## API Endpoints
+## Кінцеві точки API
 
 - `GET /` - Веб-інтерфейс
 - `GET /api/sites` - Список всіх сайтів
@@ -452,6 +451,6 @@ sc query UptimeMonitor
 
 ## Ліцензія
 
-MIT License
+МОЯ ліцензія
 
 

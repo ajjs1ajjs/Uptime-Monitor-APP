@@ -1,8 +1,8 @@
 # APT Repository for Uptime Monitor
 
-This branch contains the APT repository for Uptime Monitor.
+Ця гілка містить репозиторій APT для Uptime Monitor.
 
-## Usage
+## Використання
 
 ```bash
 # Add repository
@@ -14,7 +14,7 @@ sudo apt update
 sudo apt install uptime-monitor
 ```
 
-## Directory Structure
+## Структура каталогу
 
 ```
 apt-repo/
@@ -32,6 +32,6 @@ apt-repo/
 └── README.md
 ```
 
-## Updates
+## Оновлення
 
-This repository is automatically updated by GitHub Actions when a new release is created.
+Цей репозиторій автоматично оновлюється GitHub Actions, коли створюється новий випуск.

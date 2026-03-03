@@ -1,9 +1,9 @@
-UPTIME MONITOR - INSTALL, BACKUP, UPDATE, TROUBLESHOOT GUIDE
-=============================================================
+UPTIME MONITOR - ВСТАНОВЛЕННЯ, РЕЗЕРВНЕ КОПІЮВАННЯ, ОНОВЛЕННЯ, ПОСІБНИК З УСУНЕННЯ НЕСПРАВНОСТЕЙ
+===============================================================
 
-Quick operational guide for Linux/WSL.
+Короткий оперативний посібник для Linux/WSL.
 
-Main docs:
+Основні документи:
 - ../INSTALL.md
 - ../docs/QUICKSTART.md
 - ../docs/COMMANDS.md
@@ -11,30 +11,30 @@ Main docs:
 - ../docs/BACKUP.md
 
 
-1) Fresh install (recommended)
+1) Нова інсталяція (рекомендовано)
 ------------------------------
 
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
 
-Verify:
+Підтвердити:
 sudo systemctl status uptime-monitor --no-pager
 sudo journalctl -u uptime-monitor -n 80 --no-pager
 
-Access:
+Доступ:
 - URL: http://<SERVER_IP>:8080
-- Login: admin
-- Password: admin
+- Логін: admin
+- Пароль: admin
 
-Important: change password after first login.
+Важливо: змінити пароль після першого входу.
 
 
-2) Clean reinstall (remove old install)
----------------------------------------
+2) Чиста перевстановлення (видалення старої інсталяції)
+--------------------------------------
 
-Use this when old UI/old behavior still appears.
+Використовуйте це, коли старий інтерфейс/стара поведінка все ще з’являється.
 
-sudo systemctl stop uptime-monitor 2>/dev/null || true
-sudo systemctl disable uptime-monitor 2>/dev/null || true
+sudo systemctl stop uptime-monitor 2>/dev/null || правда
+sudo systemctl вимкнути uptime-monitor 2>/dev/null || правда
 sudo rm -f /etc/systemd/system/uptime-monitor.service
 sudo systemctl daemon-reload
 sudo rm -rf /opt/uptime-monitor /etc/uptime-monitor /var/lib/uptime-monitor /var/log/uptime-monitor
@@ -42,65 +42,65 @@ sudo rm -rf /opt/uptime-monitor /etc/uptime-monitor /var/lib/uptime-monitor /var
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
 
 
-3) Backup (mandatory)
+3) Резервне копіювання (обов'язково)
 ---------------------
 
-Create first backup:
+Створіть першу резервну копію:
 sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 
-Schedule automatic backups:
+Розклад автоматичного резервного копіювання:
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 
-Check backup system:
+Перевірте резервну систему:
 sudo /opt/uptime-monitor/scripts/backup-system.sh --status
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --status
 
-Verify backups:
+Перевірте резервні копії:
 sudo /opt/uptime-monitor/scripts/verify-backup.sh --all
 
 
-4) Restore
+4) Відновити
 ----------
 
-List backups:
+Список резервних копій:
 sudo /opt/uptime-monitor/scripts/restore-system.sh --list
 
-Restore latest backup:
+Відновити останню резервну копію:
 sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
 
-Restore specific backup:
+Відновити певну резервну копію:
 sudo /opt/uptime-monitor/scripts/restore-system.sh --from /backup/uptime-monitor/daily/<backup-file>.tar.gz
 
 
-5) Update existing installation
--------------------------------
+5) Оновіть існуючу установку
+------------------------------
 
-5.1 Git installation (.git exists)
+5.1 Встановлення Git (.git існує)
 
 cd /opt/uptime-monitor
-sudo systemctl stop uptime-monitor
+sudo systemctl зупинити безперебійну роботу
 sudo git fetch --all --prune
 sudo git checkout main
 sudo git pull --ff-only origin main
-sudo systemctl start uptime-monitor
+sudo systemctl запускає монітор безперебійної роботи
 
-5.2 Non-git installation (no .git)
+5.2 Встановлення без git (без .git)
 
 cd /opt/uptime-monitor
-sudo systemctl stop uptime-monitor
-sudo wget -O main.py         "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/main.py"
-sudo wget -O models.py       "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/models.py"
-sudo wget -O monitoring.py   "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/monitoring.py"
+sudo systemctl зупинити безперебійну роботу
+sudo wget -O main.py "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/main.py"
+sudo wget -O models.py "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/models.py"
+sudo wget -O monitoring.py "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/monitoring.py"
 sudo wget -O ui_templates.py "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/ui_templates.py"
-sudo systemctl start uptime-monitor
+sudo systemctl запускає монітор безперебійної роботи
 
-Verify after update:
+Перевірити після оновлення:
 sudo systemctl status uptime-monitor --no-pager
 sudo journalctl -u uptime-monitor -n 80 --no-pager
 
 
-6) Quick checks (UI + API + auth)
----------------------------------
+6) Швидкі перевірки (UI + API + auth)
+----------------------------------
 
 Check new UI markers in installed code:
 grep -n "Monitors Timeline (24h)" /opt/uptime-monitor/ui_templates.py
@@ -108,48 +108,48 @@ grep -n "Статус всіх моніторів" /opt/uptime-monitor/ui_templa
 grep -n "Історія інцидентів" /opt/uptime-monitor/ui_templates.py
 grep -n "Глобальні налаштування сповіщень" /opt/uptime-monitor/ui_templates.py
 
-Basic HTTP check:
+Основна перевірка HTTP:
 curl -sS -o /dev/null -w "GET /login -> HTTP %{http_code}\n" http://127.0.0.1:8080/login
 
-If admin/admin does not work:
-curl -X POST -d "username=admin" http://127.0.0.1:8080/forgot-password
+Якщо admin/admin не працює:
+curl -X POST -d "ім'я користувача=адміністратор" http://127.0.0.1:8080/забули-пароль
 
 
 7) Troubleshooting
 ------------------
 
-Service not starting:
+Служба не запускається:
 sudo journalctl -u uptime-monitor -n 200 --no-pager
 sudo systemctl status uptime-monitor --no-pager
 
-Wrong/old UI after update:
-1. Run clean reinstall section.
-2. Clear browser cache (hard reload).
-3. Re-check UI markers in /opt/uptime-monitor/ui_templates.py.
+Неправильний/старий інтерфейс користувача після оновлення:
+1. Запустіть чистий розділ перевстановлення.
+2. Очистити кеш браузера (жорстке перезавантаження).
+3. Ще раз перевірте маркери інтерфейсу користувача в /opt/uptime-monitor/ui_templates.py.
 
-Cannot login:
-1. Reset admin password with forgot-password endpoint.
-2. Check auth tables and DB file in /etc/uptime-monitor/sites.db.
-3. Restart service.
+Не можу увійти:
+1. Скиньте пароль адміністратора за допомогою кінцевої точки із забутим паролем.
+2. Перевірте таблиці авторизації та файл БД у /etc/uptime-monitor/sites.db.
+3. Перезапустіть службу.
 
-Port busy:
-sudo ss -ltnp | grep :8080 || true
+Порт зайнятий:
+sudo ss -ltnp | grep :8080 || правда
 
 
-8) Useful commands
+8) Корисні команди
 ------------------
 
-Start/stop/restart/status:
-sudo systemctl start uptime-monitor
-sudo systemctl stop uptime-monitor
-sudo systemctl restart uptime-monitor
+Пуск/зупинка/перезапуск/статус:
+sudo systemctl запускає монітор безперебійної роботи
+sudo systemctl зупинити безперебійну роботу
+sudo systemctl перезапустіть монітор безвідмовної роботи
 sudo systemctl status uptime-monitor --no-pager
 
-Logs:
+Журнали:
 sudo journalctl -u uptime-monitor -f
 sudo journalctl -u uptime-monitor -n 100 --no-pager
 
-Config:
+Конфігурація:
 sudo nano /etc/uptime-monitor/config.json
-sudo systemctl restart uptime-monitor
+sudo systemctl перезапустіть монітор безвідмовної роботи
 
