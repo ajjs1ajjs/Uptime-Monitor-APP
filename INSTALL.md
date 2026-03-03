@@ -158,15 +158,9 @@ sudo cp /opt/uptime-monitor/sites.db /backup/sites.db.backup
 ### 2. Update Code
 ```bash
 cd /opt/uptime-monitor
-sudo git pull
-
-# Download new module files if needed (for versions after Feb 2026)
-sudo wget -O config_manager.py https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/config_manager.py
-sudo wget -O ui_templates.py https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/ui_templates.py
-
-# Fix permissions if needed
-sudo touch /opt/uptime-monitor/uptime_monitor.log
-sudo chown uptime-monitor:uptime-monitor /opt/uptime-monitor/uptime_monitor.log
+sudo git fetch --all --prune
+sudo git checkout main
+sudo git pull --ff-only origin main
 ```
 
 ### 3. Restart Service
@@ -1072,7 +1066,7 @@ sudo systemctl restart uptime-monitor
 
 **Initial Setup (after installation):**
 - **Linux:** `http://<server-ip>:8080` (IP auto-detected during installation)
-- **Windows:** `http://localhost:8000` or `http://<your-ip>:8000`
+- **Windows:** `http://localhost:8080` or `http://<your-ip>:8080`
 
 **After SSL configuration:**
 - **HTTPS:** `https://your-domain.com` (port 443)
@@ -1100,3 +1094,5 @@ hostname -I
 
 For issues and questions, please open an issue on GitHub:
 https://github.com/ajjs1ajjs/Uptime-Monitor-APP/issues
+
+

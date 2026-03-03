@@ -33,7 +33,7 @@ fi
 
 # Parse arguments
 PORT=8080
-VERSION="main"
+INSTALL_VERSION="main"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --version)
-            VERSION="$2"
+            INSTALL_VERSION="$2"
             shift 2
             ;;
         --help)
@@ -62,12 +62,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Determine download URL based on version
-if [[ "$VERSION" == "main" ]]; then
+if [[ "$INSTALL_VERSION" == "main" ]]; then
     DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/heads/main.tar.gz"
     APP_VERSION="latest (main branch)"
-elif [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/tags/$VERSION.tar.gz"
-    APP_VERSION="$VERSION"
+elif [[ "$INSTALL_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/archive/refs/tags/$INSTALL_VERSION.tar.gz"
+    APP_VERSION="$INSTALL_VERSION"
 else
     echo -e "${RED}Error: Invalid version format. Use 'main' or 'v1.0.0' format${NC}"
     exit 1
@@ -132,7 +132,7 @@ echo -e "${BLUE}Creating directories...${NC}"
 mkdir -p "$INSTALL_DIR" "$CONFIG_DIR" "$DATA_DIR" "$LOG_DIR"
 
 # Download from source archive
-echo -e "${BLUE}Downloading version $VERSION from GitHub...${NC}"
+echo -e "${BLUE}Downloading version $INSTALL_VERSION from GitHub...${NC}"
 TMP_WORKDIR=$(mktemp -d /tmp/uptime-monitor-install.XXXXXX)
 ARCHIVE_PATH="$TMP_WORKDIR/uptime-monitor.tar.gz"
 trap 'rm -rf "$TMP_WORKDIR"' EXIT
@@ -190,11 +190,6 @@ fi
 
 # Create virtual environment
 echo -e "${BLUE}Creating virtual environment...${NC}"
-cd "$INSTALL_DIR"
-$PYTHON_CMD -m venv venv
-
- # Install Python dependencies in venv
-echo -e "${BLUE}Installing Python dependencies...${NC}"
 cd "$INSTALL_DIR"
 $PYTHON_CMD -m venv venv
 

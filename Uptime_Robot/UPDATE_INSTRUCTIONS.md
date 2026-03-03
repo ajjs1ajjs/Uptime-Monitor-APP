@@ -40,7 +40,7 @@ sudo cp "$DB_PATH" "/backup/sites_$(date +%Y%m%d-%H%M%S).db"
 cd /opt/uptime-monitor
 sudo git fetch --all --prune
 sudo git checkout main
-sudo git pull origin main
+sudo git pull --ff-only origin main
 
 # 4) Start service
 sudo systemctl start uptime-monitor
@@ -73,13 +73,12 @@ PY
 )
 sudo cp "$DB_PATH" "/backup/sites_$(date +%Y%m%d-%H%M%S).db"
 
-# 3) Download updated files (pin to known-good commit)
+# 3) Download updated files from main
 cd /opt/uptime-monitor
-COMMIT=74f3187
-sudo wget -O main.py         "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/${COMMIT}/Uptime_Robot/main.py"
-sudo wget -O models.py       "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/${COMMIT}/Uptime_Robot/models.py"
-sudo wget -O monitoring.py   "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/${COMMIT}/Uptime_Robot/monitoring.py"
-sudo wget -O ui_templates.py "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/${COMMIT}/Uptime_Robot/ui_templates.py"
+sudo wget -O main.py         "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/main.py"
+sudo wget -O models.py       "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/models.py"
+sudo wget -O monitoring.py   "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/monitoring.py"
+sudo wget -O ui_templates.py "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/ui_templates.py"
 
 # 4) Start service
 sudo systemctl start uptime-monitor

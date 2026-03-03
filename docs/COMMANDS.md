@@ -56,23 +56,15 @@ cd /opt/uptime-monitor
 if [ -d .git ]; then
     sudo git fetch --all --prune
     sudo git checkout main
-    sudo git pull origin main
+    sudo git pull --ff-only origin main
 else
     echo "No .git directory found. Use wget update flow from Uptime_Robot/UPDATE_INSTRUCTIONS.md"
 fi
 
-# 4. Скачати нові модулі (якщо потрібно)
-sudo wget -O config_manager.py https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/config_manager.py
-sudo wget -O ui_templates.py https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/ui_templates.py
-
-# 5. Виправити права на лог-файл
-sudo touch /opt/uptime-monitor/uptime_monitor.log
-sudo chown uptime-monitor:uptime-monitor /opt/uptime-monitor/uptime_monitor.log
-
-# 6. Запустити
+# 4. Start service
 sudo systemctl start uptime-monitor
 
-# 7. Перевірити
+# 5. Verify
 sudo systemctl status uptime-monitor
 ```
 
@@ -81,7 +73,7 @@ sudo systemctl status uptime-monitor
 cd /opt/uptime-monitor && if [ -d .git ]; then
     sudo git fetch --all --prune
     sudo git checkout main
-    sudo git pull origin main
+    sudo git pull --ff-only origin main
 else
     echo "No .git directory found. Use wget update flow from Uptime_Robot/UPDATE_INSTRUCTIONS.md"
 fi && sudo systemctl restart uptime-monitor
@@ -409,3 +401,5 @@ ls -la /opt/uptime-monitor/
 ls -la /etc/uptime-monitor/
 ls -la /var/lib/uptime-monitor/
 ```
+
+

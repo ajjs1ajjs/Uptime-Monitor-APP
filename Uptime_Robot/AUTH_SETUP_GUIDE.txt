@@ -97,7 +97,7 @@ python main_service.py
 
 ACCESS:
 =======
-1. Open http://localhost:8000
+1. Open http://localhost:8080
 2. You'll be redirected to login page
 3. Enter: admin / admin123
 4. Click "Sign In"
@@ -191,3 +191,4 @@ This shows browser's native login popup instead of custom page.
 
 ---
 Need help? Check auth_module.py comments for more details.
+

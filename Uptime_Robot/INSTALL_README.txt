@@ -1,181 +1,155 @@
-UPTIME MONITOR - INSTALLATION GUIDE
-====================================
+UPTIME MONITOR - INSTALL, BACKUP, UPDATE, TROUBLESHOOT GUIDE
+=============================================================
 
-Choose your installation method:
+Quick operational guide for Linux/WSL.
 
-
-OPTION 1: WINDOWS SERVICE (Recommended - Like Windows Exporter)
-===============================================================
-Best for: Production servers, runs 24/7, auto-restart on crash
-
-1. Install as Service (needs Python + Admin rights):
-   Run: INSTALL_SERVICE_NSSM.bat
-   - Auto-downloads NSSM (service wrapper)
-   - Creates Windows Service
-   - Auto-starts on Windows boot
-   - Auto-restarts on crash
-
-2. Manage service:
-   nssm start UptimeMonitor
-   nssm stop UptimeMonitor
-   nssm restart UptimeMonitor
-   nssm remove UptimeMonitor
-
-3. Access: http://localhost:8000
+Main docs:
+- ../INSTALL.md
+- ../docs/QUICKSTART.md
+- ../docs/COMMANDS.md
+- ../docs/TROUBLESHOOTING.md
+- ../docs/BACKUP.md
 
 
-OPTION 2: STANDALONE EXE (No Python needed on target)
-====================================================
-Best for: Copy to any PC, no dependencies
+1) Fresh install (recommended)
+------------------------------
 
-1. Build EXE first:
-   Run: build_windows_service.bat
-   (Creates UptimeMonitor_Service\ folder)
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
 
-2. Copy folder to target PC
+Verify:
+sudo systemctl status uptime-monitor --no-pager
+sudo journalctl -u uptime-monitor -n 80 --no-pager
 
-3. On target PC run as Admin:
-   INSTALL.bat
+Access:
+- URL: http://<SERVER_IP>:8080
+- Login: admin
+- Password: admin
 
-4. Service auto-runs forever!
-
-
-OPTION 3: MANUAL START (Development/Testing)
-=============================================
-Best for: Testing, development
-
-1. Run: START.bat
-2. Enter port
-3. Press Ctrl+C to stop
-
-No service, no auto-start.
+Important: change password after first login.
 
 
-OPTION 4: AUTO-START (No service, runs on login)
-================================================
-Best for: Personal use, starts with Windows
+2) Clean reinstall (remove old install)
+---------------------------------------
 
-1. Run: SETUP_AUTO.bat
-2. Enters startup registry
-3. To disable: Task Manager - Startup tab
+Use this when old UI/old behavior still appears.
 
+sudo systemctl stop uptime-monitor 2>/dev/null || true
+sudo systemctl disable uptime-monitor 2>/dev/null || true
+sudo rm -f /etc/systemd/system/uptime-monitor.service
+sudo systemctl daemon-reload
+sudo rm -rf /opt/uptime-monitor /etc/uptime-monitor /var/lib/uptime-monitor /var/log/uptime-monitor
 
-FEATURES AVAILABLE IN ALL VERSIONS:
-===================================
-✅ Website uptime monitoring
-✅ Response time tracking
-✅ SSL certificate expiration alerts
-   - 14 days before expiry: daily alerts
-   - 7 days: urgent alerts
-   - 3 days: critical alerts
-   - Expired: immediate alerts
-✅ Multi-channel notifications:
-   - Telegram
-   - Email (SMTP)
-   - More in web interface
-✅ Auto-restart on crash (service mode)
-✅ Auto-start on Windows boot
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/install.sh | sudo bash
 
 
-WEB INTERFACE:
-==============
-After installation, open browser:
-http://localhost:8000 (or your port)
+3) Backup (mandatory)
+---------------------
 
-Functionality:
-- Add/remove websites to monitor
-- Configure notifications (Telegram, Email)
-- View uptime statistics
-- View SSL certificate status
-- Manual check trigger
-- Real-time updates
+Create first backup:
+sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 
+Schedule automatic backups:
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
 
-NOTIFICATION SETUP:
-==================
-1. Open web interface
-2. Go to "Notification Settings"
-3. Enable desired channels:
-   
-   Telegram:
-   - Get Bot Token from @BotFather
-   - Get Chat ID (message @userinfobot)
-   
-   Email:
-   - SMTP server (e.g., smtp.gmail.com)
-   - Port (usually 587)
-   - Username/Password
-   - Recipient email
+Check backup system:
+sudo /opt/uptime-monitor/scripts/backup-system.sh --status
+sudo /opt/uptime-monitor/scripts/schedule-backup.sh --status
 
-4. Click "Save"
-
-5. Add website and select notification methods
+Verify backups:
+sudo /opt/uptime-monitor/scripts/verify-backup.sh --all
 
 
-SSL CERTIFICATE MONITORING:
-==========================
-Automatic for all HTTPS sites:
-- Checks once per day
-- Alerts start 14 days before expiry
-- Daily reminders until renewed
-- Severity levels:
-  🟡 8-14 days: Warning
-  🟠 4-7 days: Important
-  🔴 0-3 days: Critical
-  🔴 Expired: Immediate
+4) Restore
+----------
+
+List backups:
+sudo /opt/uptime-monitor/scripts/restore-system.sh --list
+
+Restore latest backup:
+sudo /opt/uptime-monitor/scripts/restore-system.sh --auto
+
+Restore specific backup:
+sudo /opt/uptime-monitor/scripts/restore-system.sh --from /backup/uptime-monitor/daily/<backup-file>.tar.gz
 
 
-TROUBLESHOOTING:
-===============
-Port already in use:
-  - Choose different port (8080, 3000, etc.)
-  - Or stop other application
+5) Update existing installation
+-------------------------------
 
-Service won't start:
-  - Check service.log file
-  - Ensure Python is in PATH
-  - Run as Administrator
+5.1 Git installation (.git exists)
 
-Can't access from network:
-  - Check Windows Firewall
-  - Verify port is open
-  - Use IP address, not localhost
+cd /opt/uptime-monitor
+sudo systemctl stop uptime-monitor
+sudo git fetch --all --prune
+sudo git checkout main
+sudo git pull --ff-only origin main
+sudo systemctl start uptime-monitor
 
-Python not found:
-  - Install from python.org
-  - Check "Add to PATH" during install
+5.2 Non-git installation (no .git)
 
+cd /opt/uptime-monitor
+sudo systemctl stop uptime-monitor
+sudo wget -O main.py         "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/main.py"
+sudo wget -O models.py       "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/models.py"
+sudo wget -O monitoring.py   "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/monitoring.py"
+sudo wget -O ui_templates.py "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/ui_templates.py"
+sudo systemctl start uptime-monitor
 
-FILES IN THIS PACKAGE:
-=====================
-main_service.py           - Main application with service support
-main.py                   - Original version
-ssl_checker.py            - SSL certificate checking
-INSTALL_SERVICE_NSSM.bat  - Install as Windows Service (Option 1)
-build_windows_service.bat - Build standalone EXE (Option 2)
-START.bat                 - Manual start (Option 3)
-SETUP_AUTO.bat            - Auto-start on login (Option 4)
-README.txt                - This file
+Verify after update:
+sudo systemctl status uptime-monitor --no-pager
+sudo journalctl -u uptime-monitor -n 80 --no-pager
 
 
-PORTABLE VERSION:
-================
-To create for distribution:
-1. Run: build_windows_service.bat
-2. Copy UptimeMonitor_Service\ folder
-3. Distribute to any PC
-4. On target PC run INSTALL.bat as Admin
+6) Quick checks (UI + API + auth)
+---------------------------------
 
-No Python required on target PC!
+Check new UI markers in installed code:
+grep -n "Monitors Timeline (24h)" /opt/uptime-monitor/ui_templates.py
+grep -n "Статус всіх моніторів" /opt/uptime-monitor/ui_templates.py
+grep -n "Історія інцидентів" /opt/uptime-monitor/ui_templates.py
+grep -n "Глобальні налаштування сповіщень" /opt/uptime-monitor/ui_templates.py
 
+Basic HTTP check:
+curl -sS -o /dev/null -w "GET /login -> HTTP %{http_code}\n" http://127.0.0.1:8080/login
 
-SUPPORT:
-========
-- Check service.log for errors
-- Ensure all dependencies installed
-- Run as Administrator for service install
-- Open firewall ports if needed
+If admin/admin does not work:
+curl -X POST -d "username=admin" http://127.0.0.1:8080/forgot-password
 
 
----
-Uptime Monitor - Keep your sites online!
+7) Troubleshooting
+------------------
+
+Service not starting:
+sudo journalctl -u uptime-monitor -n 200 --no-pager
+sudo systemctl status uptime-monitor --no-pager
+
+Wrong/old UI after update:
+1. Run clean reinstall section.
+2. Clear browser cache (hard reload).
+3. Re-check UI markers in /opt/uptime-monitor/ui_templates.py.
+
+Cannot login:
+1. Reset admin password with forgot-password endpoint.
+2. Check auth tables and DB file in /etc/uptime-monitor/sites.db.
+3. Restart service.
+
+Port busy:
+sudo ss -ltnp | grep :8080 || true
+
+
+8) Useful commands
+------------------
+
+Start/stop/restart/status:
+sudo systemctl start uptime-monitor
+sudo systemctl stop uptime-monitor
+sudo systemctl restart uptime-monitor
+sudo systemctl status uptime-monitor --no-pager
+
+Logs:
+sudo journalctl -u uptime-monitor -f
+sudo journalctl -u uptime-monitor -n 100 --no-pager
+
+Config:
+sudo nano /etc/uptime-monitor/config.json
+sudo systemctl restart uptime-monitor
+

@@ -121,13 +121,13 @@ pip install -r requirements.txt
 python main.py [port]
 ```
 
-За замовчуванням порт 8000. Приклад:
+За замовчуванням порт 8080. Приклад:
 ```bash
 python main.py 8080
 ```
 
 ### 3. Вхід в систему
-Відкрийте браузер: http://localhost:8000 (або ваш порт)
+Відкрийте браузер: http://localhost:8080 (або ваш порт)
 
 **Обов'язкова авторизація:**
 - **Логін:** `admin`
@@ -453,3 +453,5 @@ sc query UptimeMonitor
 ## Ліцензія
 
 MIT License
+
+
