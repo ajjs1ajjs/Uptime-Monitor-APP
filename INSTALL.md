@@ -146,7 +146,9 @@ sudo /opt/uptime-monitor/scripts/mount-backup.sh --type smb --server 192.168.1.1
 
 If you have an older version installed:
 
-### 1. Backup Current Installation
+### Linux Update
+
+#### 1. Backup Current Installation
 ```bash
 # Create backup before upgrade
 sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type on-change --comment "Pre-upgrade backup"
@@ -155,7 +157,7 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 sudo cp /opt/uptime-monitor/sites.db /backup/sites.db.backup
 ```
 
-### 2. Update Code
+#### 2. Update Code
 ```bash
 cd /opt/uptime-monitor
 sudo git fetch --all --prune
@@ -163,12 +165,12 @@ sudo git checkout main
 sudo git pull --ff-only origin main
 ```
 
-### 3. Restart Service
+#### 3. Restart Service
 ```bash
 sudo systemctl restart uptime-monitor
 ```
 
-### 4. Verify Backup System
+#### 4. Verify Backup System
 ```bash
 # Check backup system status
 sudo /opt/uptime-monitor/scripts/backup-system.sh --status
@@ -180,9 +182,43 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 sudo /opt/uptime-monitor/scripts/verify-backup.sh --all
 ```
 
-### 5. Setup Automatic Backups (if not already configured)
+#### 5. Setup Automatic Backups (if not already configured)
 ```bash
 sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/uptime-monitor/
+```
+
+### Windows Update
+
+#### 1. Backup Current Data
+```powershell
+Copy-Item "$env:USERPROFILE\UptimeMonitor\sites.db" "$env:USERPROFILE\UptimeMonitor\sites.db.backup.$(Get-Date -Format yyyyMMdd-HHmmss)"
+Copy-Item "$env:USERPROFILE\UptimeMonitor\config.json" "$env:USERPROFILE\UptimeMonitor\config.json.backup.$(Get-Date -Format yyyyMMdd-HHmmss)"
+```
+
+#### 2. Update Files
+
+**If installed from git clone:**
+```powershell
+cd D:\path\to\Uptime-Monitor-APP
+git pull --ff-only origin main
+```
+
+**If installed from release ZIP:**
+1. Download the new Windows ZIP from [Releases](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
+2. Extract/replace files in your installation folder
+
+#### 3. Reinstall Service with Updated Files
+```powershell
+cd D:\path\to\Uptime-Monitor-APP\Uptime_Robot
+python main_service.py stop
+python main_service.py remove
+.\install.bat
+```
+
+#### 4. Verify
+```powershell
+sc.exe queryex UptimeMonitor
+netstat -ano | findstr :8080
 ```
 
 ---
@@ -224,18 +260,22 @@ sudo apt update && sudo apt install uptime-monitor
 sudo systemctl start uptime-monitor
 ```
 
-## Windows Installation
+## Windows Installation (Separate Section)
 
 ### Method 1: Simple Installation
 1. Download `uptime-monitor-vX.X.X-windows.zip` from [Releases](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
 2. Extract to desired location
-3. Run `install.bat` as Administrator
+3. Open `Uptime_Robot` folder
+4. Run `install.bat` as Administrator
+5. Open `http://localhost:8080` (or your selected port)
 
 ### Method 2: Manual Installation
 ```cmd
-cd C:\path\to\Uptime-Monitor-APP
-pip install -r requirements.txt
-python main.py --port 8080
+cd C:\path\to\Uptime-Monitor-APP\Uptime_Robot
+python -m pip install -r requirements.txt
+python -c "import config_manager as c; c.init_paths(); cfg=c.load_config(); cfg.setdefault('server', {})['port']=8080; c.save_config(cfg)"
+python main_service.py install
+net start UptimeMonitor
 ```
 
 ## Docker Installation
@@ -1083,7 +1123,7 @@ hostname -I
 - **HTTP Client:** aiohttp
 - **Windows Service:** pywin32
 - **Linux Service:** systemd
-- **Default Port:** 8080 (Linux) / 8000 (Windows)
+- **Default Port:** 8080 (Linux and Windows)
 - **SSL Support:** Yes (custom certificates, self-signed, Let's Encrypt ready)
 - **Configuration:** JSON-based with automatic backup/rollback
 - **Check Interval:** 60 seconds

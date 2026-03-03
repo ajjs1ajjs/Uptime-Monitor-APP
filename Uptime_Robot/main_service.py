@@ -5,6 +5,7 @@ import sqlite3
 import asyncio
 import threading
 import socket
+import traceback
 import servicemanager
 import win32serviceutil
 import win32service
@@ -102,6 +103,86 @@ async def dashboard():
         notification_cards=notification_cards
     ))
 
+@app.get("/status", response_class=HTMLResponse)
+@app.get("/public-status", response_class=HTMLResponse)
+async def public_status_page():
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute(
+            "SELECT id, name, url, monitor_type, status FROM sites WHERE is_active = 1 ORDER BY id"
+        )
+        sites = c.fetchall()
+
+    def status_of(site_row: sqlite3.Row) -> str:
+        value = site_row["status"]
+        return (value or "unknown").lower()
+
+    up_count = sum(1 for s in sites if status_of(s) == "up")
+    down_count = sum(1 for s in sites if status_of(s) == "down")
+    total = len(sites)
+
+    def get_sort_order(site_row: sqlite3.Row) -> int:
+        status = status_of(site_row)
+        if status == "down":
+            return 0
+        if status == "slow":
+            return 1
+        if status == "unknown":
+            return 2
+        if status == "paused":
+            return 3
+        return 4
+
+    sites = sorted(sites, key=get_sort_order)
+
+    monitors_html = ""
+    for site in sites:
+        status = status_of(site)
+        if status == "up":
+            status_class = "up"
+            status_text = "UP"
+            dot_color = "#00ff88"
+        elif status in ("paused", "slow"):
+            status_class = "paused"
+            status_text = "PAUSED" if status == "paused" else "SLOW"
+            dot_color = "#f59e0b"
+        elif status == "unknown":
+            status_class = "unknown"
+            status_text = "UNKNOWN"
+            dot_color = "#94a3b8"
+        else:
+            status_class = "down"
+            status_text = "DOWN"
+            dot_color = "#ff4757"
+
+        monitors_html += f"""
+        <div class="monitor {status_class}">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: {dot_color}; box-shadow: 0 0 8px {dot_color};"></div>
+                <div><div class="monitor-name">{site["name"]}</div>
+                <div class="monitor-url">{site["url"]}</div></div>
+            </div>
+            <span class="status-badge {status_class}">{status_text}</span>
+        </div>"""
+
+    overall_status_class = "up" if down_count == 0 else "down"
+    overall_status_text = (
+        "All systems operational" if down_count == 0 else "Some issues detected"
+    )
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return HTMLResponse(
+        content=ui_templates.get_public_status_html(
+            overall_status_class=overall_status_class,
+            overall_status_text=overall_status_text,
+            total=total,
+            up_count=up_count,
+            down_count=down_count,
+            monitors_html=monitors_html,
+            timestamp=timestamp,
+        )
+    )
+
 @app.get("/api/sites")
 async def get_sites():
     with get_db_connection() as conn:
@@ -115,6 +196,24 @@ async def get_sites():
             site["status"] = last["status"] if last else "unknown"
             site["notify_methods"] = json.loads(site["notify_methods"]) if site["notify_methods"] else []
     return sites
+
+@app.get("/api/sites/{site_id}/history")
+async def get_site_history(site_id: int, limit: int = 50):
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute(
+            "SELECT status, status_code, checked_at FROM status_history WHERE site_id = ? ORDER BY checked_at DESC LIMIT ?",
+            (site_id, limit),
+        )
+        history = c.fetchall()
+    return [
+        {
+            "status": h["status"],
+            "status_code": h["status_code"],
+            "checked_at": h["checked_at"],
+        }
+        for h in history
+    ]
 
 @app.post("/api/sites")
 async def add_site(site: SiteCreate):
@@ -161,6 +260,81 @@ async def save_notify(settings: NotifySettings):
     models.save_notify_settings(DB_PATH, NOTIFY_SETTINGS)
     return {"message": "Saved"}
 
+@app.get("/api/ssl-certificates")
+async def get_ssl_certs():
+    return models.get_ssl_certificates(DB_PATH)
+
+@app.post("/api/ssl-certificates/check")
+async def manual_ssl_check():
+    await monitoring.check_all_certificates(NOTIFY_SETTINGS)
+    return {"message": "SSL check triggered"}
+
+@app.get("/api/stats/response-time")
+async def get_response_time_stats():
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("""
+            SELECT site_id, s.name as site_name, AVG(sh.response_time) as avg_time, MIN(sh.response_time) as min_time, MAX(sh.response_time) as max_time, COUNT(*) as checks
+            FROM status_history sh
+            JOIN sites s ON sh.site_id = s.id
+            WHERE sh.checked_at >= datetime('now', '-24 hours') AND sh.response_time IS NOT NULL
+            GROUP BY site_id
+            ORDER BY avg_time ASC
+        """)
+        results = c.fetchall()
+    return [
+        {
+            "site_id": r["site_id"],
+            "site_name": r["site_name"],
+            "avg_time": round(r["avg_time"], 1) if r["avg_time"] else 0,
+            "min_time": round(r["min_time"], 1) if r["min_time"] else 0,
+            "max_time": round(r["max_time"], 1) if r["max_time"] else 0,
+            "checks": r["checks"],
+        }
+        for r in results
+    ]
+
+@app.get("/api/incidents")
+async def get_incidents():
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("""
+            SELECT
+                sh.id,
+                sh.site_id,
+                s.name as site_name,
+                s.url as site_url,
+                sh.status,
+                sh.status_code,
+                sh.response_time,
+                sh.error_message,
+                sh.checked_at
+            FROM status_history sh
+            JOIN sites s ON sh.site_id = s.id
+            WHERE sh.status IN ('down', 'slow')
+            AND sh.checked_at >= datetime('now', '-7 days')
+            ORDER BY sh.checked_at DESC
+            LIMIT 50
+        """)
+        results = c.fetchall()
+
+    incidents = []
+    for r in results:
+        incidents.append(
+            {
+                "id": r["id"],
+                "site_id": r["site_id"],
+                "site_name": r["site_name"],
+                "site_url": r["site_url"],
+                "status": r["status"],
+                "status_code": r["status_code"],
+                "response_time": r["response_time"],
+                "error_message": r["error_message"],
+                "checked_at": r["checked_at"],
+            }
+        )
+    return incidents
+
 # --- Windows Service Logic ---
 
 class UptimeMonitorService(win32serviceutil.ServiceFramework):
@@ -172,9 +346,12 @@ class UptimeMonitorService(win32serviceutil.ServiceFramework):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
         self.running = False
+        self.server = None
 
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+        if self.server is not None:
+            self.server.should_exit = True
         win32event.SetEvent(self.stop_event)
         self.running = False
 
@@ -188,31 +365,64 @@ class UptimeMonitorService(win32serviceutil.ServiceFramework):
         self.main()
 
     def main(self):
-        def run_server():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            asyncio.ensure_future(monitoring.monitor_loop(NOTIFY_SETTINGS, CHECK_INTERVAL))
-            config = uvicorn.Config(app, host="0.0.0.0", port=DEFAULT_PORT, log_level="error")
-            server = uvicorn.Server(config)
-            loop.run_until_complete(server.serve())
-
+        error_log_path = os.path.join(os.path.dirname(DB_PATH), "service_error.log")
         self.ReportServiceStatus(win32service.SERVICE_START_PENDING, waitHint=30000)
-        t = threading.Thread(target=run_server, daemon=True)
-        t.start()
-        self.ReportServiceStatus(win32service.SERVICE_RUNNING)
-        win32event.WaitForSingleObject(self.stop_event, win32event.INFINITE)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            asyncio.ensure_future(monitoring.monitor_loop(NOTIFY_SETTINGS, CHECK_INTERVAL))
+            # In Windows Service context stdout/stderr may be None, which breaks
+            # uvicorn default logging formatter (isatty check).
+            config = uvicorn.Config(
+                app,
+                host="0.0.0.0",
+                port=DEFAULT_PORT,
+                log_level="error",
+                log_config=None,
+                access_log=False,
+            )
+            self.server = uvicorn.Server(config)
+            self.ReportServiceStatus(win32service.SERVICE_RUNNING)
+            loop.run_until_complete(self.server.serve())
+        except Exception:
+            err = traceback.format_exc()
+            try:
+                os.makedirs(os.path.dirname(error_log_path), exist_ok=True)
+                with open(error_log_path, "a", encoding="utf-8") as f:
+                    f.write(f"[{datetime.now().isoformat()}] Service runtime error\n")
+                    f.write(err + "\n")
+            except Exception:
+                pass
+            try:
+                servicemanager.LogErrorMsg(err)
+            except Exception:
+                pass
+        finally:
+            self.server = None
+            try:
+                pending = asyncio.all_tasks(loop)
+                for task in pending:
+                    task.cancel()
+                if pending:
+                    loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
+            except Exception:
+                pass
+            loop.close()
+            self.ReportServiceStatus(win32service.SERVICE_STOPPED)
 
 def install_service():
     try:
-        exe_path = sys.executable if getattr(sys, "frozen", False) else sys.argv[0]
-        win32serviceutil.HandleCommandLine(UptimeMonitorService, argv=[exe_path, "install"])
-        # Set to auto-start
-        import winreg
-        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, f"SYSTEM\\CurrentControlSet\\Services\\{UptimeMonitorService._svc_name_}", 0, winreg.KEY_SET_VALUE)
-        winreg.SetValueEx(key, "Start", 0, winreg.REG_DWORD, 2)
-        winreg.CloseKey(key)
-        print("✅ Service installed and set to Auto-start.")
-    except Exception as e: print(f"❌ Installation error: {e}")
+        # Use script path so pywin32 registers the correct Python service class.
+        script_path = os.path.abspath(__file__)
+        win32serviceutil.HandleCommandLine(
+            UptimeMonitorService, argv=[script_path, "--startup", "auto", "install"]
+        )
+        print("Service installed and set to Auto-start.")
+    except Exception as e:
+        print(f"Installation error: {e}")
 
 def run_console():
     print(f"Uptime Monitor (Console Mode) on port {DEFAULT_PORT}")
@@ -224,11 +434,12 @@ def run_console():
     except KeyboardInterrupt: pass
 
 if __name__ == "__main__":
-    if len(sys.argv) == 1: run_console()
+    if len(sys.argv) == 1:
+        run_console()
     else:
         cmd = sys.argv[1].lower()
-        if cmd == "install": install_service()
-        elif cmd in ("remove", "start", "stop", "restart"):
+        if cmd == "console":
+            run_console()
+        else:
+            # Let pywin32 handle install/start/stop/remove/restart with full metadata.
             win32serviceutil.HandleCommandLine(UptimeMonitorService)
-        elif cmd == "console": run_console()
-        else: win32serviceutil.HandleCommandLine(UptimeMonitorService)

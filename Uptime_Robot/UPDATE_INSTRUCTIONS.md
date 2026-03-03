@@ -106,3 +106,30 @@ sudo systemctl stop uptime-monitor
 sudo cp /backup/sites_YYYYMMDD-HHMMSS.db /etc/uptime-monitor/sites.db
 sudo systemctl start uptime-monitor
 ```
+
+## Windows (окремий сценарій)
+
+```powershell
+# 1) Backup data
+Copy-Item "$env:USERPROFILE\UptimeMonitor\sites.db" "$env:USERPROFILE\UptimeMonitor\sites.db.backup.$(Get-Date -Format yyyyMMdd-HHmmss)"
+Copy-Item "$env:USERPROFILE\UptimeMonitor\config.json" "$env:USERPROFILE\UptimeMonitor\config.json.backup.$(Get-Date -Format yyyyMMdd-HHmmss)"
+
+# 2) Update files
+# If git clone:
+cd D:\path\to\Uptime-Monitor-APP
+git pull --ff-only origin main
+
+# If release ZIP:
+# Download and extract latest Windows ZIP from:
+# https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases
+
+# 3) Reinstall service from updated folder
+cd D:\path\to\Uptime-Monitor-APP\Uptime_Robot
+python main_service.py stop
+python main_service.py remove
+.\install.bat
+
+# 4) Verify service and port
+sc.exe queryex UptimeMonitor
+netstat -ano | findstr :8080
+```

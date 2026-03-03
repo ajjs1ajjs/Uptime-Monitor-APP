@@ -8,19 +8,17 @@
    - Завантажити: https://www.python.org/downloads/
    - ☑️ Важливо: поставити галочку "Add Python to PATH"
 
-2. **Запустити** `RUN_FIRST.bat`
-   - Автоматично встановить залежності
+2. **Запустити** `install.bat` (від Адміністратора)
+   - Встановить Python-залежності
    - Запитає порт (за замовчуванням 8080)
-   - Запустить моніторинг
-   - Відкриє браузер
+   - Встановить і запустить Windows Service
 
 ### Файли:
 
-- `RUN_FIRST.bat` - перший запуск (встановлює залежності)
-- `START.bat` - наступні запуски
-- `INSTALL_SERVICE.bat` - встановити як Windows Service (автозапуск)
-- `STOP_SERVICE.bat` - зупинити службу
-- `UNINSTALL_SERVICE.bat` - видалити службу
+- `install.bat` - встановити як Windows Service (автозапуск)
+- `build_exe.bat` - збірка EXE/інсталятора
+- `create_task.ps1` - альтернативний запуск через Windows Task
+- `create_task_simple.ps1` - спрощений варіант створення Task
 
 ### Особливості:
 
