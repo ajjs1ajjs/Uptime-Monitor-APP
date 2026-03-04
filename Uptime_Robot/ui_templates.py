@@ -208,6 +208,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         <div style="display: flex; align-items: center; gap: 16px;">
             <div id="lastUpdate" style="color: var(--text-secondary); font-size: 13px;"></div>
             <a href="/status" target="_blank" class="header-btn">📄 Status</a>
+            <a href="/users" class="header-btn">👥 Користувачі</a>
             <a href="/logout" class="header-btn danger">🚪 Вийти</a>
         </div>
     </div>
