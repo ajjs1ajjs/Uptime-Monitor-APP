@@ -58,7 +58,7 @@ if [ -d .git ]; then
     sudo git checkout main
     sudo git pull --ff-only origin main
 else
-    echo "No .git directory found. Use wget update flow from Uptime_Robot/UPDATE_INSTRUCTIONS.md"
+    echo "No .git directory found. Use wget update flow from docs/UPDATE_INSTRUCTIONS.md"
 fi
 
 # 4. Start service
@@ -75,7 +75,7 @@ cd /opt/uptime-monitor && if [ -d .git ]; then
     sudo git checkout main
     sudo git pull --ff-only origin main
 else
-    echo "No .git directory found. Use wget update flow from Uptime_Robot/UPDATE_INSTRUCTIONS.md"
+    echo "No .git directory found. Use wget update flow from docs/UPDATE_INSTRUCTIONS.md"
 fi && sudo systemctl restart uptime-monitor
 ```
 

@@ -26,7 +26,7 @@ echo "=========================================="
 echo -e "${NC}"
 
 # Check if running as root
-if [ "$EUID" -ne 0 ]; then 
+if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}Error: Please run as root (use sudo)${NC}"
     exit 1
 fi
@@ -235,6 +235,15 @@ if [ ! -f "$CONFIG_DIR/config.json" ]; then
         "email_password": "",
         "email_to": ""
     },
+    "alert_policy": {
+        "request_timeout_seconds": 10,
+        "down_failures_threshold": 1,
+        "up_success_threshold": 1,
+        "still_down_repeat_seconds": 600,
+        "treat_4xx_as_down": true,
+        "ssl_notification_days": 21,
+        "ssl_notification_cooldown_seconds": 43200
+    },
     "backup": {
         "enabled": true,
         "max_backups": 10,
@@ -321,7 +330,7 @@ sleep 3
 if systemctl is-active --quiet $SERVICE_NAME; then
     # Get IP
     IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
-    
+
     echo ""
     echo -e "${GREEN}=========================================="
     echo "   Uptime Monitor - Installation Successful!"

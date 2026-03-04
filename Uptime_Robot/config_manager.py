@@ -1,8 +1,8 @@
-import os
-import sys
 import json
+import os
 import socket
 import ssl as ssl_module
+import sys
 from datetime import datetime
 
 # Windows-specific imports (only on Windows)
@@ -58,6 +58,15 @@ DEFAULT_CONFIG = {
         "email_username": "",
         "email_password": "",
         "email_to": "",
+    },
+    "alert_policy": {
+        "request_timeout_seconds": 10,
+        "down_failures_threshold": 1,
+        "up_success_threshold": 1,
+        "still_down_repeat_seconds": 600,
+        "treat_4xx_as_down": True,
+        "ssl_notification_days": 21,
+        "ssl_notification_cooldown_seconds": 43200,
     },
     "backup": {
         "enabled": True,

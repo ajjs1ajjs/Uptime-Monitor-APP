@@ -1,20 +1,91 @@
 """Модуль для моніторингу сайтів"""
 
 import asyncio
-import aiohttp
 import json
-import socket
-import os
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-from logger import logger
+from typing import Any, Dict, List, Optional
+
+import aiohttp
+from config_manager import load_config
 from database import get_db_connection
-from ssl_checker import check_ssl_certificate, format_certificate_alert
+from logger import logger
+from ssl_checker import check_ssl_certificate
 
 # Глобальні змінні для відстеження стану
 LAST_STATUS = {}  # site_id -> status
 LAST_DOWN_ALERT = {}  # site_id -> datetime
 FAILED_ATTEMPTS = {}  # site_id -> count of consecutive failures
+SUCCESS_ATTEMPTS = {}  # site_id -> count of consecutive successes
+
+# Чутливий профіль (конфігуровані значення з fallback)
+SENSITIVE_DEFAULTS = {
+    "request_timeout_seconds": 10,
+    "down_failures_threshold": 1,
+    "up_success_threshold": 1,
+    "still_down_repeat_seconds": 600,
+    "treat_4xx_as_down": True,
+    "ssl_notification_days": 21,
+    "ssl_notification_cooldown_seconds": 43200,
+}
+
+
+def get_alert_policy() -> Dict[str, Any]:
+    """Повертає політику алертів із конфіга (чутливий профіль за замовчуванням)."""
+    try:
+        config = load_config() or {}
+    except Exception:
+        config = {}
+
+    policy = (config.get("alert_policy") or {}).copy()
+
+    result = SENSITIVE_DEFAULTS.copy()
+    result.update({k: v for k, v in policy.items() if v is not None})
+
+    # Нормалізація типів/меж
+    try:
+        result["request_timeout_seconds"] = max(
+            1, int(result.get("request_timeout_seconds", 10))
+        )
+    except Exception:
+        result["request_timeout_seconds"] = 10
+
+    try:
+        result["down_failures_threshold"] = max(
+            1, int(result.get("down_failures_threshold", 1))
+        )
+    except Exception:
+        result["down_failures_threshold"] = 1
+
+    try:
+        result["up_success_threshold"] = max(
+            1, int(result.get("up_success_threshold", 1))
+        )
+    except Exception:
+        result["up_success_threshold"] = 1
+
+    try:
+        result["still_down_repeat_seconds"] = max(
+            60, int(result.get("still_down_repeat_seconds", 600))
+        )
+    except Exception:
+        result["still_down_repeat_seconds"] = 600
+
+    try:
+        result["ssl_notification_days"] = max(
+            1, int(result.get("ssl_notification_days", 21))
+        )
+    except Exception:
+        result["ssl_notification_days"] = 21
+
+    try:
+        result["ssl_notification_cooldown_seconds"] = max(
+            300, int(result.get("ssl_notification_cooldown_seconds", 43200))
+        )
+    except Exception:
+        result["ssl_notification_cooldown_seconds"] = 43200
+
+    result["treat_4xx_as_down"] = bool(result.get("treat_4xx_as_down", True))
+    return result
 
 
 def normalize_ssl_url(url: str) -> Optional[str]:
@@ -31,7 +102,7 @@ async def check_site_status(
     site_id: int, url: str, notify_methods: List[str], notify_settings: Dict[str, Any]
 ):
     """Перевіряє статус сайту та відправляє сповіщення"""
-    global LAST_STATUS, LAST_DOWN_ALERT, FAILED_ATTEMPTS
+    global LAST_STATUS, LAST_DOWN_ALERT, FAILED_ATTEMPTS, SUCCESS_ATTEMPTS
     from notifications import send_notification
 
     start_time = datetime.now()
@@ -47,17 +118,22 @@ async def check_site_status(
     try:
         # У майбутньому тут можна додати логіку для різних типів моніторів (port, ping)
         # Наразі реалізовано HTTP/HTTPS
+        policy = get_alert_policy()
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 url,
-                timeout=aiohttp.ClientTimeout(total=30),
+                timeout=aiohttp.ClientTimeout(total=policy["request_timeout_seconds"]),
                 headers=headers,
                 ssl=False,
                 allow_redirects=True,
             ) as response:
                 status_code = response.status
                 response_time = (datetime.now() - start_time).total_seconds() * 1000
-                status = "up" if status_code < 500 else "down"
+
+                if policy["treat_4xx_as_down"]:
+                    status = "up" if 200 <= status_code < 400 else "down"
+                else:
+                    status = "up" if status_code < 500 else "down"
     except aiohttp.ClientConnectorError:
         error_message = "Connection failed"
     except asyncio.TimeoutError:
@@ -109,19 +185,22 @@ async def check_site_status(
     if status == "down" and notify_methods:
         # Increment failed attempts
         FAILED_ATTEMPTS[site_id] = FAILED_ATTEMPTS.get(site_id, 0) + 1
-        
+
         should_alert = False
         alert_type = ""
 
+        policy = get_alert_policy()
         if notification_status == "up" or notification_status is None:
-            # We wait until 3 consecutive failures to send the initial alert
-            if FAILED_ATTEMPTS[site_id] >= 2:
+            if FAILED_ATTEMPTS[site_id] >= policy["down_failures_threshold"]:
                 should_alert = True
                 alert_type = "NEW"
         else:
             last_alert = LAST_DOWN_ALERT.get(site_id)
-            # Повторне сповіщення раз на 30 хвилин (як у main.py)
-            if last_alert is None or (checked_at - last_alert).total_seconds() >= 1800:
+            if (
+                last_alert is None
+                or (checked_at - last_alert).total_seconds()
+                >= policy["still_down_repeat_seconds"]
+            ):
                 should_alert = True
                 alert_type = "REPEAT"
 
@@ -151,8 +230,14 @@ async def check_site_status(
     # Сповіщення про відновлення
     if status == "up":
         FAILED_ATTEMPTS[site_id] = 0
-        
-        if notification_status == "down" and notify_methods:
+        SUCCESS_ATTEMPTS[site_id] = SUCCESS_ATTEMPTS.get(site_id, 0) + 1
+
+        policy = get_alert_policy()
+        if (
+            notification_status == "down"
+            and notify_methods
+            and SUCCESS_ATTEMPTS[site_id] >= policy["up_success_threshold"]
+        ):
             msg = {
                 "alert_type": "up",
                 "site_name": site_name,
@@ -164,6 +249,8 @@ async def check_site_status(
             await send_notification(msg, notify_methods, notify_settings)
             if site_id in LAST_DOWN_ALERT:
                 del LAST_DOWN_ALERT[site_id]
+    else:
+        SUCCESS_ATTEMPTS[site_id] = 0
 
     LAST_STATUS[site_id] = status
     return status, status_code, response_time, error_message
@@ -229,9 +316,10 @@ async def check_site_certificate(
             )
         conn.commit()
 
-    # Сповіщення про закінчення терміну дії (за 14 днів)
+    # Сповіщення про закінчення терміну дії (чутливий профіль: за 21 день)
+    policy = get_alert_policy()
     days = cert_info["days_until_expire"]
-    if days <= 14 and notify_methods:
+    if days <= policy["ssl_notification_days"] and notify_methods:
         c.execute(
             "SELECT last_notified FROM ssl_certificates WHERE site_id = ?", (site_id,)
         )
@@ -240,7 +328,9 @@ async def check_site_certificate(
         should_notify = True
         if row and row["last_notified"]:
             last_notif = datetime.fromisoformat(row["last_notified"])
-            if (datetime.now() - last_notif).total_seconds() < 86400:  # Раз на добу
+            if (datetime.now() - last_notif).total_seconds() < policy[
+                "ssl_notification_cooldown_seconds"
+            ]:
                 should_notify = False
 
         if should_notify:
