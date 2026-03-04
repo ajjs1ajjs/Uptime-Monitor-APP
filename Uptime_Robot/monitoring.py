@@ -50,7 +50,7 @@ async def check_site_status(
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 url,
-                timeout=aiohttp.ClientTimeout(total=10),
+                timeout=aiohttp.ClientTimeout(total=30),
                 headers=headers,
                 ssl=False,
                 allow_redirects=True,
@@ -115,7 +115,7 @@ async def check_site_status(
 
         if notification_status == "up" or notification_status is None:
             # We wait until 3 consecutive failures to send the initial alert
-            if FAILED_ATTEMPTS[site_id] >= 3:
+            if FAILED_ATTEMPTS[site_id] >= 2:
                 should_alert = True
                 alert_type = "NEW"
         else:
