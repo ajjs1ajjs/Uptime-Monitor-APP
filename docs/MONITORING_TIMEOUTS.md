@@ -13,7 +13,7 @@
 | Значення | Опис |
 |----------|------|
 | **За замовчуванням** | `60 секунд` (1 хвилина) |
-| **Мінімум** | `10 секунд` |
+| **Мінімум** | `30 секунд` |
 | **Максимум** | `3600 секунд` (1 година) |
 | **Рекомендовано** | `60 секунд` |
 
@@ -38,23 +38,23 @@
 
 | Значення | Опис |
 |----------|------|
-| **За замовчуванням** | `10 секунд` |
+| **За замовчуванням** | `30 секунд` |
 | **Мінімум** | `1 секунда` |
 | **Максимум** | `300 секунд` (5 хвилин) |
-| **Рекомендовано** | `10 секунд` |
+| **Рекомендовано** | `30 секунд` |
 
 **Де налаштувати:**
 ```json
 // /etc/uptime-monitor/config.json
 {
   "alert_policy": {
-    "request_timeout_seconds": 10
+    "request_timeout_seconds": 30
   }
 }
 ```
 
 **Як працює:**
-- Якщо сайт не відповідає протягом 10 секунд → помилка "Timeout"
+- Якщо сайт не відповідає протягом 30 секунд → помилка "Timeout"
 - Статус сайту: `down`
 - Відправляється сповіщення (якщо увімкнено)
 
@@ -302,7 +302,7 @@ if (datetime.now() - last_cert_check).total_seconds() >= 86400:
   "check_interval": 60,
   
   "alert_policy": {
-    "request_timeout_seconds": 10,
+    "request_timeout_seconds": 30,
     "down_failures_threshold": 1,
     "up_success_threshold": 1,
     "still_down_repeat_seconds": 600,
@@ -352,7 +352,7 @@ if (datetime.now() - last_cert_check).total_seconds() >= 86400:
 {
   "check_interval": 60,
   "alert_policy": {
-    "request_timeout_seconds": 10,
+    "request_timeout_seconds": 30,
     "down_failures_threshold": 1,
     "up_success_threshold": 1,
     "still_down_repeat_seconds": 600
@@ -392,7 +392,7 @@ if (datetime.now() - last_cert_check).total_seconds() >= 86400:
 | Параметр | За замовчуванням | Мін | Макс | Рекомендовано |
 |----------|-----------------|-----|------|---------------|
 | `check_interval` | 60с | 10с | 3600с | 60с |
-| `request_timeout_seconds` | 10с | 1с | 300с | 10с |
+| `request_timeout_seconds` | 30с | 1с | 300с | 30с |
 | `down_failures_threshold` | 1 | 1 | 10 | 1-3 |
 | `up_success_threshold` | 1 | 1 | 10 | 1-2 |
 | `still_down_repeat_seconds` | 600с | 60с | 86400с | 600с |
