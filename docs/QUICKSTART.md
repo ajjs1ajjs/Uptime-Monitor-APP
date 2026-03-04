@@ -55,6 +55,7 @@ sudo /opt/uptime-monitor/scripts/schedule-backup.sh --install --dest /backup/upt
 ## 🆘 Якщо щось пішло не так
 
 Дивіться:
+- [UPDATE_INSTRUCTIONS.md](UPDATE_INSTRUCTIONS.md) - безпечний pre-update backup + rollback runbook
 - [COMMANDS.md](COMMANDS.md) - всі команди
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - вирішення проблем
 - [BACKUP.md](BACKUP.md) - інструкції по бекапу

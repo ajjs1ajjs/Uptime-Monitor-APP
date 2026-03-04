@@ -10,6 +10,7 @@
 |----------|------|----------|
 | **[QUICKSTART.md](QUICKSTART.md)** | Швидкий старт | Швидко запустити систему |
 | **[COMMANDS.md](COMMANDS.md)** | Команди | Знайти потрібну команду |
+| **[UPDATE_INSTRUCTIONS.md](UPDATE_INSTRUCTIONS.md)** | Безпечне оновлення | Оновити прод безпечно (backup + rollback) |
 | **[BACKUP.md](BACKUP.md)** | Бекапи | Налаштувати бекапи |
 | **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Проблеми | Вирішити проблему |
 
@@ -40,6 +41,9 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/
 ### 💾 Проблеми з бекапом?
 → [BACKUP.md](BACKUP.md) - повна інструкція з бекапу
 
+### 🔄 Безпечне оновлення на проді?
+→ [UPDATE_INSTRUCTIONS.md](UPDATE_INSTRUCTIONS.md) - покроковий runbook (backup, update, verify, rollback)
+
 ### 🛠️ Щось не працює?
 → [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - вирішення проблем
 
@@ -69,6 +73,7 @@ sudo journalctl -u uptime-monitor -f
 ## 🔗 Корисні посилання
 
 - **Веб-інтерфейс**: `http://$(hostname -I | awk '{print $1}'):8080`
+- **Безпечне оновлення (prod runbook)**: [UPDATE_INSTRUCTIONS.md](UPDATE_INSTRUCTIONS.md)
 - **Основна документація**: [../INSTALL.md](../INSTALL.md)
 - **GitHub**: https://github.com/ajjs1ajjs/Uptime-Monitor-APP
 
