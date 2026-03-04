@@ -896,12 +896,12 @@ async def delete_user_api(username: str, current_user: dict = Depends(require_ad
     if username == current_user["username"]:
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
 
-    if auth_module.delete_user(DB_PATH, username):
+    success, error_message = auth_module.delete_user(DB_PATH, username)
+
+    if success:
         return {"message": f"User '{username}' deleted"}
     else:
-        raise HTTPException(
-            status_code=400, detail="Cannot delete user (might be the last admin)"
-        )
+        raise HTTPException(status_code=400, detail=error_message)
 
 
 # --- Background Task & Service ---

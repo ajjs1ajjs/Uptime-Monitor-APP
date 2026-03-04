@@ -243,8 +243,11 @@ def update_user_role(db_path: str, username: str, new_role: str) -> bool:
         return False
 
 
-def delete_user(db_path: str, username: str) -> bool:
-    """Delete a user (cannot delete last admin)"""
+def delete_user(db_path: str, username: str) -> tuple:
+    """Delete a user (cannot delete last admin)
+
+    Returns: (success: bool, error_message: str or None)
+    """
     try:
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
@@ -258,19 +261,19 @@ def delete_user(db_path: str, username: str) -> bool:
 
         if not user_row:
             conn.close()
-            return False
+            return (False, "User not found")
 
         if user_row["role"] == "admin" and admin_count <= 1:
             conn.close()
-            return False  # Cannot delete last admin
+            return (False, "Cannot delete the last admin user")
 
         c.execute("DELETE FROM users WHERE username = ?", (username,))
         conn.commit()
         conn.close()
-        return True
+        return (True, None)
     except Exception as e:
         print(f"Error deleting user: {e}")
-        return False
+        return (False, str(e))
 
 
 def get_all_users(db_path: str) -> list:
