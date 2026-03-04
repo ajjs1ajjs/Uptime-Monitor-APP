@@ -1761,7 +1761,7 @@ USERS_PAGE_HTML = """<!DOCTYPE html>
                     <td>
                         <div class="actions-cell">
                             <button class="btn btn-sm btn-secondary" onclick="showEditModal('${user.username}', '${user.role}')">Edit</button>
-                            ${user.username !== '${currentUser?.username || ''}' ? `<button class="btn btn-sm btn-danger" onclick="deleteUser('${user.username}')">Delete</button>` : ''}
+                            ${user.username !== currentUser?.username ? `<button class="btn btn-sm btn-danger" onclick="deleteUser('${user.username}')">Delete</button>` : ''}
                         </div>
                     </td>
                 </tr>
