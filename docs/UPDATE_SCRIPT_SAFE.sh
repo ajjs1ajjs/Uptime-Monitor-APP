@@ -99,14 +99,14 @@ if [ -f "$APP_DIR/scripts/backup-system.sh" ]; then
 
     # Додаткова копія ключових файлів
     log_info "Збереження додаткових копій конфігурації..."
-    cp /etc/uptime-monitor/config.json "/backup/config.pre-update.$TS.json" 2>/dev/null || true
-    cp /etc/systemd/system/uptime-monitor.service "/backup/uptime-monitor.service.pre-update.$TS" 2>/dev/null || true
+    sudo cp /etc/uptime-monitor/config.json "/backup/config.pre-update.$TS.json" 2>/dev/null || true
+    sudo cp /etc/systemd/system/uptime-monitor.service "/backup/uptime-monitor.service.pre-update.$TS" 2>/dev/null || true
 else
     log_warning "Скрипт бекапу не знайдено. Створення ручного бекапу..."
 
-    mkdir -p "/backup/manual/$TS"
-    cp -r /etc/uptime-monitor "/backup/manual/$TS/" 2>/dev/null || true
-    cp -r /var/lib/uptime-monitor "/backup/manual/$TS/" 2>/dev/null || true
+    sudo mkdir -p "/backup/manual/$TS"
+    sudo cp -r /etc/uptime-monitor "/backup/manual/$TS/" 2>/dev/null || true
+    sudo cp -r /var/lib/uptime-monitor "/backup/manual/$TS/" 2>/dev/null || true
 
     log_success "Ручний бекап створено: /backup/manual/$TS"
 fi
