@@ -26,6 +26,9 @@ Project.code-workspace
 *.rar
 port.txt
 
+# Тестові файли
+cookies*.txt
+
 # Бінарні файли
 UptimeMonitor.exe
 get-pip.pyUptime_Robot/venv/
