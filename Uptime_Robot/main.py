@@ -1,38 +1,38 @@
-import sys
-import os
-import json
-import sqlite3
 import asyncio
-import threading
 import ipaddress
+import json
+import os
+import sqlite3
+import sys
+import threading
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, HTTPException, Request, Form, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import uvicorn
+import auth_module
 
 # Internal modules
 import config_manager
-import ui_templates
-import notifications
-import monitoring
 import models
-import auth_module
+import monitoring
+import notifications
+import ui_templates
+import uvicorn
 from database import get_db_connection
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, RedirectResponse
 from logger import logger
+from pydantic import BaseModel
 
 # Windows-specific imports
 IS_WINDOWS = sys.platform == "win32"
 if IS_WINDOWS:
-    import win32service
-    import win32serviceutil
+    import servicemanager
     import win32con
     import win32event
-    import servicemanager
+    import win32service
+    import win32serviceutil
 
 # App initialization
 config_manager.init_paths()
@@ -69,6 +69,24 @@ async def get_current_user(request: Request):
     user = auth_module.validate_session(session_id, DB_PATH)
     if not user:
         return None
+    return user
+
+
+def require_admin(user: dict = Depends(get_current_user)):
+    """Dependency to require admin role"""
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not auth_module.is_admin(user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+def require_viewer_or_higher(user: dict = Depends(get_current_user)):
+    """Dependency to require viewer or admin role (read-only access)"""
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not auth_module.is_viewer_or_higher(user):
+        raise HTTPException(status_code=403, detail="Viewer or admin access required")
     return user
 
 
@@ -214,6 +232,15 @@ async def dashboard(request: Request, user: dict = Depends(get_current_user)):
             notification_cards=notification_cards,
         )
     )
+
+
+@app.get("/users", response_class=HTMLResponse)
+async def users_page(request: Request, user: dict = Depends(require_admin)):
+    """User management page (admin only)"""
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return HTMLResponse(content=ui_templates.get_users_html())
 
 
 @app.get("/status", response_class=HTMLResponse)
@@ -446,7 +473,7 @@ async def forgot_password_action(username: str = Form(...)):
 
 
 @app.get("/api/sites")
-async def get_sites(user: dict = Depends(get_current_user)):
+async def get_sites(user: dict = Depends(require_viewer_or_higher)):
     if not user:
         raise HTTPException(status_code=401)
     with get_db_connection() as conn:
@@ -482,8 +509,12 @@ async def get_sites(user: dict = Depends(get_current_user)):
 
 
 @app.get("/api/sites/{site_id}/history")
-async def get_site_history(site_id: int, limit: int = 50):
+async def get_site_history(
+    site_id: int, limit: int = 50, user: dict = Depends(require_viewer_or_higher)
+):
     """Get status history for a site (for status bars chart)"""
+    if not user:
+        raise HTTPException(status_code=401)
     with get_db_connection() as conn:
         c = conn.cursor()
         c.execute(
@@ -502,7 +533,7 @@ async def get_site_history(site_id: int, limit: int = 50):
 
 
 @app.post("/api/sites")
-async def add_site(site: SiteCreate, user: dict = Depends(get_current_user)):
+async def add_site(site: SiteCreate, user: dict = Depends(require_admin)):
     if not user:
         raise HTTPException(status_code=401)
     m_type = site.monitor_type.lower()
@@ -540,7 +571,7 @@ async def add_site(site: SiteCreate, user: dict = Depends(get_current_user)):
 
 @app.put("/api/sites/{site_id}")
 async def update_site(
-    site_id: int, site: SiteUpdate, user: dict = Depends(get_current_user)
+    site_id: int, site: SiteUpdate, user: dict = Depends(require_admin)
 ):
     if not user:
         raise HTTPException(status_code=401)
@@ -580,7 +611,7 @@ async def update_site(
 
 
 @app.delete("/api/sites/{site_id}")
-async def delete_site(site_id: int, user: dict = Depends(get_current_user)):
+async def delete_site(site_id: int, user: dict = Depends(require_admin)):
     if not user:
         raise HTTPException(status_code=401)
     models.delete_site(DB_PATH, site_id)
@@ -588,7 +619,7 @@ async def delete_site(site_id: int, user: dict = Depends(get_current_user)):
 
 
 @app.post("/api/sites/{site_id}/check")
-async def manual_check(site_id: int, user: dict = Depends(get_current_user)):
+async def manual_check(site_id: int, user: dict = Depends(require_admin)):
     if not user:
         raise HTTPException(401)
     with get_db_connection() as conn:
@@ -603,14 +634,14 @@ async def manual_check(site_id: int, user: dict = Depends(get_current_user)):
 
 
 @app.get("/api/ssl-certificates")
-async def get_ssl_certs(user: dict = Depends(get_current_user)):
+async def get_ssl_certs(user: dict = Depends(require_viewer_or_higher)):
     if not user:
         raise HTTPException(401)
     return models.get_ssl_certificates(DB_PATH)
 
 
 @app.post("/api/ssl-certificates/check")
-async def manual_ssl_check(user: dict = Depends(get_current_user)):
+async def manual_ssl_check(user: dict = Depends(require_admin)):
     if not user:
         raise HTTPException(401)
     await monitoring.check_all_certificates(NOTIFY_SETTINGS)
@@ -618,7 +649,7 @@ async def manual_ssl_check(user: dict = Depends(get_current_user)):
 
 
 @app.get("/api/stats/response-time")
-async def get_response_time_stats(user: dict = Depends(get_current_user)):
+async def get_response_time_stats(user: dict = Depends(require_viewer_or_higher)):
     if not user:
         raise HTTPException(401)
     with get_db_connection() as conn:
@@ -646,22 +677,22 @@ async def get_response_time_stats(user: dict = Depends(get_current_user)):
 
 
 @app.get("/api/incidents")
-async def get_incidents(user: dict = Depends(get_current_user)):
+async def get_incidents(user: dict = Depends(require_viewer_or_higher)):
     if not user:
         raise HTTPException(401)
     with get_db_connection() as conn:
         c = conn.cursor()
         # Get incidents (status changes to down/slow in last 7 days)
         c.execute("""
-            SELECT 
-                sh.id, 
-                sh.site_id, 
-                s.name as site_name, 
+            SELECT
+                sh.id,
+                sh.site_id,
+                s.name as site_name,
                 s.url as site_url,
-                sh.status, 
-                sh.status_code, 
-                sh.response_time, 
-                sh.error_message, 
+                sh.status,
+                sh.status_code,
+                sh.response_time,
+                sh.error_message,
                 sh.checked_at
             FROM status_history sh
             JOIN sites s ON sh.site_id = s.id
@@ -674,7 +705,7 @@ async def get_incidents(user: dict = Depends(get_current_user)):
 
         # Get first and last occurrence for each status
         c.execute("""
-            SELECT 
+            SELECT
                 sh.site_id,
                 sh.status,
                 MIN(sh.checked_at) as started_at,
@@ -735,7 +766,7 @@ async def get_incidents(user: dict = Depends(get_current_user)):
 
 @app.post("/api/notify-settings")
 async def save_notify(
-    settings: NotifySettingsModel, user: dict = Depends(get_current_user)
+    settings: NotifySettingsModel, user: dict = Depends(require_admin)
 ):
     if not user:
         raise HTTPException(401)
@@ -749,7 +780,7 @@ async def save_notify(
 
 
 @app.post("/api/app-settings")
-async def save_app(settings: AppSettingsModel, user: dict = Depends(get_current_user)):
+async def save_app(settings: AppSettingsModel, user: dict = Depends(require_admin)):
     if not user:
         raise HTTPException(401)
     global DISPLAY_ADDRESS
@@ -765,7 +796,7 @@ async def save_app(settings: AppSettingsModel, user: dict = Depends(get_current_
 
 
 @app.get("/api/app-settings")
-async def get_app(user: dict = Depends(get_current_user)):
+async def get_app(user: dict = Depends(require_viewer_or_higher)):
     if not user:
         raise HTTPException(401)
     return {"display_address": DISPLAY_ADDRESS}
@@ -775,7 +806,102 @@ async def get_app(user: dict = Depends(get_current_user)):
 async def get_user_info(user: dict = Depends(get_current_user)):
     if not user:
         raise HTTPException(401)
-    return {"username": user["username"], "is_admin": user.get("is_admin", False)}
+    return {
+        "username": user["username"],
+        "role": user.get("role", "viewer"),
+        "is_admin": auth_module.is_admin(user),
+    }
+
+
+# --- User Management API (Admin only) ---
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: str = "viewer"
+
+
+class UserUpdate(BaseModel):
+    role: Optional[str] = None
+    password: Optional[str] = None
+
+
+@app.get("/api/users")
+async def get_users(user: dict = Depends(require_admin)):
+    """Get all users (admin only)"""
+    users = auth_module.get_all_users(DB_PATH)
+    # Don't return password hashes
+    for u in users:
+        u.pop("password_hash", None)
+    return users
+
+
+@app.post("/api/users")
+async def create_user_api(
+    user_data: UserCreate, current_user: dict = Depends(require_admin)
+):
+    """Create a new user (admin only)"""
+    if user_data.role not in ["admin", "viewer"]:
+        raise HTTPException(
+            status_code=400, detail="Invalid role. Must be 'admin' or 'viewer'"
+        )
+
+    if auth_module.create_user(
+        DB_PATH, user_data.username, user_data.password, user_data.role
+    ):
+        return {
+            "message": f"User '{user_data.username}' created with role '{user_data.role}'"
+        }
+    else:
+        raise HTTPException(
+            status_code=400, detail="User already exists or error creating user"
+        )
+
+
+@app.put("/api/users/{username}")
+async def update_user_api(
+    username: str, user_data: UserUpdate, current_user: dict = Depends(require_admin)
+):
+    """Update user role or password (admin only)"""
+    if user_data.role and user_data.role not in ["admin", "viewer"]:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    if user_data.role:
+        if not auth_module.update_user_role(DB_PATH, username, user_data.role):
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"message": f"User '{username}' role updated to '{user_data.role}'"}
+
+    if user_data.password:
+        # Find user ID
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT id FROM users WHERE username = ?", (username,))
+        user_row = c.fetchone()
+        conn.close()
+
+        if not user_row:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        auth_module.change_password(user_row["id"], user_data.password, DB_PATH)
+        return {"message": f"Password updated for user '{username}'"}
+
+    raise HTTPException(status_code=400, detail="No updates provided")
+
+
+@app.delete("/api/users/{username}")
+async def delete_user_api(username: str, current_user: dict = Depends(require_admin)):
+    """Delete a user (admin only, cannot delete last admin)"""
+    if username == current_user["username"]:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+
+    if auth_module.delete_user(DB_PATH, username):
+        return {"message": f"User '{username}' deleted"}
+    else:
+        raise HTTPException(
+            status_code=400, detail="Cannot delete user (might be the last admin)"
+        )
 
 
 # --- Background Task & Service ---

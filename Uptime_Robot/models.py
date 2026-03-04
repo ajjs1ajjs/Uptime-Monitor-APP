@@ -1,9 +1,10 @@
 """Модуль для роботи з базою даних"""
 
-import sqlite3
 import json
+import sqlite3
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from database import get_db_connection
 
 
@@ -83,6 +84,18 @@ def init_database(db_path: str):
         c.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_ssl_certificates_site_id_unique ON ssl_certificates(site_id)"
         )
+
+        # Migration: Add role column to users table if not exists
+        c.execute("PRAGMA table_info(users)")
+        columns = {row[1] for row in c.fetchall()}
+        if "role" not in columns:
+            c.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'")
+            # Update existing users: is_admin=1 -> admin, is_admin=0 -> viewer
+            c.execute("UPDATE users SET role = 'admin' WHERE is_admin = 1")
+            c.execute(
+                "UPDATE users SET role = 'viewer' WHERE is_admin = 0 OR is_admin IS NULL"
+            )
+
         conn.commit()
 
 
@@ -115,7 +128,7 @@ def add_site(
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
         c.execute(
-            """INSERT INTO sites (name, url, check_interval, notify_methods, is_active) 
+            """INSERT INTO sites (name, url, check_interval, notify_methods, is_active)
                      VALUES (?, ?, ?, ?, 1)""",
             (name, url, check_interval, json.dumps(notify_methods or [])),
         )
@@ -177,7 +190,7 @@ def add_status_history(
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
         c.execute(
-            """INSERT INTO status_history 
+            """INSERT INTO status_history
                      (site_id, status, status_code, response_time, error_message, checked_at)
                      VALUES (?, ?, ?, ?, ?, ?)""",
             (
@@ -205,7 +218,7 @@ def get_site_stats(db_path: str, site_id: int) -> Dict[str, Any]:
 
         # Останній статус
         c.execute(
-            """SELECT * FROM status_history 
+            """SELECT * FROM status_history
                      WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1""",
             (site_id,),
         )
@@ -213,7 +226,7 @@ def get_site_stats(db_path: str, site_id: int) -> Dict[str, Any]:
 
         # Загальна статистика
         c.execute(
-            """SELECT 
+            """SELECT
                         COUNT(*) as total,
                         SUM(CASE WHEN status = 'up' THEN 1 ELSE 0 END) as up_count
                      FROM status_history WHERE site_id = ?""",
@@ -255,7 +268,7 @@ def get_ssl_certificates(db_path: str) -> List[Dict[str, Any]]:
     """Отримує всі SSL сертифікати"""
     with get_db_connection(db_path) as conn:
         c = conn.cursor()
-        c.execute("""SELECT c.*, s.name as site_name, s.url as site_url 
+        c.execute("""SELECT c.*, s.name as site_name, s.url as site_url
                      FROM ssl_certificates c
                      JOIN sites s ON c.site_id = s.id
                      WHERE s.is_active = 1

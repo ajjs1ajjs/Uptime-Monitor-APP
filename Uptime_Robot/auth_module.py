@@ -1,133 +1,149 @@
-import bcrypt
-import secrets
 import functools
-import os
-import sys
-from fastapi import Request, HTTPException, Form
-from fastapi.responses import RedirectResponse, HTMLResponse
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-import sqlite3
 import json
+import os
+import secrets
+import sqlite3
+import sys
 from datetime import datetime, timedelta
 
+import bcrypt
+from fastapi import Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+
 # Ініціалізація Jinja2
-if getattr(sys, 'frozen', False):
-    template_dir = os.path.join(os.path.dirname(sys.executable), 'templates')
+if getattr(sys, "frozen", False):
+    template_dir = os.path.join(os.path.dirname(sys.executable), "templates")
 else:
-    template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
+    template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
 
 env = Environment(
-    loader=FileSystemLoader(template_dir),
-    autoescape=select_autoescape(['html', 'xml'])
+    loader=FileSystemLoader(template_dir), autoescape=select_autoescape(["html", "xml"])
 )
+
 
 def render_template(template_name: str, **context) -> str:
     """Рендерить Jinja2 шаблон"""
     template = env.get_template(template_name)
     return template.render(**context)
 
+
 # Ініціалізація таблиці користувачів
 def init_auth_tables(db_path):
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    
-    # Таблиця користувачів
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
+
+    # Таблиця користувачів з role замість is_admin
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
-        is_admin BOOLEAN DEFAULT 0,
+        role TEXT DEFAULT 'admin',
         must_change_password BOOLEAN DEFAULT 0,
         created_at TEXT,
         last_login TEXT
-    )''')
-    
+    )""")
+
     # Таблиця сесій
-    c.execute('''CREATE TABLE IF NOT EXISTS sessions (
+    c.execute("""CREATE TABLE IF NOT EXISTS sessions (
         session_id TEXT PRIMARY KEY,
         user_id INTEGER,
         created_at TEXT,
         expires_at TEXT,
         FOREIGN KEY (user_id) REFERENCES users(id)
-    )''')
-    
+    )""")
+
     # Створюємо дефолтного адміна якщо немає
     c.execute("SELECT id FROM users WHERE username = 'admin'")
     if not c.fetchone():
         # Пароль: admin (хешується через bcrypt)
-        password_hash = hash_password('admin')
-        c.execute("INSERT INTO users (username, password_hash, is_admin, must_change_password, created_at) VALUES (?, ?, 1, 1, ?)",
-                 ('admin', password_hash, datetime.now().isoformat()))
+        password_hash = hash_password("admin")
+        c.execute(
+            "INSERT INTO users (username, password_hash, role, must_change_password, created_at) VALUES (?, ?, 'admin', 1, ?)",
+            ("admin", password_hash, datetime.now().isoformat()),
+        )
         print("Default user created: admin / admin")
-    
+
     conn.commit()
     conn.close()
+
 
 def hash_password(password: str) -> str:
     """Хешує пароль використовуючи bcrypt"""
     salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
 
 def verify_password(password: str, password_hash: str) -> bool:
     """Перевіряє пароль проти хешу"""
     try:
-        return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
     except (ValueError, TypeError):
         # Невалідний хеш (наприклад, старий SHA256)
         return False
+
 
 def create_session(user_id: int, db_path: str) -> str:
     """Створює сесію і повертає session_id"""
     session_id = secrets.token_urlsafe(32)
     now = datetime.now()
     expires = now + timedelta(days=7)  # Сесія на 7 днів
-    
+
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    c.execute("INSERT INTO sessions (session_id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
-             (session_id, user_id, now.isoformat(), expires.isoformat()))
-    
+    c.execute(
+        "INSERT INTO sessions (session_id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+        (session_id, user_id, now.isoformat(), expires.isoformat()),
+    )
+
     # Оновлюємо last_login
-    c.execute("UPDATE users SET last_login = ? WHERE id = ?", (now.isoformat(), user_id))
+    c.execute(
+        "UPDATE users SET last_login = ? WHERE id = ?", (now.isoformat(), user_id)
+    )
     conn.commit()
     conn.close()
-    
+
     return session_id
+
 
 def validate_session(session_id: str, db_path: str) -> dict:
     """Перевіряє сесію і повертає дані користувача"""
     if not session_id:
         return None
-    
+
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    
+
     # Перевіряємо чи сесія існує і не протермінована
-    c.execute("""
-        SELECT s.user_id, u.username, u.is_admin, u.must_change_password, s.expires_at 
-        FROM sessions s 
-        JOIN users u ON s.user_id = u.id 
+    c.execute(
+        """
+        SELECT s.user_id, u.username, u.role, u.must_change_password, s.expires_at
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
         WHERE s.session_id = ?
-    """, (session_id,))
-    
+    """,
+        (session_id,),
+    )
+
     row = c.fetchone()
     conn.close()
-    
+
     if not row:
         return None
-    
+
     # Перевіряємо термін дії
-    expires = datetime.fromisoformat(row['expires_at'])
+    expires = datetime.fromisoformat(row["expires_at"])
     if datetime.now() > expires:
         return None
-    
+
     return {
-        'user_id': row['user_id'],
-        'username': row['username'],
-        'is_admin': row['is_admin'],
-        'must_change_password': row['must_change_password']
+        "user_id": row["user_id"],
+        "username": row["username"],
+        "role": row["role"],
+        "must_change_password": row["must_change_password"],
     }
+
 
 def delete_session(session_id: str, db_path: str):
     """Видаляє сесію (logout)"""
@@ -137,14 +153,17 @@ def delete_session(session_id: str, db_path: str):
     conn.commit()
     conn.close()
 
+
 def change_password(user_id: int, new_password: str, db_path: str) -> bool:
     """Змінює пароль користувача"""
     try:
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
         password_hash = hash_password(new_password)
-        c.execute("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?",
-                 (password_hash, user_id))
+        c.execute(
+            "UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?",
+            (password_hash, user_id),
+        )
         conn.commit()
         conn.close()
         return True
@@ -152,8 +171,123 @@ def change_password(user_id: int, new_password: str, db_path: str) -> bool:
         print(f"Error changing password: {e}")
         return False
 
+
+# Role checking functions
+def has_role(user: dict, required_role: str) -> bool:
+    """Check if user has at least the required role.
+
+    Role hierarchy: admin > viewer
+    """
+    if not user:
+        return False
+
+    role = user.get("role", "viewer")
+
+    # Admin has all permissions
+    if role == "admin":
+        return True
+
+    # Check exact match for other roles
+    return role == required_role
+
+
+def is_admin(user: dict) -> bool:
+    """Check if user is admin"""
+    return has_role(user, "admin")
+
+
+def is_viewer_or_higher(user: dict) -> bool:
+    """Check if user is viewer or higher (for read-only access)"""
+    if not user:
+        return False
+    return user.get("role") in ["admin", "viewer"]
+
+
+def create_user(
+    db_path: str, username: str, password: str, role: str = "viewer"
+) -> bool:
+    """Create a new user with specified role"""
+    try:
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        password_hash = hash_password(password)
+        c.execute(
+            "INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, ?, ?)",
+            (username, password_hash, role, datetime.now().isoformat()),
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.IntegrityError:
+        # Username already exists
+        return False
+    except Exception as e:
+        print(f"Error creating user: {e}")
+        return False
+
+
+def update_user_role(db_path: str, username: str, new_role: str) -> bool:
+    """Update user role"""
+    try:
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        c.execute("UPDATE users SET role = ? WHERE username = ?", (new_role, username))
+        if c.rowcount == 0:
+            conn.close()
+            return False
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error updating user role: {e}")
+        return False
+
+
+def delete_user(db_path: str, username: str) -> bool:
+    """Delete a user (cannot delete last admin)"""
+    try:
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+
+        # Check if this is the last admin
+        c.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
+        admin_count = c.fetchone()[0]
+
+        c.execute("SELECT role FROM users WHERE username = ?", (username,))
+        user_row = c.fetchone()
+
+        if not user_row:
+            conn.close()
+            return False
+
+        if user_row["role"] == "admin" and admin_count <= 1:
+            conn.close()
+            return False  # Cannot delete last admin
+
+        c.execute("DELETE FROM users WHERE username = ?", (username,))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error deleting user: {e}")
+        return False
+
+
+def get_all_users(db_path: str) -> list:
+    """Get all users"""
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute(
+        "SELECT id, username, role, created_at, last_login FROM users ORDER BY id"
+    )
+    users = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return users
+
+
 # Login page HTML
-LOGIN_HTML = '''<!DOCTYPE html>
+LOGIN_HTML = """<!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
@@ -161,7 +295,7 @@ LOGIN_HTML = '''<!DOCTYPE html>
     <title>Uptime Monitor - Login</title>
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ 
+        body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
             min-height: 100vh;
@@ -303,10 +437,10 @@ LOGIN_HTML = '''<!DOCTYPE html>
         <a href="/forgot-password" class="forgot-link">Забули пароль?</a>
     </div>
 </body>
-</html>'''
+</html>"""
 
 # Forgot password page HTML
-FORGOT_PASSWORD_HTML = '''<!DOCTYPE html>
+FORGOT_PASSWORD_HTML = """<!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
@@ -314,7 +448,7 @@ FORGOT_PASSWORD_HTML = '''<!DOCTYPE html>
     <title>Uptime Monitor - Скидання пароля</title>
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ 
+        body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
             min-height: 100vh;
@@ -378,10 +512,10 @@ FORGOT_PASSWORD_HTML = '''<!DOCTYPE html>
         <a href="/login" class="back-link">Назад до входу</a>
     </div>
 </body>
-</html>'''
+</html>"""
 
 # Change password page HTML
-CHANGE_PASSWORD_HTML = '''<!DOCTYPE html>
+CHANGE_PASSWORD_HTML = """<!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
@@ -389,7 +523,7 @@ CHANGE_PASSWORD_HTML = '''<!DOCTYPE html>
     <title>Uptime Monitor - Change Password</title>
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ 
+        body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
             min-height: 100vh;
@@ -487,14 +621,14 @@ CHANGE_PASSWORD_HTML = '''<!DOCTYPE html>
     <div class="container">
         <h1>Change Password</h1>
         <p class="subtitle">You must change the default password</p>
-        
+
         <div class="warning-box">
             WARNING: For security, change your password!<br>
             Default password is not safe.
         </div>
-        
+
         {error_message}
-        
+
         <form method="POST" action="/change-password" onsubmit="return validateForm()">
             <div class="form-group">
                 <label for="current_password">Current Password</label>
@@ -512,24 +646,24 @@ CHANGE_PASSWORD_HTML = '''<!DOCTYPE html>
             <button type="submit">Change Password</button>
         </form>
     </div>
-    
+
     <script>
         function validateForm() {{
             const newPass = document.getElementById('new_password').value;
             const confirmPass = document.getElementById('confirm_password').value;
-            
+
             if (newPass !== confirmPass) {{
                 alert('Passwords do not match!');
                 return false;
             }}
-            
+
             if (newPass.length < 6) {{
                 alert('Password must be at least 6 characters!');
                 return false;
             }}
-            
+
             return true;
         }}
     </script>
 </body>
-</html>'''
+</html>"""
