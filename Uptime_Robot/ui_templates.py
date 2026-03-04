@@ -449,7 +449,9 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         loadSites();
         loadSSLCertificates();
         loadUptimeChart();
+        loadIncidents();
         setInterval(loadSites, 60000);
+        startIncidentsAutoRefresh();
     </script>
 </body>
 </html>"""
@@ -882,6 +884,20 @@ DASHBOARD_JS = """
 
             if (tabId === 'dashboard') { loadSites(); loadUptimeChart(); }
             if (tabId === 'ssl') loadSSLCertificates();
+            if (tabId === 'incidents') loadIncidents();
+        }
+
+        // Auto-refresh incidents every 30 seconds
+        let incidentsRefreshInterval = null;
+
+        function startIncidentsAutoRefresh() {
+            if (incidentsRefreshInterval) clearInterval(incidentsRefreshInterval);
+            incidentsRefreshInterval = setInterval(() => {
+                const incidentsTab = document.getElementById('tab-incidents');
+                if (incidentsTab && incidentsTab.classList.contains('active')) {
+                    loadIncidents();
+                }
+            }, 30000); // 30 seconds
         }
 
         async function addSite() {
