@@ -40,6 +40,8 @@ Login: admin / Password: admin
 |----------|------|
 | **[QUICKSTART.md](docs/QUICKSTART.md)** | Швидкий старт за 5 хвилин |
 | **[COMMANDS.md](docs/COMMANDS.md)** | Всі команди в одному місці |
+| **[UPDATE_INSTRUCTIONS.md](docs/UPDATE_INSTRUCTIONS.md)** | Безпечне оновлення (backup + rollback) |
+| **[SAFE_UPDATE_RUNBOOK.md](docs/SAFE_UPDATE_RUNBOOK.md)** | Покроковий production runbook для оновлення |
 | **[BACKUP.md](docs/BACKUP.md)** | Налаштування бекапів |
 | **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** | Вирішення проблем |
 | **[INSTALL.md](INSTALL.md)** | Повна інструкція з установки |
@@ -92,9 +94,11 @@ docker run -d -p 8080:8080 -v uptime-data:/var/lib/uptime-monitor \
 
 ## 🆘 Допомога
 
+- **Безпечне оновлення (prod)** → [SAFE_UPDATE_RUNBOOK.md](docs/SAFE_UPDATE_RUNBOOK.md)
+- **Детальні інструкції з оновлення** → [UPDATE_INSTRUCTIONS.md](docs/UPDATE_INSTRUCTIONS.md)
 - **Проблеми?** → [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
-- **Команді** → [COMMANDS.md](docs/COMMANDS.md)
-- **Бекапі** → [BACKUP.md](docs/BACKUP.md)
+- **Команди** → [COMMANDS.md](docs/COMMANDS.md)
+- **Бекапи** → [BACKUP.md](docs/BACKUP.md)
 
 ---
 
