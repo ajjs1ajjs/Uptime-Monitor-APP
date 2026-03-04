@@ -448,7 +448,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         loadSites();
         loadSSLCertificates();
         loadUptimeChart();
-        setInterval(loadSites, 30000);
+        setInterval(loadSites, 60000);
     </script>
 </body>
 </html>"""

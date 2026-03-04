@@ -14,6 +14,7 @@ from ssl_checker import check_ssl_certificate, format_certificate_alert
 # Глобальні змінні для відстеження стану
 LAST_STATUS = {}  # site_id -> status
 LAST_DOWN_ALERT = {}  # site_id -> datetime
+FAILED_ATTEMPTS = {}  # site_id -> count of consecutive failures
 
 
 def normalize_ssl_url(url: str) -> Optional[str]:
@@ -30,7 +31,7 @@ async def check_site_status(
     site_id: int, url: str, notify_methods: List[str], notify_settings: Dict[str, Any]
 ):
     """Перевіряє статус сайту та відправляє сповіщення"""
-    global LAST_STATUS, LAST_DOWN_ALERT
+    global LAST_STATUS, LAST_DOWN_ALERT, FAILED_ATTEMPTS
     from notifications import send_notification
 
     start_time = datetime.now()
@@ -49,7 +50,7 @@ async def check_site_status(
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 url,
-                timeout=aiohttp.ClientTimeout(total=15),
+                timeout=aiohttp.ClientTimeout(total=10),
                 headers=headers,
                 ssl=False,
                 allow_redirects=True,
@@ -106,12 +107,17 @@ async def check_site_status(
     notification_status = prev_status if prev_status else in_memory_prev_status
 
     if status == "down" and notify_methods:
+        # Increment failed attempts
+        FAILED_ATTEMPTS[site_id] = FAILED_ATTEMPTS.get(site_id, 0) + 1
+        
         should_alert = False
         alert_type = ""
 
         if notification_status == "up" or notification_status is None:
-            should_alert = True
-            alert_type = "NEW"
+            # We wait until 3 consecutive failures to send the initial alert
+            if FAILED_ATTEMPTS[site_id] >= 3:
+                should_alert = True
+                alert_type = "NEW"
         else:
             last_alert = LAST_DOWN_ALERT.get(site_id)
             # Повторне сповіщення раз на 30 хвилин (як у main.py)
@@ -143,18 +149,21 @@ async def check_site_status(
             LAST_DOWN_ALERT[site_id] = checked_at
 
     # Сповіщення про відновлення
-    if status == "up" and notification_status == "down" and notify_methods:
-        msg = {
-            "alert_type": "up",
-            "site_name": site_name,
-            "url": url,
-            "status_code": status_code,
-            "response_time": response_time,
-            "checked_at": checked_at_iso,
-        }
-        await send_notification(msg, notify_methods, notify_settings)
-        if site_id in LAST_DOWN_ALERT:
-            del LAST_DOWN_ALERT[site_id]
+    if status == "up":
+        FAILED_ATTEMPTS[site_id] = 0
+        
+        if notification_status == "down" and notify_methods:
+            msg = {
+                "alert_type": "up",
+                "site_name": site_name,
+                "url": url,
+                "status_code": status_code,
+                "response_time": response_time,
+                "checked_at": checked_at_iso,
+            }
+            await send_notification(msg, notify_methods, notify_settings)
+            if site_id in LAST_DOWN_ALERT:
+                del LAST_DOWN_ALERT[site_id]
 
     LAST_STATUS[site_id] = status
     return status, status_code, response_time, error_message
