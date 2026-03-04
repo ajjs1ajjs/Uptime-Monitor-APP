@@ -184,10 +184,12 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh --status
 sudo apt install -y unzip && \
 sudo systemctl stop uptime-monitor && \
 sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type on-change --verify && \
-cd /tmp && wget -q https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip && \
-unzip -o uptime_update.zip && \
-sudo cp -r Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/ && \
-rm -rf uptime_update.zip Uptime-Monitor-APP-main && \
+cd /tmp && \
+sudo rm -rf /tmp/Uptime-Monitor-APP-main && \
+wget -q https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip && \
+sudo unzip -o uptime_update.zip && \
+sudo cp -r /tmp/Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/ && \
+sudo rm -rf uptime_update.zip /tmp/Uptime-Monitor-APP-main && \
 sudo systemctl start uptime-monitor && \
 sudo systemctl status uptime-monitor
 ```

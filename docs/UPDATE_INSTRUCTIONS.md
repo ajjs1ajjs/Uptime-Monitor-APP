@@ -108,9 +108,18 @@ fi
 
 cd /tmp
 wget https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip
-unzip -o uptime_update.zip
+
+# КРИТИЧНО: Видалити стару папку з sudo
+sudo rm -rf /tmp/Uptime-Monitor-APP-main
+
+# КРИТИЧНО: Розпакувати з sudo
+sudo unzip -o uptime_update.zip
+
+# Скопіювати файли
 sudo cp -r Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/
-rm -rf uptime_update.zip Uptime-Monitor-APP-main
+
+# Прибрати тимчасові файли
+sudo rm -rf uptime_update.zip Uptime-Monitor-APP-main
 ```
 
 ---
@@ -206,9 +215,18 @@ if [ -d .git ]; then
 else
   cd /tmp
   wget https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip
-  unzip -o uptime_update.zip
-  sudo cp -r Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/
-  rm -rf uptime_update.zip Uptime-Monitor-APP-main
+  
+  # КРИТИЧНО: Видалити стару папку з sudo
+  sudo rm -rf /tmp/Uptime-Monitor-APP-main
+  
+  # КРИТИЧНО: Розпакувати з sudo
+  sudo unzip -o uptime_update.zip
+  
+  # Скопіювати файли
+  sudo cp -r /tmp/Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/
+  
+  # Прибрати тимчасові файли
+  sudo rm -rf uptime_update.zip /tmp/Uptime-Monitor-APP-main
 fi
 
 sudo systemctl daemon-reload

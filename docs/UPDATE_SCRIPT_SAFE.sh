@@ -178,21 +178,17 @@ else
 
     log_success "ZIP завантажено"
 
-    # Розпакування
-    log_info "Розпакування..."
-    unzip -o -q uptime_update.zip
+    # КРИТИЧНО: Видалити стару папку
+    sudo rm -rf /tmp/Uptime-Monitor-APP-main
 
-    if [ ! -d "Uptime-Monitor-APP-main" ]; then
-        log_error "Не вдалося розпакувати ZIP"
-        exit 1
-    fi
+    # КРИТИЧНО: Розпакувати з sudo
+    sudo unzip -o -q uptime_update.zip
 
     # Копіювання файлів
-    log_info "Копіювання файлів..."
-    cp -r Uptime-Monitor-APP-main/Uptime_Robot/* "$APP_DIR/"
+    sudo cp -r /tmp/Uptime-Monitor-APP-main/Uptime_Robot/* "$APP_DIR/"
 
     # Видалення тимчасових файлів
-    rm -rf uptime_update.zip Uptime-Monitor-APP-main
+    sudo rm -rf uptime_update.zip /tmp/Uptime-Monitor-APP-main
 
     log_success "Оновлення через ZIP завершено"
 

@@ -67,9 +67,12 @@ UnZip 6.00 of 20 April 2009, by Debian.
 ```bash
 cd /tmp
 wget https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip
-unzip -o uptime_update.zip
-sudo cp -r Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/
-rm -rf uptime_update.zip Uptime-Monitor-APP-main
+
+# КРИТИЧНО: Використовуйте sudo для всіх операцій!
+sudo rm -rf /tmp/Uptime-Monitor-APP-main
+sudo unzip -o uptime_update.zip
+sudo cp -r /tmp/Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/
+sudo rm -rf uptime_update.zip /tmp/Uptime-Monitor-APP-main
 sudo systemctl restart uptime-monitor
 ```
 
@@ -98,14 +101,15 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh --status
 cd /tmp
 wget https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip
 
-# 6. Розпакувати
-unzip -o uptime_update.zip
+# 6. Розпакувати З СУДОМ
+sudo rm -rf /tmp/Uptime-Monitor-APP-main
+sudo unzip -o uptime_update.zip
 
 # 7. Скопіювати файли
-sudo cp -r Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/
+sudo cp -r /tmp/Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/
 
-# 8. Прибрати тимчасові файли
-rm -rf uptime_update.zip Uptime-Monitor-APP-main
+# 8. Прибрати тимчасові файли З СУДОМ
+sudo rm -rf uptime_update.zip /tmp/Uptime-Monitor-APP-main
 
 # 9. Запустити службу
 sudo systemctl daemon-reload
@@ -260,10 +264,12 @@ sudo journalctl -u uptime-monitor -n 50
 sudo apt install -y unzip && \
 sudo systemctl stop uptime-monitor && \
 sudo /opt/uptime-monitor/scripts/backup-system.sh --dest /backup/uptime-monitor/ --type on-change --verify && \
-cd /tmp && wget -q https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip && \
-unzip -o uptime_update.zip && \
-sudo cp -r Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/ && \
-rm -rf uptime_update.zip Uptime-Monitor-APP-main && \
+cd /tmp && \
+sudo rm -rf /tmp/Uptime-Monitor-APP-main && \
+wget -q https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip && \
+sudo unzip -o uptime_update.zip && \
+sudo cp -r /tmp/Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/ && \
+sudo rm -rf uptime_update.zip /tmp/Uptime-Monitor-APP-main && \
 sudo systemctl start uptime-monitor && \
 sudo systemctl status uptime-monitor
 ```

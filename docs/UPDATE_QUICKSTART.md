@@ -46,14 +46,15 @@ sudo /opt/uptime-monitor/scripts/backup-system.sh \
 cd /tmp
 wget https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip
 
-# 4. Розпакувати
-unzip -o uptime_update.zip
+# 4. Розпакувати З СУДОМ
+sudo rm -rf /tmp/Uptime-Monitor-APP-main
+sudo unzip -o uptime_update.zip
 
 # 5. Скопіювати файли
-sudo cp -r Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/
+sudo cp -r /tmp/Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/
 
-# 6. Прибрати тимчасові файли
-rm -rf uptime_update.zip Uptime-Monitor-APP-main
+# 6. Прибрати тимчасові файли З СУДОМ
+sudo rm -rf uptime_update.zip /tmp/Uptime-Monitor-APP-main
 
 # 7. Запустити
 sudo systemctl daemon-reload
