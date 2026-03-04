@@ -58,7 +58,16 @@ if [ -d .git ]; then
     sudo git checkout main
     sudo git pull --ff-only origin main
 else
-    echo "No .git directory found. Use wget update flow from docs/UPDATE_INSTRUCTIONS.md"
+    # Встановити unzip якщо немає
+    if ! command -v unzip &> /dev/null; then
+        sudo apt update && sudo apt install -y unzip
+    fi
+    
+    cd /tmp
+    wget https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip
+    unzip -o uptime_update.zip
+    sudo cp -r Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/
+    rm -rf uptime_update.zip Uptime-Monitor-APP-main
 fi
 
 # 4. Start service

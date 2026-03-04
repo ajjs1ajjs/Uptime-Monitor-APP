@@ -10,9 +10,28 @@
 |----------|------|----------|
 | **[QUICKSTART.md](QUICKSTART.md)** | Швидкий старт | Швидко запустити систему |
 | **[COMMANDS.md](COMMANDS.md)** | Команди | Знайти потрібну команду |
-| **[UPDATE_INSTRUCTIONS.md](UPDATE_INSTRUCTIONS.md)** | Безпечне оновлення | Оновити прод безпечно (backup + rollback) |
+| **[UPDATE_README.md](UPDATE_README.md)** | 🆕 Оновлення | Безпечно оновити (всі інструкції) |
 | **[BACKUP.md](BACKUP.md)** | Бекапи | Налаштувати бекапи |
 | **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Проблеми | Вирішити проблему |
+
+---
+
+## 🆕 Оновлення документації (2026-03-04)
+
+**Нове:**
+- 📄 [UPDATE_README.md](UPDATE_README.md) - Головний індекс з оновлення
+- ⚡ [UPDATE_QUICKSTART.md](UPDATE_QUICKSTART.md) - Швидка інструкція
+- 🔧 [UPDATE_FIXES.md](UPDATE_FIXES.md) - Виправлення проблем (unzip тощо)
+- 📋 [SAFE_UPDATE_RUNBOOK.md](SAFE_UPDATE_RUNBOOK.md) - Production runbook
+- 🚀 [UPDATE_SCRIPT_SAFE.sh](UPDATE_SCRIPT_SAFE.sh) - Готовий скрипт (production)
+- ⚡ [UPDATE_SCRIPT_FAST.sh](UPDATE_SCRIPT_FAST.sh) - Готовий скрипт (test)
+
+**Виправлено:**
+- ✅ Додано перевірку `unzip` у всі інструкції
+- ✅ Додано готові скрипти для оновлення
+- ✅ Розширено документацію з rollback
+
+**Почніть з:** [UPDATE_QUICKSTART.md](UPDATE_QUICKSTART.md)
 
 ---
 

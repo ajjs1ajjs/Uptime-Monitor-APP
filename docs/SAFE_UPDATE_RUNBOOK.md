@@ -25,6 +25,7 @@
 - скрипти доступні в `/opt/uptime-monitor/scripts/`
 - доступ sudo
 - бажано мати вільне місце в `/backup`
+- **встановлено `unzip`** (для ZIP-методу: `sudo apt install -y unzip`)
 
 ---
 
@@ -103,6 +104,11 @@ fi
 ### Варіант B: ZIP-інсталяція (немає `.git`)
 
 ```bash
+# Перевірити/встановити unzip (якщо немає)
+if ! command -v unzip &> /dev/null; then
+    sudo apt update && sudo apt install -y unzip
+fi
+
 cd /tmp
 wget https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip
 unzip -o uptime_update.zip
@@ -166,6 +172,11 @@ SERVICE=uptime-monitor
 APP_DIR=/opt/uptime-monitor
 BACKUP_ROOT=/backup/uptime-monitor
 TS=$(date +%Y%m%d-%H%M%S)
+
+# Перевірити/встановити unzip
+if ! command -v unzip &> /dev/null; then
+    sudo apt update && sudo apt install -y unzip
+fi
 
 sudo systemctl status $SERVICE --no-pager
 sudo journalctl -u $SERVICE -n 50 --no-pager
