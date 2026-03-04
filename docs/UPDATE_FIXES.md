@@ -1,5 +1,40 @@
 # 🔧 Виправлення поширених проблем при оновленні
 
+## Проблема: `Permission denied` при розпакуванні/копіюванні
+
+### Причина
+Перший `unzip` виконано **без `sudo`**, тому файли створилися з правами користувача `sa`.  
+Потім `sudo unzip` не може видалити/перезаписати ці файли.
+
+### Рішення
+
+```bash
+# 1. Видалити стару папку З СУДОМ
+sudo rm -rf /tmp/Uptime-Monitor-APP-main
+
+# 2. Завантажити ZIP заново (якщо видалений)
+cd /tmp
+wget https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip
+
+# 3. Розпакувати З СУДОМ
+sudo unzip -o uptime_update.zip
+
+# 4. Скопіювати файли
+sudo cp -r /tmp/Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/
+
+# 5. Прибрати тимчасові файли З СУДОМ
+sudo rm -rf uptime_update.zip /tmp/Uptime-Monitor-APP-main
+
+# 6. Запустити службу
+sudo systemctl start uptime-monitor
+
+# 7. Перевірити
+sudo systemctl status uptime-monitor
+curl -fsS http://localhost:8080 && echo "HTTP OK" || echo "HTTP FAIL"
+```
+
+---
+
 ## Проблема: `Command 'unzip' not found`
 
 ### Причина

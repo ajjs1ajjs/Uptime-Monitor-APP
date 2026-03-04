@@ -4,12 +4,30 @@
 
 ---
 
+## 🚨 КРИТИЧНО ВАЖЛИВО
+
+**Проблема:** При розпакуванні ZIP **без `sudo`** файли створюються з правами користувача, потім неможливо скопіювати в `/opt/uptime-monitor/`.
+
+**Рішення:** **ЗАВЖДИ** використовуйте `sudo` для всіх операцій з ZIP!
+
+```bash
+sudo rm -rf /tmp/Uptime-Monitor-APP-main    # Видалити стару папку
+sudo unzip -o uptime_update.zip             # Розпакувати
+sudo cp -r ...                              # Скопіювати
+sudo rm -rf ...                             # Прибрати
+```
+
+**Детальніше:** [UPDATE_COMPLETE_GUIDE.md](UPDATE_COMPLETE_GUIDE.md)
+
+---
+
 ## 🚀 Швидкий вибір
 
 | Документ | Призначення | Час |
 |----------|-------------|-----|
-| **[UPDATE_QUICKSTART.md](UPDATE_QUICKSTART.md)** | ⚡ Швидка інструкція (почніть тут!) | 1 хв |
-| **[UPDATE_FIXES.md](UPDATE_FIXES.md)** | 🔧 Виправлення проблем (unzip тощо) | 2 хв |
+| **[UPDATE_COMPLETE_GUIDE.md](UPDATE_COMPLETE_GUIDE.md)** | 🆕 Повна інструкція (почніть тут!) | 5 хв |
+| **[UPDATE_QUICKSTART.md](UPDATE_QUICKSTART.md)** | ⚡ Швидка інструкція | 1 хв |
+| **[UPDATE_FIXES.md](UPDATE_FIXES.md)** | 🔧 Виправлення проблем (unzip, permissions) | 2 хв |
 | **[SAFE_UPDATE_RUNBOOK.md](SAFE_UPDATE_RUNBOOK.md)** | 📋 Production runbook | 5 хв |
 | **[UPDATE_INSTRUCTIONS.md](UPDATE_INSTRUCTIONS.md)** | 📖 Детальні інструкції | 10 хв |
 | **[COMMANDS.md](COMMANDS.md)** | 📝 Всі команди | - |
