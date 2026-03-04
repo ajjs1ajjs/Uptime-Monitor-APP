@@ -79,6 +79,7 @@ sudo wget -O main.py         "https://raw.githubusercontent.com/ajjs1ajjs/Uptime
 sudo wget -O models.py       "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/models.py"
 sudo wget -O monitoring.py   "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/monitoring.py"
 sudo wget -O ui_templates.py "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/ui_templates.py"
+sudo wget -O page.html       "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/page.html"
 
 # 4) Start service
 sudo systemctl start uptime-monitor
