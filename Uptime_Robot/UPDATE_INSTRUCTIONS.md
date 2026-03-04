@@ -73,13 +73,12 @@ PY
 )
 sudo cp "$DB_PATH" "/backup/sites_$(date +%Y%m%d-%H%M%S).db"
 
-# 3) Download updated files from main
-cd /opt/uptime-monitor
-sudo wget -O main.py         "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/main.py"
-sudo wget -O models.py       "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/models.py"
-sudo wget -O monitoring.py   "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/monitoring.py"
-sudo wget -O ui_templates.py "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/ui_templates.py"
-sudo wget -O page.html       "https://raw.githubusercontent.com/ajjs1ajjs/Uptime-Monitor-APP/main/Uptime_Robot/page.html"
+# 3) Download updated files from main (via ZIP to get ALL files)
+cd /tmp
+wget https://github.com/ajjs1ajjs/Uptime-Monitor-APP/archive/refs/heads/main.zip -O uptime_update.zip
+unzip -o uptime_update.zip
+sudo cp -r Uptime-Monitor-APP-main/Uptime_Robot/* /opt/uptime-monitor/
+rm -rf uptime_update.zip Uptime-Monitor-APP-main
 
 # 4) Start service
 sudo systemctl start uptime-monitor
