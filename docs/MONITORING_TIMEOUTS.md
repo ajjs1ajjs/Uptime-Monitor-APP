@@ -38,23 +38,23 @@
 
 | Значення | Опис |
 |----------|------|
-| **За замовчуванням** | `30 секунд` |
+| **За замовчуванням** | `60 секунд` |
 | **Мінімум** | `1 секунда` |
 | **Максимум** | `300 секунд` (5 хвилин) |
-| **Рекомендовано** | `30 секунд` |
+| **Рекомендовано** | `60 секунд` |
 
 **Де налаштувати:**
 ```json
 // /etc/uptime-monitor/config.json
 {
   "alert_policy": {
-    "request_timeout_seconds": 30
+    "request_timeout_seconds": 60
   }
 }
 ```
 
 **Як працює:**
-- Якщо сайт не відповідає протягом 30 секунд → помилка "Timeout"
+- Якщо сайт не відповідає протягом 60 секунд → помилка "Timeout"
 - Статус сайту: `down`
 - Відправляється сповіщення (якщо увімкнено)
 
@@ -302,7 +302,7 @@ if (datetime.now() - last_cert_check).total_seconds() >= 86400:
   "check_interval": 60,
   
   "alert_policy": {
-    "request_timeout_seconds": 30,
+    "request_timeout_seconds": 60,
     "down_failures_threshold": 1,
     "up_success_threshold": 1,
     "still_down_repeat_seconds": 600,
@@ -352,7 +352,7 @@ if (datetime.now() - last_cert_check).total_seconds() >= 86400:
 {
   "check_interval": 60,
   "alert_policy": {
-    "request_timeout_seconds": 30,
+    "request_timeout_seconds": 60,
     "down_failures_threshold": 1,
     "up_success_threshold": 1,
     "still_down_repeat_seconds": 600
@@ -372,7 +372,7 @@ if (datetime.now() - last_cert_check).total_seconds() >= 86400:
 {
   "check_interval": 300,
   "alert_policy": {
-    "request_timeout_seconds": 30,
+    "request_timeout_seconds": 60,
     "down_failures_threshold": 3,
     "up_success_threshold": 2,
     "still_down_repeat_seconds": 1800
@@ -392,7 +392,7 @@ if (datetime.now() - last_cert_check).total_seconds() >= 86400:
 | Параметр | За замовчуванням | Мін | Макс | Рекомендовано |
 |----------|-----------------|-----|------|---------------|
 | `check_interval` | 60с | 10с | 3600с | 60с |
-| `request_timeout_seconds` | 30с | 1с | 300с | 30с |
+| `request_timeout_seconds` | 60с | 1с | 300с | 60с |
 | `down_failures_threshold` | 1 | 1 | 10 | 1-3 |
 | `up_success_threshold` | 1 | 1 | 10 | 1-2 |
 | `still_down_repeat_seconds` | 600с | 60с | 86400с | 600с |
@@ -451,7 +451,7 @@ sqlite3 /var/lib/uptime-monitor/sites.db "
 **Проблема:** `response_time > 1000ms`
 
 **Рішення:**
-1. Збільште `request_timeout_seconds` до 30
+1. Збільште `request_timeout_seconds` до 60
 2. Перевірте мережеве з'єднання
 3. Оптимізуйте сервер
 

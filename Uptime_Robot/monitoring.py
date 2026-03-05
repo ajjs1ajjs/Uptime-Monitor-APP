@@ -19,7 +19,7 @@ SUCCESS_ATTEMPTS = {}  # site_id -> count of consecutive successes
 
 # Чутливий профіль (конфігуровані значення з fallback)
 SENSITIVE_DEFAULTS = {
-    "request_timeout_seconds": 30,
+    "request_timeout_seconds": 60,
     "down_failures_threshold": 1,
     "up_success_threshold": 1,
     "still_down_repeat_seconds": 600,
@@ -44,10 +44,10 @@ def get_alert_policy() -> Dict[str, Any]:
     # Нормалізація типів/меж
     try:
         result["request_timeout_seconds"] = max(
-            1, int(result.get("request_timeout_seconds", 30))
+            1, int(result.get("request_timeout_seconds", 60))
         )
     except Exception:
-        result["request_timeout_seconds"] = 30
+        result["request_timeout_seconds"] = 60
 
     try:
         result["down_failures_threshold"] = max(

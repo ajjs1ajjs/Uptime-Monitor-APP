@@ -60,7 +60,7 @@ DEFAULT_CONFIG = {
         "email_to": "",
     },
     "alert_policy": {
-        "request_timeout_seconds": 10,
+        "request_timeout_seconds": 60,
         "down_failures_threshold": 1,
         "up_success_threshold": 1,
         "still_down_repeat_seconds": 600,
