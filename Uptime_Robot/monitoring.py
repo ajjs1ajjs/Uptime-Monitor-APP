@@ -24,8 +24,9 @@ SENSITIVE_DEFAULTS = {
     "up_success_threshold": 1,
     "still_down_repeat_seconds": 600,
     "treat_4xx_as_down": True,
-    "ssl_notification_days": 21,
-    "ssl_notification_cooldown_seconds": 43200,
+    "ssl_notification_days": 7,
+    "ssl_notification_cooldown_seconds": 21600,
+    "ssl_check_interval_hours": 6,
 }
 
 
@@ -79,10 +80,17 @@ def get_alert_policy() -> Dict[str, Any]:
 
     try:
         result["ssl_notification_cooldown_seconds"] = max(
-            300, int(result.get("ssl_notification_cooldown_seconds", 43200))
+            300, int(result.get("ssl_notification_cooldown_seconds", 21600))
         )
     except Exception:
-        result["ssl_notification_cooldown_seconds"] = 43200
+        result["ssl_notification_cooldown_seconds"] = 21600
+
+    try:
+        result["ssl_check_interval_hours"] = max(
+            1, int(result.get("ssl_check_interval_hours", 6))
+        )
+    except Exception:
+        result["ssl_check_interval_hours"] = 6
 
     result["treat_4xx_as_down"] = bool(result.get("treat_4xx_as_down", True))
     return result
@@ -386,6 +394,10 @@ async def check_all_certificates(notify_settings: Dict[str, Any]):
 
 async def monitor_loop(notify_settings: Dict[str, Any], check_interval: int = 60):
     """Основний цикл моніторингу"""
+    policy = get_alert_policy()
+    ssl_check_interval = (
+        policy["ssl_check_interval_hours"] * 3600
+    )  # конвертація в секунди
     last_cert_check = datetime.now() - timedelta(hours=25)
 
     while True:
@@ -407,8 +419,8 @@ async def monitor_loop(notify_settings: Dict[str, Any], check_interval: int = 60
                     site["id"], site["url"], notify_methods, notify_settings
                 )
 
-            # Перевірка SSL сертифікатів раз на добу
-            if (datetime.now() - last_cert_check).total_seconds() >= 86400:
+            # Перевірка SSL сертифікатів кожні 6 годин
+            if (datetime.now() - last_cert_check).total_seconds() >= ssl_check_interval:
                 logger.info("Checking SSL certificates in background...")
                 await check_all_certificates(notify_settings)
                 last_cert_check = datetime.now()

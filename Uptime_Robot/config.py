@@ -1,7 +1,8 @@
 import os
-from typing import Optional
-from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import Optional
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -57,7 +58,7 @@ class Settings(BaseSettings):
 
     # SSL Certificate Settings
     ssl_check_enabled: bool = True
-    ssl_notification_days: int = 14
+    ssl_notification_days: int = 7
     ssl_critical_days: int = 3
     ssl_warning_days: int = 7
 
@@ -84,7 +85,7 @@ def get_settings() -> Settings:
 
 def get_env_file_path() -> Optional[str]:
     """Отримує шлях до .env файлу"""
-    if getattr(__import__('sys'), 'frozen', False):
+    if getattr(__import__("sys"), "frozen", False):
         app_dir = os.path.dirname(os.path.abspath(sys.executable))
     else:
         app_dir = os.path.dirname(os.path.abspath(__file__))
@@ -104,6 +105,8 @@ def load_env_file() -> None:
 
 def get_database_path() -> str:
     """Отримує шлях до бази даних"""
-    if getattr(__import__('sys'), 'frozen', False):
-        return os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "sites.db")
+    if getattr(__import__("sys"), "frozen", False):
+        return os.path.join(
+            os.path.dirname(os.path.abspath(sys.executable)), "sites.db"
+        )
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "sites.db")

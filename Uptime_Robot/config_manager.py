@@ -65,8 +65,9 @@ DEFAULT_CONFIG = {
         "up_success_threshold": 1,
         "still_down_repeat_seconds": 600,
         "treat_4xx_as_down": True,
-        "ssl_notification_days": 21,
-        "ssl_notification_cooldown_seconds": 43200,
+        "ssl_notification_days": 7,
+        "ssl_notification_cooldown_seconds": 21600,
+        "ssl_check_interval_hours": 6,
     },
     "backup": {
         "enabled": True,
