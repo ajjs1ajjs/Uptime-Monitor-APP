@@ -260,14 +260,15 @@ sudo apt update && sudo apt install uptime-monitor
 sudo systemctl start uptime-monitor
 ```
 
-## Встановлення Windows (окремий розділ)
+## Встановлення Windows
 
-### Спосіб 1: Проста інсталяція
-1. Завантажте `uptime-monitor-vX.X.X-windows.zip` з [Релізи](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
-2. Витягніть у потрібне місце
+### Спосіб 1: Проста інсталяція (рекомендовано)
+1. Завантажте `uptime-monitor-v2.0.0-windows.zip` з [Releases](https://github.com/ajjs1ajjs/Uptime-Monitor-APP/releases)
+2. Витягніть у потрібне місце (наприклад, `C:\UptimeMonitor`)
 3. Відкрийте папку `Uptime_Robot`
 4. Запустіть `install.bat` від імені адміністратора
-5. Відкрийте `http://localhost:8080` (або вибраний порт)
+5. Введіть порт (натисніть Enter для порту за замовчуванням 8080)
+6. Відкрийте `http://localhost:8080` у браузері
 
 ### Спосіб 2: Встановлення вручну
 ```cmd
@@ -276,6 +277,81 @@ python -m pip install -r requirements.txt
 python -c "import config_manager as c; c.init_paths(); cfg=c.load_config(); cfg.setdefault('server', {})['port']=8080; c.save_config(cfg)"
 python main_service.py install
 net start UptimeMonitor
+```
+
+### Спосіб 3: Встановлення з Git (для розробки)
+```cmd
+git clone https://github.com/ajjs1ajjs/Uptime-Monitor-APP.git
+cd Uptime-Monitor-APP\Uptime_Robot
+python -m pip install -r requirements.txt
+python main_service.py install
+net start UptimeMonitor
+```
+
+### Windows - Резервне копіювання
+
+**Важливо:** Зберігайте `sites.db` та `config.json` перед оновленням!
+
+```powershell
+# Резервне копіювання даних
+Copy-Item "$env:USERPROFILE\UptimeMonitor\sites.db" "$env:USERPROFILE\UptimeMonitor\sites.db.backup.$(Get-Date -Format yyyyMMdd-HHmmss)"
+Copy-Item "$env:USERPROFILE\UptimeMonitor\config.json" "$env:USERPROFILE\UptimeMonitor\config.json.backup.$(Get-Date -Format yyyyMMdd-HHmmss)"
+
+# Відновлення з бекапу
+Copy-Item "$env:USERPROFILE\UptimeMonitor\sites.db.backup.20260305-120000" "$env:USERPROFILE\UptimeMonitor\sites.db"
+Copy-Item "$env:USERPROFILE\UptimeMonitor\config.json.backup.20260305-120000" "$env:USERPROFILE\UptimeMonitor\config.json"
+```
+
+### Windows - Усунення несправностей
+
+```cmd
+# Перевірка статусу служби
+sc query UptimeMonitor
+
+# Перевірка порту
+netstat -ano | findstr :8080
+
+# Перегляд логів
+type "%USERPROFILE%\UptimeMonitor\uptime_monitor.log"
+
+# Якщо служба не запускається - спробуйте вручну
+cd C:\UptimeMonitor\Uptime_Robot
+python main.py
+
+# Перевстановка служби
+net stop UptimeMonitor
+python main_service.py remove
+python main_service.py install
+net start UptimeMonitor
+```
+
+### Windows - Конфігурація
+
+**Розташування:** `%USERPROFILE%\UptimeMonitor\config.json`
+
+```json
+{
+  "server": {
+    "port": 8080,
+    "host": "auto"
+  },
+  "check_interval": 60,
+  "alert_policy": {
+    "ssl_check_interval_hours": 6,
+    "ssl_notification_days": 7
+  }
+}
+```
+
+**Зміна порту:**
+```powershell
+# Редагувати config.json
+notepad "$env:USERPROFILE\UptimeMonitor\config.json"
+
+# Або через PowerShell
+$cfg = Get-Content "$env:USERPROFILE\UptimeMonitor\config.json" | ConvertFrom-Json
+$cfg.server.port = 9090
+$cfg | ConvertTo-Json -Depth 10 | Set-Content "$env:USERPROFILE\UptimeMonitor\config.json"
 ```
 
 ## Встановлення Docker
