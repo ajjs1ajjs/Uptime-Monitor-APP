@@ -46,6 +46,7 @@ NOTIFY_SETTINGS = config_manager.DEFAULT_NOTIFY_SETTINGS.copy()
 DISPLAY_ADDRESS = ""
 CHECK_INTERVAL = CONFIG.get("check_interval", 60)
 DEFAULT_HOST = CONFIG.get("server", {}).get("host", "auto")
+DEFAULT_PORT = CONFIG.get("server", {}).get("port", 8080)
 
 
 # Get default host if "auto" is set
