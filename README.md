@@ -39,6 +39,7 @@ Login: admin / Password: admin
 
 | Документ | Опис |
 |----------|------|
+| **[🚀 MIGRATION.md](docs/MIGRATION.md)** | **Міграція в хмару (AWS/Azure)** |
 | **[QUICKSTART.md](docs/QUICKSTART.md)** | Швидкий старт за 5 хвилин |
 | **[COMMANDS.md](docs/COMMANDS.md)** | Всі команди в одному місці |
 | **[UPDATE_INSTRUCTIONS.md](docs/UPDATE_INSTRUCTIONS.md)** | Безпечне оновлення (backup + rollback) |
