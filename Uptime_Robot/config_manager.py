@@ -34,7 +34,7 @@ def init_paths():
 
 # Default configuration
 DEFAULT_CONFIG = {
-    "server": {"port": 8080, "host": "0.0.0.0", "domain": "auto"},
+    "server": {"port": 8080, "host": "auto", "domain": "auto"},
     "ssl": {
         "enabled": False,
         "type": "custom",

@@ -1,8 +1,29 @@
 import os
+import socket
 from functools import lru_cache
 from typing import Optional
 
 from pydantic_settings import BaseSettings
+
+
+def get_default_host() -> str:
+    """Отримує поточну IP адресу сервера за замовчуванням"""
+    try:
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
+        # Якщо localhost, спробуємо отримати зовнішню IP
+        if ip.startswith("127."):
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                s.connect(("8.8.8.8", 80))
+                ip = s.getsockname()[0]
+            except Exception:
+                pass
+            finally:
+                s.close()
+        return ip
+    except Exception:
+        return "0.0.0.0"
 
 
 class Settings(BaseSettings):
@@ -14,8 +35,8 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Server
-    port: int = 8000
-    host: str = "0.0.0.0"
+    port: int = 8080
+    host: str = "0.0.0.0"  # Буде замінено на get_default_host() якщо не вказано
 
     # Database
     db_path: str = "sites.db"
@@ -80,7 +101,13 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     """Отримує кешовану інстанцію налаштувань"""
-    return Settings()
+    settings = Settings()
+
+    # Якщо host не вказано в .env або це значення за замовчуванням, використовуємо поточну IP
+    if settings.host == "0.0.0.0":
+        settings.host = get_default_host()
+
+    return settings
 
 
 def get_env_file_path() -> Optional[str]:

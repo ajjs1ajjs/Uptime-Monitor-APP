@@ -1,31 +1,31 @@
-import sys
-import os
-import json
-import sqlite3
 import asyncio
-import threading
+import json
+import os
 import socket
+import sqlite3
+import sys
+import threading
 import traceback
-import servicemanager
-import win32serviceutil
-import win32service
-import win32event
 from datetime import datetime
-from typing import List, Optional, Dict, Any
-
-from fastapi import FastAPI, HTTPException, Request, Form
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
-import uvicorn
+from typing import Any, Dict, List, Optional
 
 # Internal modules
 import config_manager
-import ui_templates
-import notifications
-import monitoring
 import models
+import notifications
+import servicemanager
+import ui_templates
+import uvicorn
+import win32event
+import win32service
+import win32serviceutil
 from database import get_db_connection
+from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from logger import logger
+from pydantic import BaseModel
+
+import monitoring
 
 # Configuration
 config_manager.init_paths()
@@ -33,12 +33,37 @@ CONFIG = config_manager.load_config()
 DB_PATH = config_manager.DB_PATH
 APP_DIR = config_manager.APP_DIR
 DEFAULT_PORT = CONFIG.get("server", {}).get("port", 8080)
+DEFAULT_HOST = CONFIG.get("server", {}).get("host", "auto")
 CHECK_INTERVAL = CONFIG.get("check_interval", 60)
 
 # Global settings
 NOTIFY_SETTINGS = config_manager.DEFAULT_NOTIFY_SETTINGS.copy()
 
+
+# Get default host if "auto" is set
+def get_default_host():
+    """Отримує поточну IP адресу сервера"""
+    try:
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
+        if ip.startswith("127."):
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                s.connect(("8.8.8.8", 80))
+                ip = s.getsockname()[0]
+            except Exception:
+                pass
+            finally:
+                s.close()
+        return ip
+    except Exception:
+        return "0.0.0.0"
+
+
+SERVER_HOST = get_default_host() if DEFAULT_HOST == "auto" else DEFAULT_HOST
+
 app = FastAPI(title="Uptime Monitor Service")
+
 
 # --- Initialization ---
 def initialize_app():
@@ -55,7 +80,9 @@ def initialize_app():
             except:
                 pass
 
+
 initialize_app()
+
 
 # --- Pydantic Models (Simplified for Service) ---
 class SiteCreate(BaseModel):
@@ -65,11 +92,13 @@ class SiteCreate(BaseModel):
     is_active: bool = True
     notify_methods: Optional[List[str]] = []
 
+
 class SiteUpdate(BaseModel):
     name: Optional[str] = None
     url: Optional[str] = None
     notify_methods: Optional[List[str]] = None
     is_active: Optional[bool] = None
+
 
 class NotifySettings(BaseModel):
     telegram: Optional[dict] = None
@@ -79,7 +108,9 @@ class NotifySettings(BaseModel):
     email: Optional[dict] = None
     sms: Optional[dict] = None
 
+
 # --- API Endpoints ---
+
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
@@ -95,13 +126,16 @@ async def dashboard():
     notify_config_json = json.dumps(NOTIFY_SETTINGS)
 
     # Note: Service dashboard uses a single-page approach without login
-    return HTMLResponse(content=ui_templates.get_dashboard_html(
-        total_sites=total_sites,
-        up_sites=up_sites,
-        down_sites=down_sites,
-        notify_config_json=notify_config_json,
-        notification_cards=notification_cards
-    ))
+    return HTMLResponse(
+        content=ui_templates.get_dashboard_html(
+            total_sites=total_sites,
+            up_sites=up_sites,
+            down_sites=down_sites,
+            notify_config_json=notify_config_json,
+            notification_cards=notification_cards,
+        )
+    )
+
 
 @app.get("/status", response_class=HTMLResponse)
 @app.get("/public-status", response_class=HTMLResponse)
@@ -183,19 +217,26 @@ async def public_status_page():
         )
     )
 
+
 @app.get("/api/sites")
 async def get_sites():
     with get_db_connection() as conn:
         c = conn.cursor()
         c.execute("SELECT * FROM sites ORDER BY id")
         sites = [dict(row) for row in c.fetchall()]
-        
+
         for site in sites:
-            c.execute("SELECT * FROM status_history WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1", (site["id"],))
+            c.execute(
+                "SELECT * FROM status_history WHERE site_id = ? ORDER BY checked_at DESC LIMIT 1",
+                (site["id"],),
+            )
             last = c.fetchone()
             site["status"] = last["status"] if last else "unknown"
-            site["notify_methods"] = json.loads(site["notify_methods"]) if site["notify_methods"] else []
+            site["notify_methods"] = (
+                json.loads(site["notify_methods"]) if site["notify_methods"] else []
+            )
     return sites
+
 
 @app.get("/api/sites/{site_id}/history")
 async def get_site_history(site_id: int, limit: int = 50):
@@ -215,30 +256,44 @@ async def get_site_history(site_id: int, limit: int = 50):
         for h in history
     ]
 
+
 @app.post("/api/sites")
 async def add_site(site: SiteCreate):
     with get_db_connection() as conn:
         c = conn.cursor()
         try:
-            c.execute("INSERT INTO sites (name, url, check_interval, is_active, notify_methods) VALUES (?, ?, ?, ?, ?)",
-                      (site.name, site.url, site.check_interval, site.is_active, json.dumps(site.notify_methods)))
+            c.execute(
+                "INSERT INTO sites (name, url, check_interval, is_active, notify_methods) VALUES (?, ?, ?, ?, ?)",
+                (
+                    site.name,
+                    site.url,
+                    site.check_interval,
+                    site.is_active,
+                    json.dumps(site.notify_methods),
+                ),
+            )
             site_id = c.lastrowid
             conn.commit()
         except sqlite3.IntegrityError:
             raise HTTPException(400, "Already exists")
-    
-    await monitoring.check_site_status(site_id, site.url, site.notify_methods, NOTIFY_SETTINGS)
+
+    await monitoring.check_site_status(
+        site_id, site.url, site.notify_methods, NOTIFY_SETTINGS
+    )
     return {"id": site_id}
+
 
 @app.put("/api/sites/{site_id}")
 async def update_site(site_id: int, site_update: SiteUpdate):
     models.update_site(DB_PATH, site_id, **site_update.dict(exclude_unset=True))
     return {"message": "Updated"}
 
+
 @app.delete("/api/sites/{site_id}")
 async def delete_site(site_id: int):
     models.delete_site(DB_PATH, site_id)
     return {"message": "Deleted"}
+
 
 @app.post("/api/sites/{site_id}/check")
 async def manual_check(site_id: int):
@@ -246,28 +301,34 @@ async def manual_check(site_id: int):
         c = conn.cursor()
         c.execute("SELECT url, notify_methods FROM sites WHERE id = ?", (site_id,))
         site = c.fetchone()
-    if not site: raise HTTPException(404)
+    if not site:
+        raise HTTPException(404)
     methods = json.loads(site["notify_methods"]) if site["notify_methods"] else []
     await monitoring.check_site_status(site_id, site["url"], methods, NOTIFY_SETTINGS)
     return {"message": "Check done"}
+
 
 @app.post("/api/notify-settings")
 async def save_notify(settings: NotifySettings):
     global NOTIFY_SETTINGS
     data = settings.dict(exclude_unset=True)
     for k, v in data.items():
-        if v: NOTIFY_SETTINGS[k] = v
+        if v:
+            NOTIFY_SETTINGS[k] = v
     models.save_notify_settings(DB_PATH, NOTIFY_SETTINGS)
     return {"message": "Saved"}
+
 
 @app.get("/api/ssl-certificates")
 async def get_ssl_certs():
     return models.get_ssl_certificates(DB_PATH)
 
+
 @app.post("/api/ssl-certificates/check")
 async def manual_ssl_check():
     await monitoring.check_all_certificates(NOTIFY_SETTINGS)
     return {"message": "SSL check triggered"}
+
 
 @app.get("/api/stats/response-time")
 async def get_response_time_stats():
@@ -293,6 +354,7 @@ async def get_response_time_stats():
         }
         for r in results
     ]
+
 
 @app.get("/api/incidents")
 async def get_incidents():
@@ -335,7 +397,9 @@ async def get_incidents():
         )
     return incidents
 
+
 # --- Windows Service Logic ---
+
 
 class UptimeMonitorService(win32serviceutil.ServiceFramework):
     _svc_name_ = "UptimeMonitor"
@@ -371,12 +435,14 @@ class UptimeMonitorService(win32serviceutil.ServiceFramework):
         asyncio.set_event_loop(loop)
 
         try:
-            asyncio.ensure_future(monitoring.monitor_loop(NOTIFY_SETTINGS, CHECK_INTERVAL))
+            asyncio.ensure_future(
+                monitoring.monitor_loop(NOTIFY_SETTINGS, CHECK_INTERVAL)
+            )
             # In Windows Service context stdout/stderr may be None, which breaks
             # uvicorn default logging formatter (isatty check).
             config = uvicorn.Config(
                 app,
-                host="0.0.0.0",
+                host=SERVER_HOST,
                 port=DEFAULT_PORT,
                 log_level="error",
                 log_config=None,
@@ -413,6 +479,7 @@ class UptimeMonitorService(win32serviceutil.ServiceFramework):
             loop.close()
             self.ReportServiceStatus(win32service.SERVICE_STOPPED)
 
+
 def install_service():
     try:
         # Use script path so pywin32 registers the correct Python service class.
@@ -424,14 +491,22 @@ def install_service():
     except Exception as e:
         print(f"Installation error: {e}")
 
+
 def run_console():
-    print(f"Uptime Monitor (Console Mode) on port {DEFAULT_PORT}")
+    print(f"Uptime Monitor (Console Mode) on port {DEFAULT_PORT}, host {SERVER_HOST}")
+
     async def run():
         asyncio.create_task(monitoring.monitor_loop(NOTIFY_SETTINGS, CHECK_INTERVAL))
-        config = uvicorn.Config(app, host="0.0.0.0", port=DEFAULT_PORT, log_level="info")
+        config = uvicorn.Config(
+            app, host=SERVER_HOST, port=DEFAULT_PORT, log_level="info"
+        )
         await uvicorn.Server(config).serve()
-    try: asyncio.run(run())
-    except KeyboardInterrupt: pass
+
+    try:
+        asyncio.run(run())
+    except KeyboardInterrupt:
+        pass
+
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:

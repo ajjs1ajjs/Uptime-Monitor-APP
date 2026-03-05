@@ -14,7 +14,6 @@ import auth_module
 # Internal modules
 import config_manager
 import models
-import monitoring
 import notifications
 import ui_templates
 import uvicorn
@@ -24,6 +23,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from logger import logger
 from pydantic import BaseModel
+
+import monitoring
 
 # Windows-specific imports
 IS_WINDOWS = sys.platform == "win32"
@@ -44,6 +45,30 @@ APP_DIR = config_manager.APP_DIR
 NOTIFY_SETTINGS = config_manager.DEFAULT_NOTIFY_SETTINGS.copy()
 DISPLAY_ADDRESS = ""
 CHECK_INTERVAL = CONFIG.get("check_interval", 60)
+DEFAULT_HOST = CONFIG.get("server", {}).get("host", "auto")
+
+
+# Get default host if "auto" is set
+def get_default_host():
+    """Отримує поточну IP адресу сервера"""
+    try:
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
+        if ip.startswith("127."):
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                s.connect(("8.8.8.8", 80))
+                ip = s.getsockname()[0]
+            except Exception:
+                pass
+            finally:
+                s.close()
+        return ip
+    except Exception:
+        return "0.0.0.0"
+
+
+SERVER_HOST = get_default_host() if DEFAULT_HOST == "auto" else DEFAULT_HOST
 
 # FastAPI app
 app = FastAPI(title="Uptime Monitor")
@@ -913,7 +938,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--host",
         type=str,
-        default=CONFIG["server"].get("host", "0.0.0.0"),
+        default=SERVER_HOST,
         help="Host to bind to",
     )
     parser.add_argument(
@@ -942,7 +967,7 @@ if __name__ == "__main__":
             sys.exit(0)
 
     # Normal application start
-    print(f"Uptime Monitor starting on {args.host}:{args.port}...")
+    print(f"Uptime Monitor starting on {SERVER_HOST}:{DEFAULT_PORT}...")
 
     # Start monitoring loop in a thread
     monitor_thread = threading.Thread(
@@ -956,8 +981,8 @@ if __name__ == "__main__":
     ssl_context = config_manager.setup_ssl(CONFIG)
     uvicorn.run(
         app,
-        host=args.host,
-        port=args.port,
+        host=SERVER_HOST,
+        port=DEFAULT_PORT,
         ssl_keyfile=CONFIG["ssl"].get("key_path") if ssl_context else None,
         ssl_certfile=CONFIG["ssl"].get("cert_path") if ssl_context else None,
         log_level="info",
